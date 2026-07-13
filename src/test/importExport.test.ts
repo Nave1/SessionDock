@@ -1,0 +1,133 @@
+import { describe, it, expect } from "vitest";
+import { createCsvExport, parseCsvImport, createSafeExport, parseJsonImport } from "../utils/importExport";
+import type { Session, Folder } from "../types";
+
+const mockSession: Session = {
+  id: "test-1",
+  name: "Core-Switch-01",
+  host: "192.168.1.1",
+  port: 22,
+  protocol: "ssh",
+  username: "admin",
+  authentication_method: "password",
+  favorite: true,
+  connection_timeout: 30,
+  keepalive_interval: 60,
+  connection_count: 5,
+  device_type: "Switch",
+  vendor: "Cisco",
+  model: "C9300",
+  description: "Main distribution switch",
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+  last_connected_at: "2026-07-01T00:00:00Z",
+};
+
+const mockFolder: Folder = {
+  id: "folder-1",
+  name: "Data Center",
+  sort_order: 0,
+  created_at: "2026-01-01T00:00:00Z",
+  updated_at: "2026-01-01T00:00:00Z",
+};
+
+describe("CSV Export", () => {
+  it("creates valid CSV with headers", () => {
+    const csv = createCsvExport([mockSession]);
+    const lines = csv.split("\n");
+    expect(lines[0]).toContain("Name");
+    expect(lines[0]).toContain("Host");
+    expect(lines[0]).toContain("Protocol");
+    expect(lines.length).toBe(2);
+  });
+
+  it("does not include passwords", () => {
+    const csv = createCsvExport([mockSession]);
+    expect(csv.toLowerCase()).not.toContain("password");
+    // Should not have credential_profile_id or vault references
+    expect(csv).not.toContain("credential_profile_id");
+  });
+
+  it("escapes commas in values", () => {
+    const session = { ...mockSession, description: "Has, comma" };
+    const csv = createCsvExport([session]);
+    expect(csv).toContain('"Has, comma"');
+  });
+});
+
+describe("CSV Import", () => {
+  it("parses CSV correctly", () => {
+    const csv = "Name,Host,Port,Protocol,Username\nSwitch-01,10.0.0.1,22,ssh,admin";
+    const sessions = parseCsvImport(csv);
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].name).toBe("Switch-01");
+    expect(sessions[0].host).toBe("10.0.0.1");
+    expect(sessions[0].port).toBe(22);
+    expect(sessions[0].protocol).toBe("ssh");
+  });
+
+  it("handles empty CSV", () => {
+    expect(parseCsvImport("")).toHaveLength(0);
+    expect(parseCsvImport("Name,Host\n")).toHaveLength(0);
+  });
+
+  it("handles quoted fields", () => {
+    const csv = 'Name,Host,Description\n"Switch, Main","10.0.0.1","A ""special"" device"';
+    const sessions = parseCsvImport(csv);
+    expect(sessions[0].name).toBe("Switch, Main");
+    expect(sessions[0].description).toBe('A "special" device');
+  });
+});
+
+describe("JSON Export", () => {
+  it("creates safe export without credentials", () => {
+    const tags = new Map<string, string[]>();
+    tags.set("test-1", ["production", "datacenter"]);
+
+    const exported = createSafeExport([mockSession], [mockFolder], tags);
+
+    expect(exported.version).toBe("1.0");
+    expect(exported.application).toBe("SessionDock");
+    expect(exported.contains_credentials).toBe(false);
+    expect(exported.sessions).toHaveLength(1);
+    expect(exported.folders).toHaveLength(1);
+    expect(exported.tags).toContain("production");
+  });
+
+  it("excludes IDs from exported sessions", () => {
+    const tags = new Map<string, string[]>();
+    const exported = createSafeExport([mockSession], [], tags);
+    const session = exported.sessions[0];
+    // The exported session should not have an 'id' field
+    expect("id" in session).toBe(false);
+  });
+
+  it("excludes credential_profile_id", () => {
+    const sessionWithCred = { ...mockSession, credential_profile_id: "cred-123" };
+    const tags = new Map<string, string[]>();
+    const exported = createSafeExport([sessionWithCred], [], tags);
+    expect(JSON.stringify(exported)).not.toContain("cred-123");
+  });
+});
+
+describe("JSON Import", () => {
+  it("parses valid SessionDock export", () => {
+    const data = {
+      version: "1.0",
+      application: "SessionDock",
+      exported_at: "2026-01-01",
+      contains_credentials: false,
+      sessions: [],
+      folders: [],
+      tags: [],
+    };
+    const result = parseJsonImport(JSON.stringify(data));
+    expect(result).not.toBeNull();
+    expect(result?.application).toBe("SessionDock");
+  });
+
+  it("rejects invalid JSON", () => {
+    expect(parseJsonImport("not json")).toBeNull();
+    expect(parseJsonImport('{"foo": "bar"}')).toBeNull();
+  });
+});

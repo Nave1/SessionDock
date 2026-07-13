@@ -9,6 +9,7 @@ mod protocols;
 
 pub use db::Database;
 pub use error::AppError;
+use commands::connections::ConnectionManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -28,6 +29,7 @@ pub fn run() {
                 .expect("Failed to initialize database");
 
             app.manage(database);
+            app.manage(ConnectionManager::new());
 
             log::info!("SessionDock initialized. DB: {:?}", db_path);
             Ok(())
@@ -47,6 +49,11 @@ pub fn run() {
             commands::credentials::get_credential_profiles,
             commands::credentials::delete_credential,
             commands::serial::list_serial_ports,
+            commands::connections::connect_ssh,
+            commands::connections::connect_telnet,
+            commands::connections::terminal_write,
+            commands::connections::terminal_resize,
+            commands::connections::disconnect_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,8 +4,10 @@ import { MainContent } from "./components/MainContent";
 import { CommandPalette } from "./components/CommandPalette";
 import { SessionForm } from "./components/forms/SessionForm";
 import { FolderForm } from "./components/forms/FolderForm";
+import { ToastContainer } from "./components/ToastContainer";
 import { useAppStore } from "./stores/appStore";
 import { useSessionStore } from "./stores/sessionStore";
+import { useToastStore } from "./stores/toastStore";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import type { CreateSessionRequest, CreateFolderRequest } from "./types";
 
@@ -16,6 +18,7 @@ function App() {
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
   const folders = useSessionStore((s) => s.folders);
   const { addSession, addFolder } = useSessionStore();
+  const addToast = useToastStore((s) => s.addToast);
 
   useKeyboardShortcuts({ onCommandPalette: () => setCommandPaletteOpen(true) });
 
@@ -33,6 +36,7 @@ function App() {
     };
     addSession(session);
     setSessionFormOpen(false);
+    addToast("success", `Session "${data.name}" created`);
   };
 
   const handleCreateFolder = (data: CreateFolderRequest) => {
@@ -45,6 +49,7 @@ function App() {
     };
     addFolder(folder);
     setFolderFormOpen(false);
+    addToast("success", `Folder "${data.name}" created`);
   };
 
   return (
@@ -78,6 +83,8 @@ function App() {
           folders={folders.map((f) => ({ id: f.id, name: f.name }))}
         />
       )}
+
+      <ToastContainer />
     </div>
   );
 }
