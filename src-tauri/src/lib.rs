@@ -54,6 +54,13 @@ pub fn run() {
             commands::connections::terminal_write,
             commands::connections::terminal_resize,
             commands::connections::disconnect_terminal,
+            commands::known_hosts::get_known_hosts,
+            commands::known_hosts::verify_host_key,
+            commands::known_hosts::trust_host_key,
+            commands::known_hosts::remove_known_host,
+            commands::data::export_sessions_json,
+            commands::data::export_sessions_csv,
+            commands::data::import_sessions_json,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
