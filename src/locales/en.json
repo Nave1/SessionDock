@@ -1,0 +1,99 @@
+{
+  "app": {
+    "name": "SessionDock",
+    "tagline": "Terminal Session Manager"
+  },
+  "sidebar": {
+    "search": "Search sessions...",
+    "home": "Home",
+    "allSessions": "All Sessions",
+    "favorites": "Favorites",
+    "recent": "Recent",
+    "folders": "Folders",
+    "tags": "Tags",
+    "credentials": "Credentials",
+    "settings": "Settings",
+    "newSession": "New Session",
+    "newFolder": "New Folder"
+  },
+  "home": {
+    "quickConnect": "Quick Connect",
+    "createSession": "Create Session",
+    "createFolder": "Create Folder",
+    "importSessions": "Import Sessions",
+    "favorites": "Favorites",
+    "recentSessions": "Recent Sessions",
+    "totalSessions": "Sessions",
+    "totalFolders": "Folders",
+    "noSessions": "No sessions yet. Create your first session to get started."
+  },
+  "session": {
+    "name": "Name",
+    "host": "Host",
+    "port": "Port",
+    "protocol": "Protocol",
+    "username": "Username",
+    "password": "Password",
+    "folder": "Folder",
+    "description": "Description",
+    "notes": "Notes",
+    "tags": "Tags",
+    "deviceType": "Device Type",
+    "vendor": "Vendor",
+    "model": "Model",
+    "favorite": "Favorite",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "reconnect": "Reconnect"
+  },
+  "protocols": {
+    "ssh": "SSH",
+    "telnet": "Telnet",
+    "serial": "Serial"
+  },
+  "terminal": {
+    "connecting": "Connecting...",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "authFailed": "Authentication Failed",
+    "hostKeyWarning": "Host Key Warning",
+    "timeout": "Connection Timeout",
+    "error": "Connection Error",
+    "closeTab": "Close Tab",
+    "closeOthers": "Close Others",
+    "closeAll": "Close All",
+    "pin": "Pin Tab",
+    "unpin": "Unpin Tab"
+  },
+  "search": {
+    "placeholder": "Search by name, IP, host, tag...",
+    "noResults": "No sessions found",
+    "commandPalette": "Command Palette"
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "appearance": "Appearance",
+    "terminal": "Terminal",
+    "ssh": "SSH",
+    "security": "Security",
+    "data": "Data",
+    "about": "About"
+  },
+  "errors": {
+    "hostNotFound": "Host not found",
+    "connectionRefused": "Connection refused",
+    "connectionTimeout": "Connection timed out",
+    "authFailed": "Authentication failed",
+    "keyRejected": "SSH key rejected",
+    "hostKeyMismatch": "Host key mismatch - possible security issue",
+    "networkUnavailable": "Network unavailable",
+    "portUnavailable": "Serial port unavailable",
+    "permissionDenied": "Permission denied",
+    "unexpected": "An unexpected error occurred"
+  }
+}

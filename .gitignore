@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+target/
+out/
+
+# Tauri
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/icons/*.ico.bak
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database files (user data)
+*.db
+*.db-wal
+*.db-shm
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Packaging artifacts
+*.exe
+*.dmg
+*.app
+*.msi
+*.nsis
+*.blockmap
+*.sig
+bundle/
+
+# Certificates and secrets
+*.p12
+*.pfx
+*.key
+*.pem
+*.cer
+*.crt
+*.keystore
+signing/
+
+# Crash reports
+crash-reports/

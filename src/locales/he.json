@@ -1,0 +1,99 @@
+{
+  "app": {
+    "name": "SessionDock",
+    "tagline": "מנהל חיבורי טרמינל"
+  },
+  "sidebar": {
+    "search": "חיפוש חיבורים...",
+    "home": "בית",
+    "allSessions": "כל החיבורים",
+    "favorites": "מועדפים",
+    "recent": "אחרונים",
+    "folders": "תיקיות",
+    "tags": "תגיות",
+    "credentials": "אישורים",
+    "settings": "הגדרות",
+    "newSession": "חיבור חדש",
+    "newFolder": "תיקייה חדשה"
+  },
+  "home": {
+    "quickConnect": "חיבור מהיר",
+    "createSession": "יצירת חיבור",
+    "createFolder": "יצירת תיקייה",
+    "importSessions": "ייבוא חיבורים",
+    "favorites": "מועדפים",
+    "recentSessions": "חיבורים אחרונים",
+    "totalSessions": "חיבורים",
+    "totalFolders": "תיקיות",
+    "noSessions": "אין חיבורים עדיין. צור את החיבור הראשון שלך כדי להתחיל."
+  },
+  "session": {
+    "name": "שם",
+    "host": "כתובת",
+    "port": "פורט",
+    "protocol": "פרוטוקול",
+    "username": "שם משתמש",
+    "password": "סיסמה",
+    "folder": "תיקייה",
+    "description": "תיאור",
+    "notes": "הערות",
+    "tags": "תגיות",
+    "deviceType": "סוג מכשיר",
+    "vendor": "יצרן",
+    "model": "דגם",
+    "favorite": "מועדף",
+    "save": "שמירה",
+    "cancel": "ביטול",
+    "delete": "מחיקה",
+    "duplicate": "שכפול",
+    "connect": "התחבר",
+    "disconnect": "התנתק",
+    "reconnect": "התחבר מחדש"
+  },
+  "protocols": {
+    "ssh": "SSH",
+    "telnet": "Telnet",
+    "serial": "Serial"
+  },
+  "terminal": {
+    "connecting": "מתחבר...",
+    "connected": "מחובר",
+    "disconnected": "מנותק",
+    "authFailed": "אימות נכשל",
+    "hostKeyWarning": "אזהרת מפתח שרת",
+    "timeout": "זמן חיבור פג",
+    "error": "שגיאת חיבור",
+    "closeTab": "סגור לשונית",
+    "closeOthers": "סגור אחרות",
+    "closeAll": "סגור הכל",
+    "pin": "הצמד לשונית",
+    "unpin": "בטל הצמדה"
+  },
+  "search": {
+    "placeholder": "חיפוש לפי שם, IP, כתובת, תגית...",
+    "noResults": "לא נמצאו חיבורים",
+    "commandPalette": "פלטת פקודות"
+  },
+  "settings": {
+    "title": "הגדרות",
+    "general": "כללי",
+    "appearance": "מראה",
+    "terminal": "טרמינל",
+    "ssh": "SSH",
+    "security": "אבטחה",
+    "data": "נתונים",
+    "about": "אודות"
+  },
+  "errors": {
+    "hostNotFound": "כתובת לא נמצאה",
+    "connectionRefused": "החיבור נדחה",
+    "connectionTimeout": "זמן החיבור פג",
+    "authFailed": "האימות נכשל",
+    "keyRejected": "מפתח SSH נדחה",
+    "hostKeyMismatch": "אי-התאמה במפתח שרת - בעיית אבטחה אפשרית",
+    "networkUnavailable": "רשת לא זמינה",
+    "portUnavailable": "פורט סריאלי לא זמין",
+    "permissionDenied": "הרשאה נדחתה",
+    "unexpected": "אירעה שגיאה בלתי צפויה"
+  }
+}

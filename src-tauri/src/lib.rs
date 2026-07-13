@@ -1,0 +1,53 @@
+use tauri::Manager;
+
+mod commands;
+mod db;
+mod credential_vault;
+mod error;
+mod models;
+mod protocols;
+
+pub use db::Database;
+pub use error::AppError;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data directory");
+
+            std::fs::create_dir_all(&app_data_dir)
+                .expect("Failed to create app data directory");
+
+            let db_path = app_data_dir.join("sessiondock.db");
+            let database = Database::new(&db_path)
+                .expect("Failed to initialize database");
+
+            app.manage(database);
+
+            log::info!("SessionDock initialized. DB: {:?}", db_path);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::sessions::create_session,
+            commands::sessions::get_sessions,
+            commands::sessions::get_session,
+            commands::sessions::update_session,
+            commands::sessions::delete_session,
+            commands::sessions::search_sessions,
+            commands::folders::create_folder,
+            commands::folders::get_folders,
+            commands::folders::update_folder,
+            commands::folders::delete_folder,
+            commands::credentials::store_credential,
+            commands::credentials::get_credential_profiles,
+            commands::credentials::delete_credential,
+            commands::serial::list_serial_ports,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
