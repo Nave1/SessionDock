@@ -5,3 +5,4 @@ pub mod serial;
 pub mod connections;
 pub mod known_hosts;
 pub mod data;
+pub mod terminal;

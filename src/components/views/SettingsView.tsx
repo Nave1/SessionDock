@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore, ThemeMode } from "../../stores/themeStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 import {
   Settings as SettingsIcon,
   Monitor,
@@ -67,24 +68,21 @@ export function SettingsView() {
 }
 
 function GeneralSettings() {
+  const s = useSettingsStore();
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Startup">
-        <SettingToggle label="Restore open tabs on restart" defaultChecked />
-        <SettingToggle label="Confirm before closing active sessions" defaultChecked />
-        <SettingToggle label="Start minimized" />
+        <LiveToggle label="Restore open tabs on restart" checked={s.restoreTabs} onChange={(v) => s.updateSetting("restoreTabs", v)} />
+        <LiveToggle label="Confirm before closing active sessions" checked={s.confirmCloseActive} onChange={(v) => s.updateSetting("confirmCloseActive", v)} />
+        <LiveToggle label="Start minimized" checked={s.startMinimized} onChange={(v) => s.updateSetting("startMinimized", v)} />
       </SettingGroup>
       <SettingGroup title="Defaults">
-        <SettingSelect
-          label="Default protocol"
-          options={["SSH", "Telnet", "Serial"]}
-          defaultValue="SSH"
-        />
-        <SettingInput label="Default SSH port" defaultValue="22" type="number" />
-        <SettingInput label="Default Telnet port" defaultValue="23" type="number" />
+        <LiveSelect label="Default protocol" options={["SSH", "Telnet", "Serial"]} value={s.defaultProtocol} onChange={(v) => s.updateSetting("defaultProtocol", v)} />
+        <LiveInput label="Default SSH port" value={String(s.defaultSshPort)} type="number" onChange={(v) => s.updateSetting("defaultSshPort", parseInt(v) || 22)} />
+        <LiveInput label="Default Telnet port" value={String(s.defaultTelnetPort)} type="number" onChange={(v) => s.updateSetting("defaultTelnetPort", parseInt(v) || 23)} />
       </SettingGroup>
       <SettingGroup title="Language">
-        <SettingSelect label="Language" options={["English", "עברית"]} defaultValue="English" />
+        <LiveSelect label="Language" options={["English", "עברית"]} value={s.language} onChange={(v) => s.updateSetting("language", v)} />
       </SettingGroup>
     </div>
   );
@@ -92,6 +90,7 @@ function GeneralSettings() {
 
 function AppearanceSettings() {
   const { mode, setMode } = useThemeStore();
+  const s = useSettingsStore();
 
   return (
     <div className="space-y-6 max-w-lg">
@@ -114,41 +113,34 @@ function AppearanceSettings() {
             ))}
           </div>
         </div>
-        <SettingSelect
-          label="Accent color"
-          options={["Blue", "Cyan", "Green", "Purple", "Orange"]}
-          defaultValue="Blue"
-        />
+        <LiveSelect label="Accent color" options={["Blue", "Cyan", "Green", "Purple", "Orange"]} value={s.accentColor} onChange={(v) => s.updateSetting("accentColor", v)} />
       </SettingGroup>
       <SettingGroup title="Layout">
-        <SettingSelect
-          label="UI density"
-          options={["Compact", "Comfortable"]}
-          defaultValue="Compact"
-        />
-        <SettingToggle label="Animations" defaultChecked />
-        <SettingToggle label="Reduced motion" />
+        <LiveSelect label="UI density" options={["Compact", "Comfortable"]} value={s.uiDensity} onChange={(v) => s.updateSetting("uiDensity", v)} />
+        <LiveToggle label="Animations" checked={s.animations} onChange={(v) => s.updateSetting("animations", v)} />
+        <LiveToggle label="Reduced motion" checked={s.reducedMotion} onChange={(v) => s.updateSetting("reducedMotion", v)} />
       </SettingGroup>
     </div>
   );
 }
 
 function TerminalSettings() {
+  const s = useSettingsStore();
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Font">
-        <SettingInput label="Font family" defaultValue="JetBrains Mono, Consolas, monospace" />
-        <SettingInput label="Font size" defaultValue="14" type="number" />
-        <SettingInput label="Line height" defaultValue="1.2" type="number" />
+        <LiveInput label="Font family" value={s.fontFamily} onChange={(v) => s.updateSetting("fontFamily", v)} />
+        <LiveInput label="Font size" value={String(s.fontSize)} type="number" onChange={(v) => s.updateSetting("fontSize", parseInt(v) || 14)} />
+        <LiveInput label="Line height" value={String(s.lineHeight)} type="number" onChange={(v) => s.updateSetting("lineHeight", parseFloat(v) || 1.2)} />
       </SettingGroup>
       <SettingGroup title="Cursor">
-        <SettingSelect label="Cursor style" options={["Block", "Underline", "Bar"]} defaultValue="Block" />
-        <SettingToggle label="Cursor blink" defaultChecked />
+        <LiveSelect label="Cursor style" options={["Block", "Underline", "Bar"]} value={s.cursorStyle} onChange={(v) => s.updateSetting("cursorStyle", v)} />
+        <LiveToggle label="Cursor blink" checked={s.cursorBlink} onChange={(v) => s.updateSetting("cursorBlink", v)} />
       </SettingGroup>
       <SettingGroup title="Behavior">
-        <SettingInput label="Scrollback lines" defaultValue="10000" type="number" />
-        <SettingToggle label="Copy on select" />
-        <SettingSelect label="Bell" options={["None", "Sound", "Visual"]} defaultValue="None" />
+        <LiveInput label="Scrollback lines" value={String(s.scrollbackLines)} type="number" onChange={(v) => s.updateSetting("scrollbackLines", parseInt(v) || 10000)} />
+        <LiveToggle label="Copy on select" checked={s.copyOnSelect} onChange={(v) => s.updateSetting("copyOnSelect", v)} />
+        <LiveSelect label="Bell" options={["None", "Sound", "Visual"]} value={s.bellMode} onChange={(v) => s.updateSetting("bellMode", v)} />
       </SettingGroup>
     </div>
   );
@@ -158,10 +150,11 @@ function SecuritySettings() {
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Application Lock">
-        <SettingSelect
+        <LiveSelect
           label="Lock mode"
           options={["Disabled", "On startup", "After idle timeout"]}
-          defaultValue="Disabled"
+          value="Disabled"
+          onChange={() => {}}
         />
       </SettingGroup>
       <SettingGroup title="Credential Vault">
@@ -197,33 +190,21 @@ function AboutSettings() {
 // --- Reusable setting components ---
 
 function SshSettings() {
+  const s = useSettingsStore();
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Connection">
-        <SettingInput label="Default timeout (seconds)" defaultValue="30" type="number" />
-        <SettingInput label="Keepalive interval (seconds)" defaultValue="60" type="number" />
-        <SettingSelect
-          label="Default auth method"
-          options={["Password", "Private Key", "SSH Agent"]}
-          defaultValue="Password"
-        />
+        <LiveInput label="Default timeout (seconds)" value={String(s.sshTimeout)} type="number" onChange={(v) => s.updateSetting("sshTimeout", parseInt(v) || 30)} />
+        <LiveInput label="Keepalive interval (seconds)" value={String(s.sshKeepalive)} type="number" onChange={(v) => s.updateSetting("sshKeepalive", parseInt(v) || 60)} />
+        <LiveSelect label="Default auth method" options={["Password", "Private Key", "SSH Agent"]} value={s.defaultAuthMethod} onChange={(v) => s.updateSetting("defaultAuthMethod", v)} />
       </SettingGroup>
       <SettingGroup title="Host Key Verification">
-        <SettingToggle label="Verify host keys" defaultChecked />
-        <SettingToggle label="Warn on changed host keys" defaultChecked />
-        <div className="pt-2">
-          <button className="px-3 py-1.5 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors">
-            Manage Known Hosts...
-          </button>
-        </div>
+        <LiveToggle label="Verify host keys" checked={s.verifyHostKeys} onChange={(v) => s.updateSetting("verifyHostKeys", v)} />
+        <LiveToggle label="Warn on changed host keys" checked={s.warnChangedHostKeys} onChange={(v) => s.updateSetting("warnChangedHostKeys", v)} />
       </SettingGroup>
       <SettingGroup title="SSH Agent">
-        <SettingToggle label="Use SSH agent when available" defaultChecked />
-        <SettingSelect
-          label="Agent type"
-          options={["Auto-detect", "OpenSSH", "Pageant"]}
-          defaultValue="Auto-detect"
-        />
+        <LiveToggle label="Use SSH agent when available" checked={s.useSshAgent} onChange={(v) => s.updateSetting("useSshAgent", v)} />
+        <LiveSelect label="Agent type" options={["Auto-detect", "OpenSSH", "Pageant"]} value={s.sshAgentType} onChange={(v) => s.updateSetting("sshAgentType", v)} />
       </SettingGroup>
     </div>
   );
@@ -289,41 +270,27 @@ function SettingGroup({ title, children }: { title: string; children: React.Reac
   );
 }
 
-function SettingToggle({ label, defaultChecked }: { label: string; defaultChecked?: boolean }) {
-  const [checked, setChecked] = useState(defaultChecked ?? false);
+function LiveToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center justify-between cursor-pointer">
       <span className="text-xs text-dock-text-muted">{label}</span>
       <button
-        onClick={() => setChecked(!checked)}
-        className={`w-8 h-4 rounded-full transition-colors ${
-          checked ? "bg-dock-accent" : "bg-dock-border"
-        }`}
+        onClick={() => onChange(!checked)}
+        className={`w-8 h-4 rounded-full transition-colors ${checked ? "bg-dock-accent" : "bg-dock-border"}`}
       >
-        <div
-          className={`w-3 h-3 rounded-full bg-white transition-transform ${
-            checked ? "translate-x-4.5" : "translate-x-0.5"
-          }`}
-        />
+        <div className={`w-3 h-3 rounded-full bg-white transition-transform ${checked ? "translate-x-4.5" : "translate-x-0.5"}`} />
       </button>
     </label>
   );
 }
 
-function SettingSelect({
-  label,
-  options,
-  defaultValue,
-}: {
-  label: string;
-  options: string[];
-  defaultValue: string;
-}) {
+function LiveSelect({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-xs text-dock-text-muted">{label}</span>
       <select
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="px-2 py-1 rounded bg-dock-bg border border-dock-border text-xs text-dock-text focus:border-dock-accent focus:outline-none"
       >
         {options.map((opt) => (
@@ -334,21 +301,14 @@ function SettingSelect({
   );
 }
 
-function SettingInput({
-  label,
-  defaultValue,
-  type = "text",
-}: {
-  label: string;
-  defaultValue: string;
-  type?: string;
-}) {
+function LiveInput({ label, value, type = "text", onChange }: { label: string; value: string; type?: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-xs text-dock-text-muted">{label}</span>
       <input
         type={type}
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="w-48 px-2 py-1 rounded bg-dock-bg border border-dock-border text-xs text-dock-text focus:border-dock-accent focus:outline-none"
       />
     </div>

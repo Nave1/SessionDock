@@ -6,10 +6,12 @@ mod credential_vault;
 mod error;
 mod models;
 mod protocols;
+mod terminal;
 
 pub use db::Database;
 pub use error::AppError;
 use commands::connections::ConnectionManager;
+use terminal::ProcessManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,6 +34,7 @@ pub fn run() {
 
             app.manage(database);
             app.manage(ConnectionManager::new());
+            app.manage(ProcessManager::new());
 
             log::info!("SessionDock initialized. DB: {:?}", db_path);
             Ok(())
@@ -63,6 +66,9 @@ pub fn run() {
             commands::data::export_sessions_json,
             commands::data::export_sessions_csv,
             commands::data::import_sessions_json,
+            commands::terminal::spawn_terminal,
+            commands::terminal::write_terminal,
+            commands::terminal::close_terminal,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
