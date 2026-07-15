@@ -1,34 +1,42 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dock-bg: #0f0f14;
-  --color-dock-sidebar: #16161e;
-  --color-dock-surface: #1a1a24;
-  --color-dock-border: #2a2a3a;
-  --color-dock-text: #e4e4ef;
-  --color-dock-text-muted: #8888a0;
+  --color-dock-bg: #0a0a0f;
+  --color-dock-sidebar: #111118;
+  --color-dock-surface: #16161e;
+  --color-dock-surface-hover: #1c1c26;
+  --color-dock-border: #232334;
+  --color-dock-text: #e8e8f0;
+  --color-dock-text-secondary: #a0a0b8;
+  --color-dock-text-muted: #5c5c78;
   --color-dock-accent: #5b8af5;
   --color-dock-accent-hover: #7aa2f7;
-  --color-dock-success: #73daca;
-  --color-dock-warning: #e0af68;
-  --color-dock-error: #f7768e;
+  --color-dock-accent-subtle: rgba(91, 138, 245, 0.08);
+  --color-dock-success: #4ade80;
+  --color-dock-warning: #f59e0b;
+  --color-dock-error: #ef4444;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   background-color: var(--color-dock-bg);
   color: var(--color-dock-text);
   overflow: hidden;
   user-select: none;
   -webkit-user-select: none;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar styling */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -37,11 +45,46 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-dock-border);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-dock-text-muted);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 150ms ease-out;
+}
+
+.animate-slide-in {
+  animation: slideIn 200ms ease-out;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Transitions */
+* {
+  transition-property: background-color, border-color, color, opacity, transform, box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Terminal container */
@@ -51,5 +94,5 @@ body {
 }
 
 .xterm-container .xterm {
-  padding: 8px;
+  padding: 12px;
 }

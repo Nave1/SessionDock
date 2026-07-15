@@ -48,21 +48,25 @@ function applyTheme(mode: ThemeMode, accent: AccentColor) {
   if (isDark) {
     root.classList.add("dark");
     root.classList.remove("light");
-    root.style.setProperty("--color-dock-bg", "#0f0f14");
-    root.style.setProperty("--color-dock-sidebar", "#16161e");
-    root.style.setProperty("--color-dock-surface", "#1a1a24");
-    root.style.setProperty("--color-dock-border", "#2a2a3a");
-    root.style.setProperty("--color-dock-text", "#e4e4ef");
-    root.style.setProperty("--color-dock-text-muted", "#8888a0");
+    root.style.setProperty("--color-dock-bg", "#0a0a0f");
+    root.style.setProperty("--color-dock-sidebar", "#111118");
+    root.style.setProperty("--color-dock-surface", "#16161e");
+    root.style.setProperty("--color-dock-surface-hover", "#1c1c26");
+    root.style.setProperty("--color-dock-border", "#232334");
+    root.style.setProperty("--color-dock-text", "#e8e8f0");
+    root.style.setProperty("--color-dock-text-secondary", "#a0a0b8");
+    root.style.setProperty("--color-dock-text-muted", "#5c5c78");
   } else {
     root.classList.remove("dark");
     root.classList.add("light");
-    root.style.setProperty("--color-dock-bg", "#f8f9fa");
+    root.style.setProperty("--color-dock-bg", "#fafbfc");
     root.style.setProperty("--color-dock-sidebar", "#ffffff");
-    root.style.setProperty("--color-dock-surface", "#f0f1f3");
-    root.style.setProperty("--color-dock-border", "#e0e2e6");
+    root.style.setProperty("--color-dock-surface", "#f4f5f7");
+    root.style.setProperty("--color-dock-surface-hover", "#ecedf0");
+    root.style.setProperty("--color-dock-border", "#e2e4e8");
     root.style.setProperty("--color-dock-text", "#1a1a2e");
-    root.style.setProperty("--color-dock-text-muted", "#6b7080");
+    root.style.setProperty("--color-dock-text-secondary", "#4a4a60");
+    root.style.setProperty("--color-dock-text-muted", "#8888a0");
   }
 }
 
