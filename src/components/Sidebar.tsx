@@ -116,6 +116,12 @@ export function Sidebar({ width, onNewSession, onNewFolder }: SidebarProps) {
               setCurrentView("folder");
             }}
             onSelectSession={() => {}}
+            onMoveSession={(sessionId, folderId) => {
+              useSessionStore.getState().updateSessionInStore({
+                ...sessions.find((s) => s.id === sessionId)!,
+                folder_id: folderId,
+              });
+            }}
           />
           {folders.length === 0 && (
             <div className="px-2.5 py-2 text-xs text-dock-text-muted italic">

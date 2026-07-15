@@ -13,6 +13,7 @@ interface FolderTreeProps {
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
   onSelectSession: (session: Session) => void;
+  onMoveSession?: (sessionId: string, folderId: string) => void;
 }
 
 interface TreeNode {
@@ -62,6 +63,7 @@ export function FolderTree({
   selectedFolderId,
   onSelectFolder,
   onSelectSession,
+  onMoveSession,
 }: FolderTreeProps) {
   const tree = buildTree(folders, sessions);
 
@@ -79,6 +81,7 @@ export function FolderTree({
           selectedFolderId={selectedFolderId}
           onSelectFolder={onSelectFolder}
           onSelectSession={onSelectSession}
+          onMoveSession={onMoveSession}
         />
       ))}
     </div>
@@ -91,16 +94,39 @@ function TreeNodeItem({
   selectedFolderId,
   onSelectFolder,
   onSelectSession,
+  onMoveSession,
 }: {
   node: TreeNode;
   depth: number;
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
   onSelectSession: (session: Session) => void;
+  onMoveSession?: (sessionId: string, folderId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(depth < 2);
+  const [dragOver, setDragOver] = useState(false);
   const isSelected = selectedFolderId === node.folder.id;
   const hasChildren = node.children.length > 0 || node.sessions.length > 0;
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("application/sessiondock-session")) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      setDragOver(true);
+    }
+  };
+
+  const handleDragLeave = () => setDragOver(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const data = e.dataTransfer.getData("application/sessiondock-session");
+    if (data && onMoveSession) {
+      const { id } = JSON.parse(data);
+      onMoveSession(id, node.folder.id);
+    }
+  };
 
   return (
     <div>
@@ -109,10 +135,15 @@ function TreeNodeItem({
           onSelectFolder(node.folder.id);
           if (hasChildren) setExpanded(!expanded);
         }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={`w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors ${
-          isSelected
-            ? "bg-dock-accent/15 text-dock-accent"
-            : "text-dock-text-muted hover:text-dock-text hover:bg-dock-surface"
+          dragOver
+            ? "bg-dock-accent/25 text-dock-accent ring-1 ring-dock-accent"
+            : isSelected
+              ? "bg-dock-accent/15 text-dock-accent"
+              : "text-dock-text-muted hover:text-dock-text hover:bg-dock-surface"
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
@@ -148,6 +179,7 @@ function TreeNodeItem({
               selectedFolderId={selectedFolderId}
               onSelectFolder={onSelectFolder}
               onSelectSession={onSelectSession}
+              onMoveSession={onMoveSession}
             />
           ))}
           {node.sessions.map((session) => (

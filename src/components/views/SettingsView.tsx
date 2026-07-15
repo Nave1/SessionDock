@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useThemeStore, ThemeMode } from "../../stores/themeStore";
 import {
   Settings as SettingsIcon,
   Monitor,
@@ -56,8 +57,10 @@ export function SettingsView() {
         {activeTab === "general" && <GeneralSettings />}
         {activeTab === "appearance" && <AppearanceSettings />}
         {activeTab === "terminal" && <TerminalSettings />}
+        {activeTab === "ssh" && <SshSettings />}
         {activeTab === "about" && <AboutSettings />}
         {activeTab === "security" && <SecuritySettings />}
+        {activeTab === "data" && <DataSettings />}
       </div>
     </div>
   );
@@ -88,10 +91,29 @@ function GeneralSettings() {
 }
 
 function AppearanceSettings() {
+  const { mode, setMode } = useThemeStore();
+
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Theme">
-        <SettingSelect label="Mode" options={["Dark", "Light", "System"]} defaultValue="Dark" />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-dock-text-muted">Mode</span>
+          <div className="flex gap-1">
+            {(["dark", "light", "system"] as ThemeMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1.5 rounded text-xs capitalize transition-colors ${
+                  mode === m
+                    ? "bg-dock-accent text-white"
+                    : "bg-dock-surface text-dock-text-muted hover:text-dock-text"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+        </div>
         <SettingSelect
           label="Accent color"
           options={["Blue", "Cyan", "Green", "Purple", "Orange"]}
@@ -173,6 +195,90 @@ function AboutSettings() {
 }
 
 // --- Reusable setting components ---
+
+function SshSettings() {
+  return (
+    <div className="space-y-6 max-w-lg">
+      <SettingGroup title="Connection">
+        <SettingInput label="Default timeout (seconds)" defaultValue="30" type="number" />
+        <SettingInput label="Keepalive interval (seconds)" defaultValue="60" type="number" />
+        <SettingSelect
+          label="Default auth method"
+          options={["Password", "Private Key", "SSH Agent"]}
+          defaultValue="Password"
+        />
+      </SettingGroup>
+      <SettingGroup title="Host Key Verification">
+        <SettingToggle label="Verify host keys" defaultChecked />
+        <SettingToggle label="Warn on changed host keys" defaultChecked />
+        <div className="pt-2">
+          <button className="px-3 py-1.5 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors">
+            Manage Known Hosts...
+          </button>
+        </div>
+      </SettingGroup>
+      <SettingGroup title="SSH Agent">
+        <SettingToggle label="Use SSH agent when available" defaultChecked />
+        <SettingSelect
+          label="Agent type"
+          options={["Auto-detect", "OpenSSH", "Pageant"]}
+          defaultValue="Auto-detect"
+        />
+      </SettingGroup>
+    </div>
+  );
+}
+
+function DataSettings() {
+  return (
+    <div className="space-y-6 max-w-lg">
+      <SettingGroup title="Database">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-dock-text-muted">Location</span>
+          <span className="text-xs text-dock-text font-mono truncate max-w-[280px]">
+            %APPDATA%\com.sessiondock.app\sessiondock.db
+          </span>
+        </div>
+      </SettingGroup>
+      <SettingGroup title="Export">
+        <div className="space-y-2">
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
+            Export all sessions (JSON)
+          </button>
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
+            Export all sessions (CSV)
+          </button>
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
+            Create encrypted backup
+          </button>
+        </div>
+      </SettingGroup>
+      <SettingGroup title="Import">
+        <div className="space-y-2">
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
+            Import from JSON file
+          </button>
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
+            Import from CSV file
+          </button>
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
+            Restore encrypted backup
+          </button>
+        </div>
+      </SettingGroup>
+      <SettingGroup title="Danger Zone">
+        <div className="space-y-2">
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-error/10 text-dock-error border border-dock-error/20 hover:bg-dock-error/20 transition-colors text-left">
+            Clear recent sessions
+          </button>
+          <button className="w-full px-3 py-2 rounded text-xs bg-dock-error/10 text-dock-error border border-dock-error/20 hover:bg-dock-error/20 transition-colors text-left">
+            Reset all application data
+          </button>
+        </div>
+      </SettingGroup>
+    </div>
+  );
+}
 
 function SettingGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (

@@ -4,14 +4,17 @@ import { HomeView } from "./views/HomeView";
 import { SettingsView } from "./views/SettingsView";
 import { SessionList } from "./views/SessionList";
 import { TerminalTabs } from "./TerminalTabs";
+import { TerminalView } from "./terminal/TerminalView";
 
 interface MainContentProps {
   onNewSession: () => void;
   onNewFolder: () => void;
+  onQuickConnect: () => void;
+  onImport: () => void;
 }
 
-export function MainContent({ onNewSession, onNewFolder }: MainContentProps) {
-  const { currentView, tabs, addTab, selectedFolderId } = useAppStore();
+export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImport }: MainContentProps) {
+  const { currentView, tabs, activeTabId, addTab, selectedFolderId } = useAppStore();
   const { sessions } = useSessionStore();
 
   const handleConnect = (session: { id: string; name: string; host: string; protocol: string }) => {
@@ -31,51 +34,64 @@ export function MainContent({ onNewSession, onNewFolder }: MainContentProps) {
     : sessions;
 
   const favoriteSessions = sessions.filter((s) => s.favorite);
+  const activeTab = tabs.find((t) => t.id === activeTabId);
+
+  // Show terminal when a tab is active and view is not explicitly set to something else
+  const showTerminal = activeTab && (currentView === "home" || currentView === "allSessions" || currentView === "favorites" || currentView === "folder" || currentView === "recent");
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
-      {/* Terminal tabs bar */}
+      {/* Terminal tabs bar — always shown when tabs exist */}
       {tabs.length > 0 && <TerminalTabs />}
 
       {/* Content area */}
-      <div className="flex-1 overflow-hidden">
-        {tabs.length > 0 ? (
-          <div className="w-full h-full bg-dock-bg flex items-center justify-center text-dock-text-muted text-sm font-mono">
-            <div className="text-center space-y-2">
-              <p className="text-dock-text">Terminal session active</p>
-              <p className="text-xs">xterm.js will render here when Tauri backend is connected</p>
-            </div>
-          </div>
-        ) : currentView === "home" ? (
-          <HomeView onNewSession={onNewSession} onNewFolder={onNewFolder} />
-        ) : currentView === "settings" ? (
-          <SettingsView />
-        ) : currentView === "allSessions" ? (
-          <SessionList
-            sessions={sessions}
-            title="All Sessions"
-            onConnect={handleConnect}
-            onEdit={() => {}}
-          />
-        ) : currentView === "favorites" ? (
-          <SessionList
-            sessions={favoriteSessions}
-            title="Favorites"
-            onConnect={handleConnect}
-            onEdit={() => {}}
-          />
-        ) : currentView === "folder" ? (
-          <SessionList
-            sessions={filteredSessions}
-            title="Folder Sessions"
-            onConnect={handleConnect}
-            onEdit={() => {}}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-dock-text-muted text-sm">
-            {currentView} view
+      <div className="flex-1 overflow-hidden relative">
+        {/* Terminal layer — rendered behind but visible when active */}
+        {activeTab && (
+          <div className={`absolute inset-0 ${showTerminal ? "z-10" : "z-0 hidden"}`}>
+            <TerminalView
+              tabId={activeTab.id}
+              onData={(_data) => {
+                // TODO: send to backend via Tauri
+              }}
+              onResize={(_cols, _rows) => {
+                // TODO: send resize to backend
+              }}
+            />
           </div>
         )}
+
+        {/* Views layer */}
+        <div className={`absolute inset-0 ${showTerminal ? "hidden" : "z-10"}`}>
+          {currentView === "home" && !activeTab ? (
+            <HomeView onNewSession={onNewSession} onNewFolder={onNewFolder} onQuickConnect={onQuickConnect} onImport={onImport} />
+          ) : currentView === "settings" ? (
+            <SettingsView />
+          ) : currentView === "allSessions" && !showTerminal ? (
+            <SessionList
+              sessions={sessions}
+              title="All Sessions"
+              onConnect={handleConnect}
+              onEdit={() => {}}
+            />
+          ) : currentView === "favorites" && !showTerminal ? (
+            <SessionList
+              sessions={favoriteSessions}
+              title="Favorites"
+              onConnect={handleConnect}
+              onEdit={() => {}}
+            />
+          ) : currentView === "folder" && !showTerminal ? (
+            <SessionList
+              sessions={filteredSessions}
+              title="Folder Sessions"
+              onConnect={handleConnect}
+              onEdit={() => {}}
+            />
+          ) : !showTerminal ? (
+            <HomeView onNewSession={onNewSession} onNewFolder={onNewFolder} onQuickConnect={onQuickConnect} onImport={onImport} />
+          ) : null}
+        </div>
       </div>
     </main>
   );

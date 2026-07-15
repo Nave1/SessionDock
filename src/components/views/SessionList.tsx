@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Star, ExternalLink } from "lucide-react";
+import { Star, ExternalLink, GripVertical } from "lucide-react";
 import type { Session } from "../../types";
 
 interface SessionListProps {
@@ -20,6 +20,14 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
     );
   }
 
+  const handleDragStart = (e: React.DragEvent, session: Session) => {
+    e.dataTransfer.setData("application/sessiondock-session", JSON.stringify({
+      id: session.id,
+      name: session.name,
+    }));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
   return (
     <div className="h-full overflow-y-auto p-4">
       <h2 className="text-sm font-medium text-dock-text mb-3">{title}</h2>
@@ -27,9 +35,14 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
         {sessions.map((session) => (
           <div
             key={session.id}
-            className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-dock-surface transition-colors group cursor-pointer"
+            draggable
+            onDragStart={(e) => handleDragStart(e, session)}
+            className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-dock-surface transition-colors group cursor-pointer"
             onDoubleClick={() => onConnect(session)}
           >
+            {/* Drag handle */}
+            <GripVertical size={12} className="text-dock-text-muted opacity-0 group-hover:opacity-50 flex-shrink-0 cursor-grab" />
+
             {/* Protocol badge */}
             <span
               className={`text-[10px] font-mono px-1.5 py-0.5 rounded flex-shrink-0 ${

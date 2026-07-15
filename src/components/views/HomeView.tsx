@@ -14,9 +14,11 @@ import {
 interface HomeViewProps {
   onNewSession: () => void;
   onNewFolder: () => void;
+  onQuickConnect: () => void;
+  onImport: () => void;
 }
 
-export function HomeView({ onNewSession, onNewFolder }: HomeViewProps) {
+export function HomeView({ onNewSession, onNewFolder, onQuickConnect, onImport }: HomeViewProps) {
   const { t } = useTranslation();
   const { sessions, folders } = useSessionStore();
 
@@ -39,10 +41,11 @@ export function HomeView({ onNewSession, onNewFolder }: HomeViewProps) {
             icon={Zap}
             label={t("home.quickConnect")}
             accent
+            onClick={onQuickConnect}
           />
           <QuickAction icon={Plus} label={t("home.createSession")} onClick={onNewSession} />
           <QuickAction icon={FolderPlus} label={t("home.createFolder")} onClick={onNewFolder} />
-          <QuickAction icon={Download} label={t("home.importSessions")} />
+          <QuickAction icon={Download} label={t("home.importSessions")} onClick={onImport} />
         </div>
 
         {/* Stats */}
