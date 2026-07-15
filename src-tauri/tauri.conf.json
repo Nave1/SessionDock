@@ -51,7 +51,8 @@
       "endpoints": [
         "http://localhost:8080/latest.json",
         "https://github.com/user/sessiondock/releases/latest/download/latest.json"
-      ]
+      ],
+      "pubkey": ""
     }
   }
 }
