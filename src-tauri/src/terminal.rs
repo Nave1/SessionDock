@@ -53,10 +53,15 @@ pub async fn spawn_ssh(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // No special creation flags needed - since the parent (SessionDock) is a
-    // GUI app with windows_subsystem="windows", child console processes get
-    // a hidden console automatically. This lets ssh.exe work properly with
-    // PTY allocation and password prompts.
+    // CREATE_NO_WINDOW hides the console. SSH reads password from stdin
+    // (which we pipe from xterm.js) when no console is available.
+    // Do NOT use -tt flag as it requires a real terminal.
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let mut child = cmd.spawn()
         .map_err(|e| AppError::Ssh(format!("Failed to start SSH: {}", e)))?;
@@ -139,6 +144,13 @@ pub async fn spawn_telnet(
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let mut child = cmd.spawn()
         .map_err(|e| AppError::Telnet(format!("Failed to start Telnet: {}. Telnet client may not be installed.", e)))?;
