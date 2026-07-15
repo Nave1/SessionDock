@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useThemeStore, ThemeMode } from "../../stores/themeStore";
+import { useThemeStore, ThemeMode, AccentColor } from "../../stores/themeStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import {
   Settings as SettingsIcon,
@@ -89,7 +89,7 @@ function GeneralSettings() {
 }
 
 function AppearanceSettings() {
-  const { mode, setMode } = useThemeStore();
+  const { mode, setMode, accent, setAccent } = useThemeStore();
   const s = useSettingsStore();
 
   return (
@@ -113,7 +113,22 @@ function AppearanceSettings() {
             ))}
           </div>
         </div>
-        <LiveSelect label="Accent color" options={["Blue", "Cyan", "Green", "Purple", "Orange"]} value={s.accentColor} onChange={(v) => s.updateSetting("accentColor", v)} />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-dock-text-muted">Accent color</span>
+          <div className="flex gap-1">
+            {(["Blue", "Cyan", "Green", "Purple", "Orange"] as AccentColor[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => setAccent(c)}
+                className={`w-6 h-6 rounded-full border-2 transition-all ${
+                  accent === c ? "border-dock-text scale-110" : "border-transparent"
+                }`}
+                style={{ backgroundColor: c === "Blue" ? "#5b8af5" : c === "Cyan" ? "#7dcfff" : c === "Green" ? "#73daca" : c === "Purple" ? "#bb9af7" : "#ff9e64" }}
+                title={c}
+              />
+            ))}
+          </div>
+        </div>
       </SettingGroup>
       <SettingGroup title="Layout">
         <LiveSelect label="UI density" options={["Compact", "Comfortable"]} value={s.uiDensity} onChange={(v) => s.updateSetting("uiDensity", v)} />
@@ -175,7 +190,7 @@ function AboutSettings() {
         </div>
         <div>
           <h3 className="text-sm font-semibold text-dock-text">SessionDock</h3>
-          <p className="text-xs text-dock-text-muted">Version 0.1.0</p>
+          <p className="text-xs text-dock-text-muted">Version 0.2.0</p>
         </div>
       </div>
       <div className="space-y-2 text-xs text-dock-text-muted">

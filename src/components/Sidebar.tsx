@@ -13,12 +13,14 @@ import {
   Plus,
   FolderPlus,
   Search,
+  Zap,
 } from "lucide-react";
 
 interface SidebarProps {
   width: number;
   onNewSession: () => void;
   onNewFolder: () => void;
+  onQuickConnect: () => void;
 }
 
 const navItems: { view: ViewMode; icon: typeof Home; labelKey: string }[] = [
@@ -31,7 +33,7 @@ const navItems: { view: ViewMode; icon: typeof Home; labelKey: string }[] = [
   { view: "settings", icon: Settings, labelKey: "sidebar.settings" },
 ];
 
-export function Sidebar({ width, onNewSession, onNewFolder }: SidebarProps) {
+export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: SidebarProps) {
   const { t } = useTranslation();
   const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId } = useAppStore();
   const { folders, sessions } = useSessionStore();
@@ -64,6 +66,13 @@ export function Sidebar({ width, onNewSession, onNewFolder }: SidebarProps) {
 
       {/* Quick actions */}
       <div className="flex gap-1 px-3 py-1">
+        <button
+          onClick={onQuickConnect}
+          className="flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs bg-dock-success/10 text-dock-success hover:bg-dock-success/20 transition-colors"
+          title={t("home.quickConnect")}
+        >
+          <Zap size={12} />
+        </button>
         <button
           onClick={onNewSession}
           className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs bg-dock-accent/10 text-dock-accent hover:bg-dock-accent/20 transition-colors"

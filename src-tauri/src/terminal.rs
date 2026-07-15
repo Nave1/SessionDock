@@ -54,12 +54,8 @@ pub async fn spawn_ssh(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // On Windows, prevent creating a visible console window
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
+    // Note: We do NOT use CREATE_NO_WINDOW here because SSH needs
+    // console access for password prompts and PTY allocation
 
     let mut child = cmd.spawn()
         .map_err(|e| AppError::Ssh(format!("Failed to start SSH: {}", e)))?;
@@ -142,12 +138,6 @@ pub async fn spawn_telnet(
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000);
-    }
 
     let mut child = cmd.spawn()
         .map_err(|e| AppError::Telnet(format!("Failed to start Telnet: {}. Telnet client may not be installed.", e)))?;

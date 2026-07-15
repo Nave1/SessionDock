@@ -18,7 +18,6 @@ function App() {
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [folderFormOpen, setFolderFormOpen] = useState(false);
   const [quickConnectOpen, setQuickConnectOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
   const addTab = useAppStore((s) => s.addTab);
   const folders = useSessionStore((s) => s.folders);
@@ -91,8 +90,78 @@ function App() {
   };
 
   const handleImport = () => {
-    setImportOpen(!importOpen);
-    useAppStore.getState().setCurrentView("home");
+    // Open a file input to select JSON/CSV file
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,.csv";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const text = await file.text();
+
+      try {
+        if (file.name.endsWith(".json")) {
+          const data = JSON.parse(text);
+          if (data.sessions && Array.isArray(data.sessions)) {
+            let count = 0;
+            for (const s of data.sessions) {
+              addSession({
+                id: crypto.randomUUID(),
+                name: s.name || "Imported",
+                host: s.host || "",
+                port: s.port || 22,
+                protocol: s.protocol || "ssh",
+                username: s.username,
+                authentication_method: s.authentication_method || "password",
+                favorite: s.favorite || false,
+                connection_timeout: s.connection_timeout || 30,
+                keepalive_interval: s.keepalive_interval || 60,
+                connection_count: 0,
+                device_type: s.device_type,
+                vendor: s.vendor,
+                model: s.model,
+                description: s.description,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+              count++;
+            }
+            addToast("success", `Imported ${count} sessions`);
+          } else {
+            addToast("error", "Invalid JSON format");
+          }
+        } else if (file.name.endsWith(".csv")) {
+          const lines = text.split("\n").filter((l: string) => l.trim());
+          if (lines.length < 2) { addToast("error", "CSV file is empty"); return; }
+          let count = 0;
+          for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",");
+            if (cols[0]) {
+              addSession({
+                id: crypto.randomUUID(),
+                name: cols[0]?.trim().replace(/^"|"$/g, "") || "Imported",
+                host: cols[1]?.trim().replace(/^"|"$/g, "") || "",
+                port: parseInt(cols[2]) || 22,
+                protocol: (cols[3]?.trim() as "ssh" | "telnet" | "serial") || "ssh",
+                username: cols[4]?.trim().replace(/^"|"$/g, ""),
+                authentication_method: "password",
+                favorite: false,
+                connection_timeout: 30,
+                keepalive_interval: 60,
+                connection_count: 0,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              });
+              count++;
+            }
+          }
+          addToast("success", `Imported ${count} sessions from CSV`);
+        }
+      } catch {
+        addToast("error", "Failed to parse import file");
+      }
+    };
+    input.click();
   };
 
   return (
@@ -101,6 +170,7 @@ function App() {
         width={sidebarWidth}
         onNewSession={() => setSessionFormOpen(true)}
         onNewFolder={() => setFolderFormOpen(true)}
+        onQuickConnect={() => setQuickConnectOpen(true)}
       />
       <MainContent
         onNewSession={() => setSessionFormOpen(true)}

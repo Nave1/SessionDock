@@ -1,23 +1,49 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type ThemeMode = "dark" | "light" | "system";
+export type AccentColor = "Blue" | "Cyan" | "Green" | "Purple" | "Orange";
+
+const accentColors: Record<AccentColor, { accent: string; hover: string }> = {
+  Blue: { accent: "#5b8af5", hover: "#7aa2f7" },
+  Cyan: { accent: "#7dcfff", hover: "#89ddff" },
+  Green: { accent: "#73daca", hover: "#95e6d3" },
+  Purple: { accent: "#bb9af7", hover: "#c9abf7" },
+  Orange: { accent: "#ff9e64", hover: "#ffb07a" },
+};
 
 interface ThemeState {
   mode: ThemeMode;
+  accent: AccentColor;
   setMode: (mode: ThemeMode) => void;
+  setAccent: (accent: AccentColor) => void;
 }
 
-export const useThemeStore = create<ThemeState>((set) => ({
-  mode: "dark",
-  setMode: (mode) => {
-    set({ mode });
-    applyTheme(mode);
-  },
-}));
+export const useThemeStore = create<ThemeState>()(
+  persist(
+    (set) => ({
+      mode: "dark",
+      accent: "Blue",
+      setMode: (mode) => {
+        set({ mode });
+        applyTheme(mode, useThemeStore.getState().accent);
+      },
+      setAccent: (accent) => {
+        set({ accent });
+        applyTheme(useThemeStore.getState().mode, accent);
+      },
+    }),
+    { name: "sessiondock-theme" }
+  )
+);
 
-function applyTheme(mode: ThemeMode) {
+function applyTheme(mode: ThemeMode, accent: AccentColor) {
   const root = document.documentElement;
   const isDark = mode === "dark" || (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const colors = accentColors[accent];
+
+  root.style.setProperty("--color-dock-accent", colors.accent);
+  root.style.setProperty("--color-dock-accent-hover", colors.hover);
 
   if (isDark) {
     root.classList.add("dark");
@@ -40,10 +66,15 @@ function applyTheme(mode: ThemeMode) {
   }
 }
 
-// Listen for system theme changes
+// Apply theme on load
 if (typeof window !== "undefined") {
+  setTimeout(() => {
+    const { mode, accent } = useThemeStore.getState();
+    applyTheme(mode, accent);
+  }, 0);
+
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-    const { mode } = useThemeStore.getState();
-    if (mode === "system") applyTheme("system");
+    const { mode, accent } = useThemeStore.getState();
+    if (mode === "system") applyTheme("system", accent);
   });
 }
