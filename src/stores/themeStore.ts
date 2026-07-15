@@ -54,8 +54,8 @@ function applyTheme(mode: ThemeMode, accent: AccentColor) {
     root.style.setProperty("--color-dock-surface-hover", "#1c1c26");
     root.style.setProperty("--color-dock-border", "#232334");
     root.style.setProperty("--color-dock-text", "#e8e8f0");
-    root.style.setProperty("--color-dock-text-secondary", "#a0a0b8");
-    root.style.setProperty("--color-dock-text-muted", "#5c5c78");
+    root.style.setProperty("--color-dock-text-secondary", "#b0b0c8");
+    root.style.setProperty("--color-dock-text-muted", "#7a7a96");
   } else {
     root.classList.remove("dark");
     root.classList.add("light");
