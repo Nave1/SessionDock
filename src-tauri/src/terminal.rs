@@ -47,21 +47,16 @@ pub async fn spawn_ssh(
     }
 
     cmd.arg("-p").arg(port.to_string());
-    cmd.arg("-o").arg("StrictHostKeyChecking=ask");
-    cmd.arg("-tt"); // Force PTY allocation
+    cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
 
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // Use DETACHED_PROCESS to avoid visible console window
-    // while still allowing piped I/O for SSH password prompts
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const DETACHED_PROCESS: u32 = 0x00000008;
-        cmd.creation_flags(DETACHED_PROCESS);
-    }
+    // No special creation flags needed - since the parent (SessionDock) is a
+    // GUI app with windows_subsystem="windows", child console processes get
+    // a hidden console automatically. This lets ssh.exe work properly with
+    // PTY allocation and password prompts.
 
     let mut child = cmd.spawn()
         .map_err(|e| AppError::Ssh(format!("Failed to start SSH: {}", e)))?;
@@ -144,13 +139,6 @@ pub async fn spawn_telnet(
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const DETACHED_PROCESS: u32 = 0x00000008;
-        cmd.creation_flags(DETACHED_PROCESS);
-    }
 
     let mut child = cmd.spawn()
         .map_err(|e| AppError::Telnet(format!("Failed to start Telnet: {}. Telnet client may not be installed.", e)))?;
