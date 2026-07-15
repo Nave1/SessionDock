@@ -52,20 +52,18 @@ pub async fn spawn_ssh(
 
     cmd.arg("-p").arg(port.to_string());
     cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
-    cmd.arg("-o").arg("RequestTTY=force");
 
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // CREATE_NO_WINDOW hides the console. SSH reads password from stdin
-    // (which we pipe from xterm.js) when no console is available.
-    // Do NOT use -tt flag as it requires a real terminal.
+    // CREATE_NEW_PROCESS_GROUP: child gets its own process group but
+    // inherits the parent's (hidden) console since parent is a GUI app
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
     }
 
     let mut child = cmd.spawn()
@@ -153,8 +151,8 @@ pub async fn spawn_telnet(
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
     }
 
     let mut child = cmd.spawn()

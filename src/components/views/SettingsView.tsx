@@ -190,7 +190,7 @@ function AboutSettings() {
         </div>
         <div>
           <h3 className="text-sm font-semibold text-dock-text">SessionDock</h3>
-          <p className="text-xs text-dock-text-muted">Version 0.2.0</p>
+          <p className="text-xs text-dock-text-muted">Version 0.3.0</p>
         </div>
       </div>
       <div className="space-y-2 text-xs text-dock-text-muted">
