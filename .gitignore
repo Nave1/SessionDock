@@ -6,6 +6,7 @@ node_modules/
 dist/
 target/
 out/
+release/
 
 # Tauri
 src-tauri/target/
