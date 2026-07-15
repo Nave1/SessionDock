@@ -8,6 +8,9 @@ target/
 out/
 release/
 
+# Signing keys
+src-tauri/.tauri-private-key
+
 # Tauri
 src-tauri/target/
 src-tauri/WixTools/
