@@ -1,26 +1,242 @@
-// Process-based terminal backend
-// Spawns real SSH/Telnet processes and pipes I/O through Tauri events
+// Native SSH terminal backend using ssh2 (libssh2)
+// No external processes (ssh.exe, cmd.exe) are launched.
+// All SSH protocol handling happens in-process.
 
 use std::collections::HashMap;
-use std::process::Stdio;
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::process::{Child, Command};
+use std::time::Duration;
+use ssh2::{Channel, Session};
 use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 
 use crate::error::AppError;
 
-pub struct TerminalProcess {
+struct SshConnection {
+    session: Session,
+    channel: Channel,
+}
+
+// Safety: ssh2::Session and Channel are not Send/Sync by default,
+// but we wrap them in a Mutex and only access from one task at a time.
+unsafe impl Send for SshConnection {}
+unsafe impl Sync for SshConnection {}
+
+pub struct NativeSshManager {
+    connections: Arc<Mutex<HashMap<String, Arc<Mutex<SshConnection>>>>>,
+}
+
+impl NativeSshManager {
+    pub fn new() -> Self {
+        Self {
+            connections: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+/// Connect to an SSH server using password authentication.
+/// Returns immediately after shell is opened.
+/// Spawns a background task to stream output to the frontend.
+pub async fn connect_ssh(
+    app: &AppHandle,
+    manager: &NativeSshManager,
+    tab_id: &str,
+    host: &str,
+    port: u16,
+    username: &str,
+    password: &str,
+) -> Result<(), AppError> {
+    let addr = format!("{}:{}", host, port);
+    let tab_id_owned = tab_id.to_string();
+
+    // TCP connect with timeout (blocking, run in spawn_blocking)
+    let tcp = tokio::task::spawn_blocking({
+        let addr = addr.clone();
+        move || {
+            TcpStream::connect_timeout(
+                &addr.parse().map_err(|e| AppError::Ssh(format!("Invalid address: {}", e)))?,
+                Duration::from_secs(10),
+            ).map_err(|e| AppError::Ssh(format!("Connection failed: {}", e)))
+        }
+    })
+    .await
+    .map_err(|e| AppError::Ssh(format!("Task error: {}", e)))??;
+
+    tcp.set_nonblocking(false)
+        .map_err(|e| AppError::Ssh(format!("Socket error: {}", e)))?;
+
+    // SSH handshake
+    let mut session = Session::new()
+        .map_err(|e| AppError::Ssh(format!("SSH init error: {}", e)))?;
+    session.set_tcp_stream(tcp);
+    session.handshake()
+        .map_err(|e| AppError::Ssh(format!("SSH handshake failed: {}", e)))?;
+
+    // Authenticate with password
+    session.userauth_password(username, password)
+        .map_err(|e| {
+            if e.to_string().contains("Authentication failed") ||
+               e.to_string().contains("USERAUTH") {
+                AppError::Ssh("Authentication failed: incorrect username or password".to_string())
+            } else {
+                AppError::Ssh(format!("Authentication error: {}", e))
+            }
+        })?;
+
+    if !session.authenticated() {
+        return Err(AppError::Ssh("Authentication failed".to_string()));
+    }
+
+    // Open channel and request PTY + shell
+    let mut channel = session.channel_session()
+        .map_err(|e| AppError::Ssh(format!("Channel error: {}", e)))?;
+
+    channel.request_pty("xterm-256color", None, Some((80, 24, 0, 0)))
+        .map_err(|e| AppError::Ssh(format!("PTY error: {}", e)))?;
+
+    channel.shell()
+        .map_err(|e| AppError::Ssh(format!("Shell error: {}", e)))?;
+
+    // Set channel to non-blocking for reading
+    session.set_blocking(false);
+
+    let conn = Arc::new(Mutex::new(SshConnection { session, channel }));
+
+    // Store connection
+    {
+        let mut conns = manager.connections.lock().await;
+        conns.insert(tab_id_owned.clone(), conn.clone());
+    }
+
+    // Emit connected status
+    let _ = app.emit(&format!("terminal-status-{}", tab_id), "connected");
+
+    // Spawn background reader task
+    let app_clone = app.clone();
+    let tid = tab_id_owned.clone();
+    let conn_reader = conn.clone();
+    tokio::spawn(async move {
+        let mut buf = [0u8; 4096];
+        loop {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+
+            let result = {
+                let mut c = conn_reader.lock().await;
+                c.channel.read(&mut buf)
+            };
+
+            match result {
+                Ok(0) => {
+                    // Channel closed
+                    let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
+                    break;
+                }
+                Ok(n) => {
+                    let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    // No data available, also check stderr
+                    let stderr_result = {
+                        let mut c = conn_reader.lock().await;
+                        c.channel.stderr().read(&mut buf)
+                    };
+                    if let Ok(n) = stderr_result {
+                        if n > 0 {
+                            let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                            let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
+                        }
+                    }
+                    // Check if EOF
+                    let eof = {
+                        let c = conn_reader.lock().await;
+                        c.channel.eof()
+                    };
+                    if eof {
+                        let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
+                        break;
+                    }
+                }
+                Err(_) => {
+                    let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
+                    break;
+                }
+            }
+        }
+    });
+
+    Ok(())
+}
+
+/// Write data from xterm.js to the SSH channel
+pub async fn write_ssh(
+    manager: &NativeSshManager,
+    tab_id: &str,
+    data: &[u8],
+) -> Result<(), AppError> {
+    let conns = manager.connections.lock().await;
+    if let Some(conn) = conns.get(tab_id) {
+        let mut c = conn.lock().await;
+        c.session.set_blocking(true);
+        c.channel.write_all(data)
+            .map_err(|e| AppError::Ssh(format!("Write error: {}", e)))?;
+        c.channel.flush()
+            .map_err(|e| AppError::Ssh(format!("Flush error: {}", e)))?;
+        c.session.set_blocking(false);
+    }
+    Ok(())
+}
+
+/// Resize the PTY
+pub async fn resize_ssh(
+    manager: &NativeSshManager,
+    tab_id: &str,
+    cols: u32,
+    rows: u32,
+) -> Result<(), AppError> {
+    let conns = manager.connections.lock().await;
+    if let Some(conn) = conns.get(tab_id) {
+        let mut c = conn.lock().await;
+        c.session.set_blocking(true);
+        let _ = c.channel.request_pty_size(cols, rows, None, None);
+        c.session.set_blocking(false);
+    }
+    Ok(())
+}
+
+/// Close an SSH connection
+pub async fn close_ssh(
+    manager: &NativeSshManager,
+    tab_id: &str,
+) -> Result<(), AppError> {
+    let mut conns = manager.connections.lock().await;
+    if let Some(conn) = conns.remove(tab_id) {
+        let mut c = conn.lock().await;
+        c.session.set_blocking(true);
+        let _ = c.channel.send_eof();
+        let _ = c.channel.close();
+        let _ = c.channel.wait_close();
+    }
+    Ok(())
+}
+
+// --- Telnet process-based backend (kept as-is, separate from SSH) ---
+
+use std::process::Stdio;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::process::{Child, Command};
+
+pub struct TelnetProcess {
     stdin: Option<tokio::process::ChildStdin>,
     _child: Child,
 }
 
-pub struct ProcessManager {
-    processes: Arc<Mutex<HashMap<String, TerminalProcess>>>,
+pub struct TelnetManager {
+    processes: Arc<Mutex<HashMap<String, TelnetProcess>>>,
 }
 
-impl ProcessManager {
+impl TelnetManager {
     pub fn new() -> Self {
         Self {
             processes: Arc::new(Mutex::new(HashMap::new())),
@@ -28,140 +244,30 @@ impl ProcessManager {
     }
 }
 
-/// Spawn an SSH process using the system's ssh.exe
-pub async fn spawn_ssh(
-    app: &AppHandle,
-    manager: &ProcessManager,
-    tab_id: &str,
-    host: &str,
-    port: u16,
-    username: Option<&str>,
-) -> Result<(), AppError> {
-    let mut cmd = Command::new("ssh");
-
-    // Build SSH arguments
-    if let Some(user) = username {
-        if !user.is_empty() {
-            cmd.arg(format!("{}@{}", user, host));
-        } else {
-            cmd.arg(host);
-        }
-    } else {
-        cmd.arg(host);
-    }
-
-    cmd.arg("-p").arg(port.to_string());
-    cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
-
-    cmd.stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    // CREATE_NEW_PROCESS_GROUP: child gets its own process group but
-    // inherits the parent's (hidden) console since parent is a GUI app
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
-    }
-
-    let mut child = cmd.spawn()
-        .map_err(|e| AppError::Ssh(format!("Failed to start SSH: {}", e)))?;
-
-    let stdin = child.stdin.take();
-    let stdout = child.stdout.take();
-    let stderr = child.stderr.take();
-
-    let tab_id_owned = tab_id.to_string();
-    let app_clone = app.clone();
-
-    // Read stdout in background and emit to frontend
-    if let Some(mut stdout) = stdout {
-        let tid = tab_id_owned.clone();
-        let app2 = app_clone.clone();
-        tokio::spawn(async move {
-            let mut buf = [0u8; 4096];
-            loop {
-                match stdout.read(&mut buf).await {
-                    Ok(0) => {
-                        let _ = app2.emit(&format!("terminal-data-{}", tid), "");
-                        let _ = app2.emit(&format!("terminal-status-{}", tid), "disconnected");
-                        break;
-                    }
-                    Ok(n) => {
-                        // Send as base64 to handle binary data
-                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        let _ = app2.emit(&format!("terminal-data-{}", tid), &data);
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-    }
-
-    // Read stderr in background
-    if let Some(mut stderr) = stderr {
-        let tid = tab_id_owned.clone();
-        let app3 = app_clone.clone();
-        tokio::spawn(async move {
-            let mut buf = [0u8; 4096];
-            loop {
-                match stderr.read(&mut buf).await {
-                    Ok(0) => break,
-                    Ok(n) => {
-                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        let _ = app3.emit(&format!("terminal-data-{}", tid), &data);
-                    }
-                    Err(_) => break,
-                }
-            }
-        });
-    }
-
-    // Emit connected status
-    let _ = app.emit(&format!("terminal-status-{}", tab_id), "connected");
-
-    // Store process
-    let mut procs = manager.processes.lock().await;
-    procs.insert(tab_id.to_string(), TerminalProcess {
-        stdin,
-        _child: child,
-    });
-
-    Ok(())
-}
-
-/// Spawn a Telnet process
 pub async fn spawn_telnet(
     app: &AppHandle,
-    manager: &ProcessManager,
+    manager: &TelnetManager,
     tab_id: &str,
     host: &str,
     port: u16,
 ) -> Result<(), AppError> {
-    // Use Windows telnet or putty's plink as fallback
     let mut cmd = Command::new("telnet");
     cmd.arg(host).arg(port.to_string());
-
-    cmd.stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
 
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
-        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
     let mut child = cmd.spawn()
-        .map_err(|e| AppError::Telnet(format!("Failed to start Telnet: {}. Telnet client may not be installed.", e)))?;
+        .map_err(|e| AppError::Telnet(format!("Failed to start Telnet: {}", e)))?;
 
     let stdin = child.stdin.take();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
-
     let tab_id_owned = tab_id.to_string();
     let app_clone = app.clone();
 
@@ -172,14 +278,8 @@ pub async fn spawn_telnet(
             let mut buf = [0u8; 4096];
             loop {
                 match stdout.read(&mut buf).await {
-                    Ok(0) => {
-                        let _ = app2.emit(&format!("terminal-status-{}", tid), "disconnected");
-                        break;
-                    }
-                    Ok(n) => {
-                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        let _ = app2.emit(&format!("terminal-data-{}", tid), &data);
-                    }
+                    Ok(0) => { let _ = app2.emit(&format!("terminal-status-{}", tid), "disconnected"); break; }
+                    Ok(n) => { let _ = app2.emit(&format!("terminal-data-{}", tid), &String::from_utf8_lossy(&buf[..n]).to_string()); }
                     Err(_) => break,
                 }
             }
@@ -194,10 +294,7 @@ pub async fn spawn_telnet(
             loop {
                 match stderr.read(&mut buf).await {
                     Ok(0) => break,
-                    Ok(n) => {
-                        let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                        let _ = app3.emit(&format!("terminal-data-{}", tid), &data);
-                    }
+                    Ok(n) => { let _ = app3.emit(&format!("terminal-data-{}", tid), &String::from_utf8_lossy(&buf[..n]).to_string()); }
                     Err(_) => break,
                 }
             }
@@ -205,39 +302,23 @@ pub async fn spawn_telnet(
     }
 
     let _ = app.emit(&format!("terminal-status-{}", tab_id), "connected");
-
     let mut procs = manager.processes.lock().await;
-    procs.insert(tab_id.to_string(), TerminalProcess {
-        stdin,
-        _child: child,
-    });
-
+    procs.insert(tab_id.to_string(), TelnetProcess { stdin, _child: child });
     Ok(())
 }
 
-/// Write data to a terminal process stdin
-pub async fn write_to_process(
-    manager: &ProcessManager,
-    tab_id: &str,
-    data: &[u8],
-) -> Result<(), AppError> {
+pub async fn write_telnet(manager: &TelnetManager, tab_id: &str, data: &[u8]) -> Result<(), AppError> {
     let mut procs = manager.processes.lock().await;
     if let Some(proc) = procs.get_mut(tab_id) {
         if let Some(stdin) = &mut proc.stdin {
-            stdin.write_all(data).await
-                .map_err(|e| AppError::Generic(format!("Write error: {}", e)))?;
-            stdin.flush().await
-                .map_err(|e| AppError::Generic(format!("Flush error: {}", e)))?;
+            stdin.write_all(data).await.map_err(|e| AppError::Generic(format!("Write: {}", e)))?;
+            stdin.flush().await.map_err(|e| AppError::Generic(format!("Flush: {}", e)))?;
         }
     }
     Ok(())
 }
 
-/// Kill a terminal process
-pub async fn kill_process(
-    manager: &ProcessManager,
-    tab_id: &str,
-) -> Result<(), AppError> {
+pub async fn close_telnet(manager: &TelnetManager, tab_id: &str) -> Result<(), AppError> {
     let mut procs = manager.processes.lock().await;
     if let Some(mut proc) = procs.remove(tab_id) {
         let _ = proc._child.kill().await;

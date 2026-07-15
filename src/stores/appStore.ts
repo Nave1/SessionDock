@@ -18,7 +18,10 @@ export interface TerminalTab {
   sessionId: string;
   sessionName: string;
   host: string;
+  port?: number;
   protocol: string;
+  username?: string;
+  password?: string;
   status: ConnectionStatus;
   pinned: boolean;
 }

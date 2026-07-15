@@ -13,9 +13,10 @@ interface TerminalViewProps {
   port: number;
   protocol: string;
   username?: string;
+  password?: string;
 }
 
-export function TerminalView({ tabId, host, port, protocol, username }: TerminalViewProps) {
+export function TerminalView({ tabId, host, port, protocol, username, password }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -38,12 +39,13 @@ export function TerminalView({ tabId, host, port, protocol, username }: Terminal
         port,
         protocol,
         username: username || null,
+        password: password || null,
       });
     } catch (err) {
       term.writeln(`\x1b[31mConnection failed: ${err}\x1b[0m`);
       connectedRef.current = false;
     }
-  }, [tabId, host, port, protocol, username]);
+  }, [tabId, host, port, protocol, username, password]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -121,6 +123,11 @@ export function TerminalView({ tabId, host, port, protocol, username }: Terminal
       fitAddon.fit();
     });
     resizeObserver.observe(containerRef.current);
+
+    // Send resize to backend when terminal dimensions change
+    terminal.onResize(({ cols, rows }) => {
+      invoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
+    });
 
     // Start connection
     connectToHost();

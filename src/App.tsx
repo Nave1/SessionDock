@@ -55,14 +55,17 @@ function App() {
     addToast("success", `Folder "${data.name}" created`);
   };
 
-  const handleQuickConnect = (config: { host: string; port: number; protocol: "ssh" | "telnet" | "serial"; username: string; saveAsSession: boolean }) => {
+  const handleQuickConnect = (config: { host: string; port: number; protocol: "ssh" | "telnet" | "serial"; username: string; password: string; saveAsSession: boolean }) => {
     const tabId = crypto.randomUUID();
     addTab({
       id: tabId,
       sessionId: tabId,
-      sessionName: config.host,
+      sessionName: config.username ? `${config.username}@${config.host}` : config.host,
       host: config.host,
+      port: config.port,
       protocol: config.protocol,
+      username: config.username || undefined,
+      password: config.password || undefined,
       status: "connecting",
       pinned: false,
     });

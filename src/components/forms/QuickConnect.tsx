@@ -12,6 +12,7 @@ export interface QuickConnectConfig {
   port: number;
   protocol: "ssh" | "telnet" | "serial";
   username: string;
+  password: string;
   saveAsSession: boolean;
 }
 
@@ -22,6 +23,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
     port: 22,
     protocol: "ssh",
     username: "",
+    password: "",
     saveAsSession: false,
   });
   const [showTelnetWarning, setShowTelnetWarning] = useState(false);
@@ -152,6 +154,23 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
               className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
             />
           </div>
+
+          {/* Password */}
+          {config.protocol === "ssh" && (
+            <div>
+              <label className="block text-xs text-dock-text-muted mb-1.5">
+                {t("session.password")}
+              </label>
+              <input
+                type="password"
+                value={config.password}
+                onChange={(e) => setConfig((p) => ({ ...p, password: e.target.value }))}
+                onKeyDown={handleKeyDown}
+                placeholder="Enter password"
+                className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
+              />
+            </div>
+          )}
 
           {/* Save option */}
           <label className="flex items-center gap-2 text-xs text-dock-text-muted cursor-pointer">

@@ -56,9 +56,10 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
               <TerminalView
                 tabId={tab.id}
                 host={tab.host}
-                port={sess?.port ?? (tab.protocol === "ssh" ? 22 : 23)}
+                port={tab.port ?? sess?.port ?? (tab.protocol === "ssh" ? 22 : 23)}
                 protocol={tab.protocol}
-                username={sess?.username}
+                username={tab.username ?? sess?.username}
+                password={tab.password}
               />
             </div>
           );

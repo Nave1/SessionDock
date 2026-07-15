@@ -11,7 +11,7 @@ mod terminal;
 pub use db::Database;
 pub use error::AppError;
 use commands::connections::ConnectionManager;
-use terminal::ProcessManager;
+use terminal::{NativeSshManager, TelnetManager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -34,7 +34,8 @@ pub fn run() {
 
             app.manage(database);
             app.manage(ConnectionManager::new());
-            app.manage(ProcessManager::new());
+            app.manage(NativeSshManager::new());
+            app.manage(TelnetManager::new());
 
             log::info!("SessionDock initialized. DB: {:?}", db_path);
             Ok(())
@@ -68,6 +69,7 @@ pub fn run() {
             commands::data::import_sessions_json,
             commands::terminal::spawn_terminal,
             commands::terminal::write_terminal,
+            commands::terminal::resize_terminal,
             commands::terminal::close_terminal,
         ])
         .run(tauri::generate_context!())
