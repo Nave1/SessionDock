@@ -18,12 +18,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rusqlite = { version = "0.31", features = ["bundled", "vtab"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
 keyring = { version = "3", features = [] }
-russh = "0.46"
-russh-keys = "0.46"
-ssh-key = "0.6"
-async-trait = "0.1"
 tokio = { version = "1", features = ["full"] }
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -33,3 +29,9 @@ log = "0.4"
 env_logger = "0.11"
 serialport = "4"
 anyhow = "1"
+
+# SSH crates - uncomment when implementing full SSH protocol
+# russh = "0.46"
+# russh-keys = "0.46"
+# ssh-key = "0.6"
+# async-trait = "0.1"
