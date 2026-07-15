@@ -4,30 +4,30 @@ A modern, fast, lightweight desktop application for managing and opening SSH, Te
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
-- **Real SSH Terminal** — Interactive SSH sessions using Windows OpenSSH, with password prompts and host-key verification displayed in xterm.js
+- **Real SSH Terminal** — Interactive SSH via Windows OpenSSH with password prompts inside xterm.js (no CMD window)
+- **Quick Connect** — Enter host, press Enter, connect instantly. Username optional — SSH prompts if needed
 - **Saved Sessions** — Create and organize connection profiles with device metadata (vendor, model, device type, description, tags)
-- **Quick Connect** — Connect to a device without saving — option to save afterwards
+- **Command Palette** — Ctrl+K to search sessions by name, IP, vendor, model. Ranked results with highlighting
 - **Nested Folders** — Organize sessions in deep folder hierarchies with drag-and-drop
-- **Global Search** — Instantly find sessions by name, IP, hostname, tag, vendor, or description (SQLite FTS5)
-- **Terminal Tabs** — Open multiple concurrent terminal sessions, click tabs to switch
+- **Terminal Tabs** — Multiple concurrent sessions with status indicators (connected/connecting/disconnected)
 - **Telnet** — Legacy equipment support with security warnings
 - **Serial** — Serial port detection and configurable baud/parity/flow control
-- **Secure Credentials** — Windows Credential Manager / macOS Keychain integration (passwords never stored in SQLite)
-- **Import/Export** — Import sessions from JSON or CSV files via file picker; safe export without credentials
-- **Dark & Light Mode** — Professional dark theme (default), light mode, and system-follow mode
-- **Accent Colors** — Choose between Blue, Cyan, Green, Purple, and Orange accent themes
-- **Persistent Settings** — All settings saved locally and survive app restarts
+- **Secure Credentials** — Windows Credential Manager / macOS Keychain integration (passwords never in SQLite)
+- **Import/Export** — Import from JSON/CSV via file picker; safe export without credentials
+- **Dark & Light Mode** — Professional dark theme (default), light mode, system-follow. Persists across restarts
+- **Accent Colors** — Blue, Cyan, Green, Purple, Orange — click to change, instantly applied
+- **Persistent Settings** — All preferences saved locally via Zustand persist middleware
 - **Auto-Update** — In-app update notification when new versions are published to GitHub Releases
-- **No Console Window** — Runs as a native desktop app without a background CMD window
+- **No Console Window** — Pure GUI app, no background CMD window at any point
 - **Multilingual** — English and Hebrew UI with RTL support
-- **Cross-Platform** — Windows-first, with macOS architecture ready
-- **No Telemetry** — No analytics, no cloud, no account registration, no internet required
+- **Cross-Platform** — Windows-first, macOS architecture ready
+- **No Telemetry** — No analytics, no cloud, no account, no internet required
 
 ## Security
 
@@ -46,7 +46,7 @@ Built for network engineers, data-center technicians, system administrators, and
 | Build | Vite 6 |
 | Styling | Tailwind CSS 4 |
 | Terminal | xterm.js 5 |
-| SSH Backend | Windows OpenSSH (ssh.exe) via async process piping |
+| SSH Backend | Windows OpenSSH (ssh.exe) via async process piping — no visible CMD window |
 | Database | SQLite with FTS5 (rusqlite) |
 | Serial | serialport crate |
 | Credentials | keyring crate (Win Credential Manager / macOS Keychain) |
@@ -59,7 +59,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.2.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.3.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -99,7 +99,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.2.0_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.3.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
