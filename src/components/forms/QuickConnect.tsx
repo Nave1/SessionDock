@@ -34,6 +34,13 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
     onConnect(config);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && config.host.trim()) {
+      e.preventDefault();
+      handleConnect();
+    }
+  };
+
   const handleProtocolChange = (protocol: "ssh" | "telnet" | "serial") => {
     const ports = { ssh: 22, telnet: 23, serial: 0 };
     setConfig((prev) => ({ ...prev, protocol, port: ports[protocol] }));
@@ -108,6 +115,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
                 type="text"
                 value={config.host}
                 onChange={(e) => setConfig((p) => ({ ...p, host: e.target.value }))}
+                onKeyDown={handleKeyDown}
                 placeholder="192.168.1.1 or hostname"
                 autoFocus
                 className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
@@ -139,7 +147,8 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
               type="text"
               value={config.username}
               onChange={(e) => setConfig((p) => ({ ...p, username: e.target.value }))}
-              placeholder="admin"
+              onKeyDown={handleKeyDown}
+              placeholder="(optional - SSH will prompt if needed)"
               className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
             />
           </div>

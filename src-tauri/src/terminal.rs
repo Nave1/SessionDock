@@ -41,13 +41,18 @@ pub async fn spawn_ssh(
 
     // Build SSH arguments
     if let Some(user) = username {
-        cmd.arg(format!("{}@{}", user, host));
+        if !user.is_empty() {
+            cmd.arg(format!("{}@{}", user, host));
+        } else {
+            cmd.arg(host);
+        }
     } else {
         cmd.arg(host);
     }
 
     cmd.arg("-p").arg(port.to_string());
     cmd.arg("-o").arg("StrictHostKeyChecking=accept-new");
+    cmd.arg("-o").arg("RequestTTY=force");
 
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
