@@ -14,7 +14,8 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import type { CreateSessionRequest, CreateFolderRequest } from "./types";
 
 function App() {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const commandPaletteOpen = useAppStore((s) => s.commandPaletteOpen);
+  const setCommandPaletteOpen = useAppStore((s) => s.setCommandPaletteOpen);
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [folderFormOpen, setFolderFormOpen] = useState(false);
   const [quickConnectOpen, setQuickConnectOpen] = useState(false);

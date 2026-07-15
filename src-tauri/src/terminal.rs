@@ -54,12 +54,13 @@ pub async fn spawn_ssh(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    // Hide the console window on Windows - piped I/O doesn't need one
+    // Use DETACHED_PROCESS to avoid visible console window
+    // while still allowing piped I/O for SSH password prompts
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        cmd.creation_flags(DETACHED_PROCESS);
     }
 
     let mut child = cmd.spawn()
@@ -147,8 +148,8 @@ pub async fn spawn_telnet(
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+        const DETACHED_PROCESS: u32 = 0x00000008;
+        cmd.creation_flags(DETACHED_PROCESS);
     }
 
     let mut child = cmd.spawn()
