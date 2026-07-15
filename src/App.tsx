@@ -6,6 +6,7 @@ import { SessionForm } from "./components/forms/SessionForm";
 import { FolderForm } from "./components/forms/FolderForm";
 import { QuickConnect } from "./components/forms/QuickConnect";
 import { ToastContainer } from "./components/ToastContainer";
+import { UpdateNotification } from "./components/UpdateNotification";
 import { useAppStore } from "./stores/appStore";
 import { useSessionStore } from "./stores/sessionStore";
 import { useToastStore } from "./stores/toastStore";
@@ -136,6 +137,7 @@ function App() {
       )}
 
       <ToastContainer />
+      <UpdateNotification />
     </div>
   );
 }
