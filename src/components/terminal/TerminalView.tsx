@@ -6,6 +6,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown } from "lucide-react";
+import { highlightTerminalOutput } from "../../utils/terminalHighlight";
 import "@xterm/xterm/css/xterm.css";
 
 /**
@@ -233,7 +234,10 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
 
     // Listen for data from backend
     const unlistenData = listen<string>(`terminal-data-${tabId}`, (event) => {
-      if (event.payload) terminal.write(event.payload);
+      if (event.payload) {
+        const highlighted = highlightTerminalOutput(event.payload, true);
+        terminal.write(highlighted);
+      }
     });
 
     // Listen for status changes
