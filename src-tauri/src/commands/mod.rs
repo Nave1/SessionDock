@@ -6,3 +6,4 @@ pub mod connections;
 pub mod known_hosts;
 pub mod data;
 pub mod terminal;
+pub mod snippets;

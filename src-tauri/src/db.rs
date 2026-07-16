@@ -53,8 +53,16 @@ impl Database {
             )?;
         }
 
+        if current_version < 2 {
+            conn.execute_batch(include_str!("migrations/002_snippets.sql"))?;
+            conn.execute(
+                "INSERT INTO schema_version (version) VALUES (?1)",
+                params![2],
+            )?;
+        }
+
         log::info!("Database migrations complete. Version: {}", 
-            std::cmp::max(current_version, 1));
+            std::cmp::max(current_version, 2));
         Ok(())
     }
 }
