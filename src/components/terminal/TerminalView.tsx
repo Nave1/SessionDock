@@ -6,7 +6,6 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown } from "lucide-react";
-import { highlightTerminalOutput } from "../../utils/terminalHighlight";
 import "@xterm/xterm/css/xterm.css";
 
 /**
@@ -79,7 +78,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     const term = terminalRef.current;
     if (!term) return;
 
-    term.writeln(`\x1b[36mConnecting to ${host}:${port} via ${protocol.toUpperCase()}...\x1b[0m`);
+    term.writeln(`\x1b[38;2;251;191;36mConnecting\x1b[39m to \x1b[38;2;209;109;255m${host}:${port}\x1b[39m via ${protocol.toUpperCase()}...`);
     term.writeln("");
 
     let finalUsername = username || "";
@@ -89,7 +88,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     if (!finalUsername && protocol === "ssh") {
       finalUsername = await promptInTerminal(term, "Username: ", false);
       if (!finalUsername) {
-        term.writeln("\x1b[31mConnection cancelled.\x1b[0m");
+        term.writeln("\x1b[38;2;248;113;113mConnection cancelled.\x1b[39m");
         connectedRef.current = false;
         return;
       }
@@ -99,13 +98,13 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     if (!finalPassword && protocol === "ssh") {
       finalPassword = await promptInTerminal(term, "Password: ", true);
       if (finalPassword === null) {
-        term.writeln("\x1b[31mConnection cancelled.\x1b[0m");
+        term.writeln("\x1b[38;2;248;113;113mConnection cancelled.\x1b[39m");
         connectedRef.current = false;
         return;
       }
     }
 
-    term.writeln("\x1b[36mAuthenticating...\x1b[0m");
+    term.writeln(`\x1b[38;2;251;191;36mAuthenticating...\x1b[39m`);
 
     try {
       await invoke("spawn_terminal", {
@@ -117,7 +116,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
         password: finalPassword || null,
       });
     } catch (err) {
-      term.writeln(`\x1b[31mConnection failed: ${err}\x1b[0m`);
+      term.writeln(`\x1b[38;2;248;113;113mConnection failed: ${err}\x1b[39m`);
       connectedRef.current = false;
     }
   }, [tabId, host, port, protocol, username, password]);
@@ -127,7 +126,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     if (!term) return;
     connectedRef.current = false;
     term.writeln("");
-    term.writeln("\x1b[33m--- Reconnecting ---\x1b[0m");
+    term.writeln("\x1b[38;2;251;191;36m--- Reconnecting ---\x1b[39m");
     invoke("close_terminal", { tabId, protocol }).catch(() => {});
     setTimeout(() => connectToHost(), 500);
   }, [tabId, protocol, connectToHost]);
@@ -232,11 +231,10 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
       return true;
     });
 
-    // Listen for data from backend
+    // Listen for data from backend — write raw bytes FIRST, never modify remote output
     const unlistenData = listen<string>(`terminal-data-${tabId}`, (event) => {
       if (event.payload) {
-        const highlighted = highlightTerminalOutput(event.payload, true);
-        terminal.write(highlighted);
+        terminal.write(event.payload);
       }
     });
 
@@ -244,7 +242,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     const unlistenStatus = listen<string>(`terminal-status-${tabId}`, (event) => {
       if (event.payload === "disconnected") {
         terminal.writeln("");
-        terminal.writeln("\x1b[33mConnection closed.\x1b[0m");
+        terminal.writeln("\x1b[38;2;251;191;36mConnection closed.\x1b[39m");
         connectedRef.current = false;
       }
     });
