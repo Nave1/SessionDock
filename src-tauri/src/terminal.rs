@@ -73,20 +73,17 @@ pub async fn connect_ssh(
     session.handshake()
         .map_err(|e| AppError::Ssh(format!("SSH handshake failed: {}", e)))?;
 
-    // Query server-supported authentication methods
-    let methods_str = session.auth_methods(username)
-        .unwrap_or_default()
-        .to_string();
-    log::info!("SSH auth methods for {}:{}: {}", host, port, methods_str);
-
-    let supports_keyboard_interactive = methods_str.contains("keyboard-interactive");
-    let supports_password = methods_str.contains("password");
+    // Try authentication methods directly without calling auth_methods()
+    // auth_methods() sends a "none" request that some devices count as a
+    // failed attempt, exhausting the allowed retry count.
+    // Instead, try keyboard-interactive first (most common on network devices),
+    // then fall back to password.
 
     let mut auth_success = false;
     let mut last_error = String::new();
 
     // Try keyboard-interactive first (most network devices use this)
-    if !auth_success && supports_keyboard_interactive && !password.is_empty() {
+    if !auth_success && !password.is_empty() {
         struct PasswordResponder { password: String }
 
         impl ssh2::KeyboardInteractivePrompt for PasswordResponder {
@@ -96,8 +93,6 @@ pub async fn connect_ssh(
                 _instructions: &str,
                 prompts: &[ssh2::Prompt<'a>],
             ) -> Vec<String> {
-                // Respond to each prompt with the password
-                // Typically there is exactly one hidden "Password:" prompt
                 prompts.iter().map(|_| self.password.clone()).collect()
             }
         }
@@ -110,55 +105,39 @@ pub async fn connect_ssh(
             }
             Ok(()) => {
                 last_error = "Keyboard-interactive: server did not confirm authentication".to_string();
-                log::info!("SSH keyboard-interactive returned Ok but not authenticated");
             }
             Err(e) => {
-                last_error = format!("Keyboard-interactive rejected: {}", e);
-                log::info!("SSH keyboard-interactive failed, will try password");
+                last_error = format!("Keyboard-interactive failed: {}", e);
+                log::info!("SSH keyboard-interactive failed: {}", e);
             }
         }
     }
 
-    // Try password authentication as fallback
-    if !auth_success && supports_password && !password.is_empty() {
+    // If keyboard-interactive failed, try password auth
+    if !auth_success && !password.is_empty() {
         match session.userauth_password(username, password) {
             Ok(()) if session.authenticated() => {
                 auth_success = true;
                 log::info!("SSH password auth succeeded");
             }
             Ok(()) => {
-                last_error = "Password: server did not confirm authentication".to_string();
+                if last_error.is_empty() {
+                    last_error = "Password auth: server did not confirm".to_string();
+                }
             }
             Err(e) => {
-                last_error = format!("Password rejected: {}", e);
+                if last_error.is_empty() {
+                    last_error = format!("Password rejected: {}", e);
+                }
             }
-        }
-    }
-
-    // If no known method was advertised, try both anyway (some servers don't report correctly)
-    if !auth_success && !supports_keyboard_interactive && !supports_password && !password.is_empty() {
-        // Try keyboard-interactive
-        struct FallbackResponder { password: String }
-        impl ssh2::KeyboardInteractivePrompt for FallbackResponder {
-            fn prompt<'a>(&mut self, _u: &str, _i: &str, prompts: &[ssh2::Prompt<'a>]) -> Vec<String> {
-                prompts.iter().map(|_| self.password.clone()).collect()
-            }
-        }
-        let mut responder = FallbackResponder { password: password.to_string() };
-        if session.userauth_keyboard_interactive(username, &mut responder).is_ok() && session.authenticated() {
-            auth_success = true;
-        } else if session.userauth_password(username, password).is_ok() && session.authenticated() {
-            auth_success = true;
-        } else {
-            last_error = format!("No supported authentication method succeeded. Server advertised: {}", methods_str);
         }
     }
 
     if !auth_success {
         let detail = if last_error.is_empty() {
-            format!("Authentication failed. Server methods: {}", if methods_str.is_empty() { "unknown" } else { &methods_str })
+            "Authentication failed".to_string()
         } else {
-            format!("{}. Server methods: {}", last_error, if methods_str.is_empty() { "unknown" } else { &methods_str })
+            last_error
         };
         return Err(AppError::Ssh(detail));
     }
