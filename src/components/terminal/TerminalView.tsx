@@ -8,6 +8,50 @@ import { listen } from "@tauri-apps/api/event";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown } from "lucide-react";
 import "@xterm/xterm/css/xterm.css";
 
+/**
+ * Prompt the user for input inside the xterm.js terminal.
+ * If masked=true, input is hidden (for passwords).
+ * Returns the entered string, or empty string if cancelled (Escape/Ctrl+C).
+ */
+function promptInTerminal(term: XTerm, prompt: string, masked: boolean): Promise<string> {
+  return new Promise((resolve) => {
+    let input = "";
+    term.write(prompt);
+
+    const disposable = term.onData((data) => {
+      const code = data.charCodeAt(0);
+
+      if (data === "\r" || data === "\n") {
+        // Enter — submit
+        term.writeln("");
+        disposable.dispose();
+        resolve(input);
+      } else if (data === "\x7f" || data === "\b") {
+        // Backspace
+        if (input.length > 0) {
+          input = input.slice(0, -1);
+          if (!masked) {
+            term.write("\b \b");
+          }
+        }
+      } else if (data === "\x03" || data === "\x1b") {
+        // Ctrl+C or Escape — cancel
+        term.writeln("");
+        disposable.dispose();
+        resolve("");
+      } else if (code >= 32) {
+        // Printable character
+        input += data;
+        if (masked) {
+          term.write("*");
+        } else {
+          term.write(data);
+        }
+      }
+    });
+  });
+}
+
 interface TerminalViewProps {
   tabId: string;
   host: string;
@@ -37,14 +81,39 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     term.writeln(`\x1b[36mConnecting to ${host}:${port} via ${protocol.toUpperCase()}...\x1b[0m`);
     term.writeln("");
 
+    let finalUsername = username || "";
+    let finalPassword = password || "";
+
+    // Prompt for username in terminal if not provided
+    if (!finalUsername && protocol === "ssh") {
+      finalUsername = await promptInTerminal(term, "Username: ", false);
+      if (!finalUsername) {
+        term.writeln("\x1b[31mConnection cancelled.\x1b[0m");
+        connectedRef.current = false;
+        return;
+      }
+    }
+
+    // Prompt for password in terminal if not provided
+    if (!finalPassword && protocol === "ssh") {
+      finalPassword = await promptInTerminal(term, "Password: ", true);
+      if (finalPassword === null) {
+        term.writeln("\x1b[31mConnection cancelled.\x1b[0m");
+        connectedRef.current = false;
+        return;
+      }
+    }
+
+    term.writeln("\x1b[36mAuthenticating...\x1b[0m");
+
     try {
       await invoke("spawn_terminal", {
         tabId,
         host,
         port,
         protocol,
-        username: username || null,
-        password: password || null,
+        username: finalUsername || null,
+        password: finalPassword || null,
       });
     } catch (err) {
       term.writeln(`\x1b[31mConnection failed: ${err}\x1b[0m`);

@@ -22,7 +22,10 @@ pub async fn spawn_terminal(
             let pass = password.as_deref().unwrap_or("");
 
             if user.is_empty() {
-                return Err(AppError::Ssh("Username is required for SSH connection".to_string()));
+                return Err(AppError::Ssh("Username is required".to_string()));
+            }
+            if pass.is_empty() {
+                return Err(AppError::Ssh("Password is required".to_string()));
             }
 
             crate::terminal::connect_ssh(
