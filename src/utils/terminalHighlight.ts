@@ -93,7 +93,8 @@ function isValidIPv4(ip: string): boolean {
 // === ANSI DETECTION ===
 
 // Detects if text contains cursor movement, screen control, or alternate buffer sequences
-const RE_COMPLEX_ANSI = /\x1b\[[\d;]*[ABCDHJKfhlm]|\x1b\[\?|\x1b\]|\x1b\(|\x1b\)/;
+// NOTE: Does NOT include 'm' (SGR/colors) — those are simple and safe to highlight around
+const RE_COMPLEX_ANSI = /\x1b\[[\d;]*[ABCDHJKfhl]|\x1b\[\?|\x1b\]|\x1b\(|\x1b\)/;
 const RE_ANY_ANSI = /\x1b\[/;
 
 /**
