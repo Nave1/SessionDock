@@ -216,9 +216,9 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
 
-    // CRITICAL: Remote terminal input must be forwarded unchanged.
-    // Semantic highlighting must NEVER be called from this path.
-    // No trim, no parse, no ANSI injection, no local echo, no buffering.
+    // CRITICAL: Remote terminal input must be forwarded UNCHANGED.
+    // Semantic highlighting must NEVER intercept, modify, delay, or parse this path.
+    // No trim, no ANSI injection, no local echo, no command buffering.
     terminal.onData((data) => {
       invoke("write_terminal", { tabId, data, protocol }).catch(() => {});
     });
