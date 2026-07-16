@@ -10,10 +10,11 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ## Features
 
-- **Real SSH Terminal** — Interactive SSH via Windows OpenSSH with password prompts inside xterm.js (no CMD window)
-- **Quick Connect** — Enter host, press Enter, connect instantly. Username optional — SSH prompts if needed
+- **Native Embedded SSH** — In-process SSH via libssh2 (ssh2 crate). No ssh.exe, no CMD window. Password auth handled inside the app
+- **Quick Connect** — Enter host, username, password, press Enter. Connects instantly without saving
+- **Edit & Delete Sessions** — Hover any session to edit (pencil) or delete (trash) with confirmation
 - **Saved Sessions** — Create and organize connection profiles with device metadata (vendor, model, device type, description, tags)
-- **Command Palette** — Ctrl+K to search sessions by name, IP, vendor, model. Ranked results with highlighting
+- **Command Palette** — Ctrl+K to search sessions by name, IP, vendor, model. Ranked results with highlighting. Type > for app commands
 - **Nested Folders** — Organize sessions in deep folder hierarchies with drag-and-drop
 - **Terminal Tabs** — Multiple concurrent sessions with status indicators (connected/connecting/disconnected)
 - **Telnet** — Legacy equipment support with security warnings
@@ -32,7 +33,7 @@ Built for network engineers, data-center technicians, system administrators, and
 ## Security
 
 - Passwords stored exclusively in OS credential vaults (never in SQLite or config files)
-- SSH host-key verification via Windows OpenSSH
+- SSH authentication handled entirely in-process (no external ssh.exe)
 - No telemetry, no analytics, no cloud backend
 - All data stays local on your device
 - Credential vault abstraction for Windows Credential Manager and macOS Keychain
@@ -46,7 +47,7 @@ Built for network engineers, data-center technicians, system administrators, and
 | Build | Vite 6 |
 | Styling | Tailwind CSS 4 |
 | Terminal | xterm.js 5 |
-| SSH Backend | Windows OpenSSH (ssh.exe) via async process piping — no visible CMD window |
+| SSH Backend | ssh2 crate (libssh2) — native in-process, no external ssh.exe |
 | Database | SQLite with FTS5 (rusqlite) |
 | Serial | serialport crate |
 | Credentials | keyring crate (Win Credential Manager / macOS Keychain) |
@@ -158,7 +159,7 @@ SessionDock/
 │   │   │   ├── known_hosts.rs    # Host key verification
 │   │   │   ├── data.rs           # Export JSON/CSV, import
 │   │   │   └── serial.rs        # Serial port listing
-│   │   ├── terminal.rs          # Process-based terminal (ssh.exe/telnet piping)
+│   │   ├── terminal.rs          # Native SSH (ssh2/libssh2) + Telnet process manager
 │   │   ├── credential_vault/    # OS vault abstraction (keyring)
 │   │   ├── protocols/           # SSH, Telnet, Serial protocol types
 │   │   ├── migrations/          # SQLite schema (FTS5, indexes)
