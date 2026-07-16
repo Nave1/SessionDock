@@ -216,7 +216,9 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
 
-    // Send keystrokes to backend
+    // CRITICAL: Remote terminal input must be forwarded unchanged.
+    // Semantic highlighting must NEVER be called from this path.
+    // No trim, no parse, no ANSI injection, no local echo, no buffering.
     terminal.onData((data) => {
       invoke("write_terminal", { tabId, data, protocol }).catch(() => {});
     });
