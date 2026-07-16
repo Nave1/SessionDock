@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore, ThemeMode, AccentColor } from "../../stores/themeStore";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useAppVersion } from "../../hooks/useAppVersion";
 import {
   Settings as SettingsIcon,
   Monitor,
@@ -182,6 +183,8 @@ function SecuritySettings() {
 }
 
 function AboutSettings() {
+  const { version, loading } = useAppVersion();
+
   return (
     <div className="space-y-4 max-w-lg">
       <div className="flex items-center gap-3 mb-6">
@@ -190,13 +193,23 @@ function AboutSettings() {
         </div>
         <div>
           <h3 className="text-sm font-semibold text-dock-text">SessionDock</h3>
-          <p className="text-xs text-dock-text-muted">Version 0.3.0</p>
+          <p className="text-xs text-dock-text-muted">
+            {loading ? "Loading version..." : `Version ${version || "Unknown"}`}
+          </p>
         </div>
       </div>
       <div className="space-y-2 text-xs text-dock-text-muted">
         <p>Platform: Windows x64</p>
         <p>License: MIT</p>
         <p>No telemetry • No analytics • No cloud</p>
+      </div>
+      <div className="pt-4 border-t border-dock-border">
+        <button
+          onClick={() => window.open("https://github.com/sessiondock/sessiondock")}
+          className="text-xs text-dock-accent hover:text-dock-accent-hover"
+        >
+          GitHub Repository →
+        </button>
       </div>
     </div>
   );
