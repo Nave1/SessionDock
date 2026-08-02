@@ -4,31 +4,46 @@ A modern, fast, lightweight desktop application for managing and opening SSH, Te
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## Features
 
-- **Native Embedded SSH** — In-process SSH via libssh2 (ssh2 crate). No ssh.exe, no CMD window. Password auth handled inside the app
-- **Quick Connect** — Enter host, username, password, press Enter. Connects instantly without saving
-- **Edit & Delete Sessions** — Hover any session to edit (pencil) or delete (trash) with confirmation
-- **Saved Sessions** — Create and organize connection profiles with device metadata (vendor, model, device type, description, tags)
-- **Command Palette** — Ctrl+K to search sessions by name, IP, vendor, model. Ranked results with highlighting. Type > for app commands
-- **Nested Folders** — Organize sessions in deep folder hierarchies with drag-and-drop
-- **Terminal Tabs** — Multiple concurrent sessions with status indicators (connected/connecting/disconnected)
-- **Telnet** — Legacy equipment support with security warnings
-- **Serial** — Serial port detection and configurable baud/parity/flow control
-- **Secure Credentials** — Windows Credential Manager / macOS Keychain integration (passwords never in SQLite)
-- **Import/Export** — Import from JSON/CSV via file picker; safe export without credentials
-- **Dark & Light Mode** — Professional dark theme (default), light mode, system-follow. Persists across restarts
-- **Accent Colors** — Blue, Cyan, Green, Purple, Orange — click to change, instantly applied
-- **Persistent Settings** — All preferences saved locally via Zustand persist middleware
-- **Auto-Update** — In-app update notification when new versions are published to GitHub Releases
-- **No Console Window** — Pure GUI app, no background CMD window at any point
-- **Multilingual** — English and Hebrew UI with RTL support
-- **Cross-Platform** — Windows-first, macOS architecture ready
-- **No Telemetry** — No analytics, no cloud, no account, no internet required
+### Connections and terminal
+
+- **Native embedded SSH** - SSH runs in-process through libssh2; SessionDock does not wrap `ssh.exe`, Command Prompt, or PowerShell.
+- **SSH authentication** - Supports password and keyboard-interactive authentication with an in-terminal credential prompt.
+- **Hostname and IP support** - Resolves DNS names, tries all resolved addresses, and reports connection errors by stage.
+- **Quick Connect** - Open an SSH, Telnet, or Serial connection without creating a saved session first.
+- **Telnet support** - Connect to legacy network equipment with a clear transport security warning.
+- **Serial support** - Detect serial ports and configure baud rate, data bits, stop bits, parity, and flow control.
+- **Tabbed terminal workspace** - Run multiple concurrent sessions with connection-state indicators and close/reconnect controls.
+- **Full terminal interaction** - Raw keyboard input, control sequences, paste, resize, links, scrolling, and remote output are handled by xterm.js.
+- **Terminal search** - Find text in the active terminal and move between matches.
+- **Semantic output colors** - Optionally highlights IP/CIDR addresses, MAC addresses, interfaces, VLANs, timestamps, status words, and ping results without changing the remote byte stream or overriding native ANSI colors.
+
+### Session organization
+
+- **Saved sessions** - Store connection profiles with protocol, host, port, username, vendor, model, device type, description, and tags.
+- **Session editing and deletion** - Update saved profiles or remove them with confirmation.
+- **Nested folders** - Build multi-level folder hierarchies and drag folders into other folders.
+- **Root reordering** - Drag nested folders back to the top level using the Sidebar root target.
+- **Content-preserving folder deletion** - Delete a folder while moving its direct child folders and sessions to the deleted folder's parent.
+- **Session search** - Search by name, host, vendor, model, description, and tags.
+- **Command palette** - Press `Ctrl+K` to search sessions and run common application actions from the keyboard.
+- **Import and export utilities** - Parse and generate JSON or CSV session data without exporting credential secrets.
+
+### Interface and preferences
+
+- **Dark, light, and system themes** - Choose a theme mode that persists across restarts, with high-contrast dark-mode text.
+- **Accent colors** - Switch instantly between Blue, Cyan, Green, Purple, and Orange accents.
+- **Configurable terminal appearance** - Set terminal font family, font size, cursor style, cursor blink, scrollback, and semantic coloring.
+- **Home dashboard** - View connection summaries, favorites, recent sessions, and saved sessions.
+- **Keyboard shortcuts** - Quickly create sessions, close tabs, change tabs, and open the command palette.
+- **English and Hebrew UI** - Includes right-to-left layout support for Hebrew.
+- **Local-first design** - No account, analytics, telemetry, or cloud backend; application data remains on the local device.
+- **Native desktop experience** - Compact Tauri interface with no console window and a Windows NSIS installer.
 
 ## Security
 
@@ -60,7 +75,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.3.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.5.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -100,7 +115,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.3.0_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.5.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -108,7 +123,7 @@ npx tauri build
 ### Run Tests
 
 ```powershell
-npm test          # 33 unit tests
+npm test          # 65 unit tests
 npx tsc --noEmit  # TypeScript check
 ```
 

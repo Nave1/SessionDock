@@ -9,7 +9,7 @@
 
 2. Clone and install:
    ```bash
-   git clone https://github.com/your-org/sessiondock.git
+   git clone https://github.com/Nave1/SessionDock.git
    cd sessiondock
    npm install
    ```

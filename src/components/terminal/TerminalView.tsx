@@ -1,12 +1,85 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import { Terminal as XTerm } from "@xterm/xterm";
+import { Terminal as XTerm, type IDecoration, type IMarker } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown } from "lucide-react";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { findTerminalHighlights } from "../../utils/terminalHighlight";
 import "@xterm/xterm/css/xterm.css";
+
+interface SemanticDecorationLine {
+  marker: IMarker;
+  signature: string;
+  decorations: IDecoration[];
+}
+
+function clearSemanticDecorations(lines: SemanticDecorationLine[]) {
+  for (const line of lines.splice(0)) {
+    for (const decoration of line.decorations) decoration.dispose();
+    line.marker.dispose();
+  }
+}
+
+function refreshSemanticDecorations(term: XTerm, lines: SemanticDecorationLine[]) {
+  const buffer = term.buffer.active;
+  if (buffer.type !== "normal") return;
+
+  const cursorLine = buffer.baseY + buffer.cursorY;
+  const firstLine = Math.max(0, cursorLine - term.rows - 2);
+
+  for (let lineIndex = firstLine; lineIndex <= cursorLine; lineIndex++) {
+    const bufferLine = buffer.getLine(lineIndex);
+    if (!bufferLine) continue;
+
+    const text = bufferLine.translateToString(true);
+    const existingIndex = lines.findIndex((line) => line.marker.line === lineIndex);
+    const existing = existingIndex >= 0 ? lines[existingIndex] : undefined;
+    if (existing?.signature === text) continue;
+
+    if (existing) {
+      for (const decoration of existing.decorations) decoration.dispose();
+      existing.marker.dispose();
+      lines.splice(existingIndex, 1);
+    }
+
+    const highlights = findTerminalHighlights(text).filter(({ start, length }) => {
+      for (let column = start; column < start + length; column++) {
+        if (!bufferLine.getCell(column)?.isFgDefault()) return false;
+      }
+      return true;
+    });
+    if (highlights.length === 0) continue;
+
+    const marker = term.registerMarker(lineIndex - cursorLine);
+    if (!marker) continue;
+
+    const decorations = highlights.flatMap(({ start, length, color }) => {
+      const decoration = term.registerDecoration({
+        marker,
+        x: start,
+        width: length,
+        foregroundColor: color,
+        layer: "top",
+      });
+      return decoration ? [decoration] : [];
+    });
+    if (decorations.length > 0) lines.push({ marker, signature: text, decorations });
+    else marker.dispose();
+  }
+
+  for (let index = lines.length - 1; index >= 0; index--) {
+    if (lines[index].marker.isDisposed) lines.splice(index, 1);
+  }
+  while (lines.length > 2000) {
+    const oldest = lines.shift();
+    if (!oldest) break;
+    for (const decoration of oldest.decorations) decoration.dispose();
+    oldest.marker.dispose();
+  }
+}
 
 /**
  * Prompt the user for input inside the xterm.js terminal.
@@ -97,7 +170,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     // Prompt for password in terminal if not provided
     if (!finalPassword && protocol === "ssh") {
       finalPassword = await promptInTerminal(term, "Password: ", true);
-      if (finalPassword === null) {
+      if (!finalPassword) {
         term.writeln("\x1b[38;2;248;113;113mConnection cancelled.\x1b[39m");
         connectedRef.current = false;
         return;
@@ -219,6 +292,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
     searchAddonRef.current = searchAddon;
+    const semanticDecorations: SemanticDecorationLine[] = [];
 
     // CRITICAL: Remote terminal input must be forwarded UNCHANGED.
     // Semantic highlighting must NEVER intercept, modify, delay, or parse this path.
@@ -237,10 +311,15 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
       return true;
     });
 
-    // Listen for data from backend — write raw bytes FIRST, never modify remote output
+    // Always parse the exact remote payload first. Semantic colors are visual
+    // cell decorations and never enter xterm's terminal data stream.
     const unlistenData = listen<string>(`terminal-data-${tabId}`, (event) => {
       if (event.payload) {
-        terminal.write(event.payload);
+        const colorsEnabled = useSettingsStore.getState().semanticTerminalColors;
+        terminal.write(event.payload, () => {
+          if (colorsEnabled) refreshSemanticDecorations(terminal, semanticDecorations);
+          else clearSemanticDecorations(semanticDecorations);
+        });
       }
     });
 
@@ -261,10 +340,14 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
       invoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
     });
 
-    // Start connection
-    connectToHost();
+    // Deferring startup lets React Strict Mode cancel its development-only
+    // effect replay before an SSH attempt begins on a disposed terminal.
+    const connectTimer = window.setTimeout(() => connectToHost(), 0);
 
     return () => {
+      window.clearTimeout(connectTimer);
+      connectedRef.current = false;
+      clearSemanticDecorations(semanticDecorations);
       resizeObserver.disconnect();
       unlistenData.then((fn) => fn());
       unlistenStatus.then((fn) => fn());

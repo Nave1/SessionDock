@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore, ViewMode } from "../stores/appStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { FolderTree } from "./tree/FolderTree";
+import { getActiveFolderDrag, setActiveFolderDrag } from "../utils/folderTree";
 import {
   Home,
   List,
@@ -24,7 +26,8 @@ interface SidebarProps {
 export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: SidebarProps) {
   const { t } = useTranslation();
   const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId } = useAppStore();
-  const { folders, sessions } = useSessionStore();
+  const { folders, sessions, moveFolder, deleteFolderPreservingContents } = useSessionStore();
+  const [rootDragOver, setRootDragOver] = useState(false);
 
   const navItems: { view: ViewMode; icon: typeof Home; label: string }[] = [
     { view: "home", icon: Home, label: t("sidebar.home") },
@@ -116,9 +119,26 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
 
         {/* Folder tree */}
         <div className="px-0.5">
-          <div className="flex items-center justify-between px-2 mb-1.5">
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setRootDragOver(true);
+              const folderId = getActiveFolderDrag();
+              if (folderId) {
+                moveFolder(folderId, undefined);
+                setActiveFolderDrag(null);
+              }
+            }}
+            onDragLeave={() => setRootDragOver(false)}
+            onDrop={(e) => { e.preventDefault(); setRootDragOver(false); }}
+            className={`flex items-center justify-between px-2 mb-1.5 rounded border border-dashed ${
+              rootDragOver ? "border-dock-accent bg-dock-accent/15" : "border-transparent"
+            }`}
+            title="Drop a folder here to move it to the top level"
+          >
             <span className="text-[10px] font-medium uppercase tracking-wider text-dock-text-muted">
-              Folders
+              Folders · Top level
             </span>
             <span className="text-[10px] text-dock-text-muted tabular-nums">{folders.length}</span>
           </div>
@@ -136,6 +156,14 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
                 ...sessions.find((s) => s.id === sessionId)!,
                 folder_id: folderId,
               });
+            }}
+            onMoveFolder={(folderId, parentId) => moveFolder(folderId, parentId)}
+            onDeleteFolder={(folderId) => {
+              deleteFolderPreservingContents(folderId);
+              if (selectedFolderId === folderId) {
+                setSelectedFolderId(null);
+                setCurrentView("allSessions");
+              }
             }}
           />
           {folders.length === 0 && (

@@ -157,6 +157,7 @@ function TerminalSettings() {
         <LiveInput label="Scrollback lines" value={String(s.scrollbackLines)} type="number" onChange={(v) => s.updateSetting("scrollbackLines", parseInt(v) || 10000)} />
         <LiveToggle label="Copy on select" checked={s.copyOnSelect} onChange={(v) => s.updateSetting("copyOnSelect", v)} />
         <LiveSelect label="Bell" options={["None", "Sound", "Visual"]} value={s.bellMode} onChange={(v) => s.updateSetting("bellMode", v)} />
+        <LiveToggle label="Semantic output colors" checked={s.semanticTerminalColors} onChange={(v) => s.updateSetting("semanticTerminalColors", v)} />
       </SettingGroup>
     </div>
   );
@@ -205,7 +206,7 @@ function AboutSettings() {
       </div>
       <div className="pt-4 border-t border-dock-border">
         <button
-          onClick={() => { import("@tauri-apps/plugin-shell").then(m => m.open("https://github.com/sessiondock/sessiondock")); }}
+          onClick={() => { import("@tauri-apps/plugin-shell").then(m => m.open("https://github.com/Nave1/SessionDock")); }}
           className="text-xs text-dock-accent hover:text-dock-accent-hover"
         >
           GitHub Repository →

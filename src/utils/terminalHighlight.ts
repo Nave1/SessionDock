@@ -9,16 +9,14 @@
  *
  * Rules:
  * - Never modifies data sent TO the remote device
- * - Skips text segments that already contain ANSI escape sequences
- * - Skips text with cursor movement / screen control sequences
- * - Only processes plain-text segments between ANSI codes
+ * - Skips all data containing ANSI or terminal control sequences
  * - Validates candidates (e.g. IP octet range check)
  * - Handles priority: longer/negative matches override shorter/positive ones
  */
 
 // ANSI foreground colors (24-bit true color)
 const COLORS = {
-  ip: "\x1b[38;2;209;109;255m",        // #D16DFF pink-purple
+  ip: "\x1b[38;2;45;212;191m",         // #2DD4BF teal
   mac: "\x1b[38;2;34;211;238m",        // #22D3EE cyan
   iface: "\x1b[38;2;96;165;250m",      // #60A5FA blue
   vlan: "\x1b[38;2;192;132;252m",      // #C084FC purple
@@ -26,8 +24,27 @@ const COLORS = {
   down: "\x1b[38;2;248;113;113m",      // #F87171 red
   warn: "\x1b[38;2;251;191;36m",       // #FBBF24 amber
   time: "\x1b[38;2;148;163;184m",      // #94A3B8 muted gray
+  latency: "\x1b[38;2;56;189;248m",     // #38BDF8 sky
   reset: "\x1b[39m",                    // Reset foreground only
 };
+
+const DECORATION_COLORS = {
+  ip: "#2DD4BF",
+  mac: "#22D3EE",
+  iface: "#60A5FA",
+  vlan: "#C084FC",
+  up: "#4ADE80",
+  down: "#F87171",
+  warn: "#FBBF24",
+  time: "#94A3B8",
+  latency: "#38BDF8",
+} as const;
+
+export interface TerminalHighlight {
+  start: number;
+  length: number;
+  color: string;
+}
 
 // === PATTERNS ===
 
@@ -40,13 +57,18 @@ const RE_MAC_DASH = /\b([0-9a-fA-F]{2}-[0-9a-fA-F]{2}-[0-9a-fA-F]{2}-[0-9a-fA-F]
 const RE_MAC_DOT = /\b([0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4})\b/g;
 
 // Interface names (conservative patterns with required digit)
-const RE_IFACE = /\b((?:Ethernet|Et|GigabitEthernet|Gi|TenGigabitEthernet|Te|FortyGigE|HundredGigE|Fa|FastEthernet|Management|Mgmt|Loopback|Lo|Port-[Cc]hannel|Po|Tunnel|Serial|Vlan)\d[\d/]*|(?:eth|ens|eno|enp|wlan|bond)\d[\w]*)\b/g;
+const RE_IFACE = /\b((?:Ethernet|Eth|Et|GigabitEthernet|Gi|TenGigabitEthernet|Te|TwentyFiveGigE|Twe|FortyGigE|Fo|HundredGigE|Hu|Fa|FastEthernet|Management|Mgmt|Loopback|Lo|Port-[Cc]hannel|Po|Tunnel|Serial|Vlan|Vl)\d[\w./:-]*|(?:eth|ens|eno|enp|wlan|bond)\d[\w./:-]*)\b/g;
 
 // VLAN with number
 const RE_VLAN = /\b((?:VLAN|Vlan|vlan)\s*)(\d{1,4})\b/g;
 
 // Timestamps HH:MM:SS
 const RE_TIME = /\b(\d{1,2}:\d{2}:\d{2}(?:\.\d+)?)\b/g;
+
+// Common Cisco/network-device ping output
+const RE_PING_SUCCESS = /!{2,}|\bSuccess rate is \d+ percent(?: \(\d+\/\d+\))?/gi;
+const RE_PING_FAILURE = /\bSuccess rate is 0 percent(?: \(0\/\d+\))?/gi;
+const RE_LATENCY = /\b(?:time[=<]\s*)?\d+(?:\.\d+)?\s*ms\b/gi;
 
 // Status keywords - NEGATIVE (higher priority, checked first)
 const NEGATIVE_WORDS = [
@@ -90,43 +112,15 @@ function isValidIPv4(ip: string): boolean {
   });
 }
 
-// === ANSI DETECTION ===
-
-// Detects if text contains cursor movement, screen control, or alternate buffer sequences
-// NOTE: Does NOT include 'm' (SGR/colors) — those are simple and safe to highlight around
-const RE_COMPLEX_ANSI = /\x1b\[[\d;]*[ABCDHJKfhl]|\x1b\[\?|\x1b\]|\x1b\(|\x1b\)/;
-const RE_ANY_ANSI = /\x1b\[/;
-
-/**
- * Split text into segments: ANSI escape sequences and plain text.
- * Only plain-text segments get highlighted.
- */
-function splitAnsiSegments(text: string): { isAnsi: boolean; content: string }[] {
-  const segments: { isAnsi: boolean; content: string }[] = [];
-  const re = /(\x1b\[[^a-zA-Z]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b[()][^\x1b])/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({ isAnsi: false, content: text.slice(lastIndex, match.index) });
-    }
-    segments.push({ isAnsi: true, content: match[0] });
-    lastIndex = re.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    segments.push({ isAnsi: false, content: text.slice(lastIndex) });
-  }
-
-  return segments;
-}
+// Allow tabs and line endings, but bypass any data that performs terminal
+// control. This keeps prompts, cursor movement, paging, and fullscreen apps raw.
+const RE_TERMINAL_CONTROL = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/;
 
 /**
  * Apply semantic colors to a plain-text segment.
  * Returns the segment with ANSI color codes wrapping matched tokens.
  */
-function highlightPlainText(text: string): string {
+export function findTerminalHighlights(text: string): TerminalHighlight[] {
   // Track which character positions are already highlighted (priority system)
   const highlighted = new Uint8Array(text.length); // 0 = free, 1 = taken
   const replacements: { start: number; end: number; color: string }[] = [];
@@ -151,28 +145,38 @@ function highlightPlainText(text: string): string {
     }
   }
 
-  // Priority order: negative > positive > warning > MAC > IP > interface > VLAN > time
-  addMatch(RE_NEGATIVE, COLORS.down);
-  addMatch(RE_POSITIVE, COLORS.up);
-  addMatch(RE_WARNING, COLORS.warn);
-  addMatch(RE_MAC_COLON, COLORS.mac);
-  addMatch(RE_MAC_DASH, COLORS.mac);
-  addMatch(RE_MAC_DOT, COLORS.mac);
-  addMatch(RE_IPV4, COLORS.ip, (ip) => isValidIPv4(ip.replace(/\/\d+$/, "")));
-  addMatch(RE_IFACE, COLORS.iface);
-  addMatch(RE_VLAN, COLORS.vlan);
-  addMatch(RE_TIME, COLORS.time);
+  // Priority order: failures > success > warning > network tokens > timing
+  addMatch(RE_PING_FAILURE, DECORATION_COLORS.down);
+  addMatch(RE_NEGATIVE, DECORATION_COLORS.down);
+  addMatch(RE_PING_SUCCESS, DECORATION_COLORS.up);
+  addMatch(RE_POSITIVE, DECORATION_COLORS.up);
+  addMatch(RE_WARNING, DECORATION_COLORS.warn);
+  addMatch(RE_MAC_COLON, DECORATION_COLORS.mac);
+  addMatch(RE_MAC_DASH, DECORATION_COLORS.mac);
+  addMatch(RE_MAC_DOT, DECORATION_COLORS.mac);
+  addMatch(RE_IPV4, DECORATION_COLORS.ip, (ip) => isValidIPv4(ip.replace(/\/\d+$/, "")));
+  addMatch(RE_IFACE, DECORATION_COLORS.iface);
+  addMatch(RE_VLAN, DECORATION_COLORS.vlan);
+  addMatch(RE_TIME, DECORATION_COLORS.time);
+  addMatch(RE_LATENCY, DECORATION_COLORS.latency);
+
+  return replacements
+    .sort((a, b) => a.start - b.start)
+    .map(({ start, end, color }) => ({ start, length: end - start, color }));
+}
+
+function highlightPlainText(text: string): string {
+  const replacements = findTerminalHighlights(text);
 
   if (replacements.length === 0) return text;
 
-  // Sort by start position and build result
-  replacements.sort((a, b) => a.start - b.start);
   let result = "";
   let pos = 0;
   for (const r of replacements) {
     result += text.slice(pos, r.start);
-    result += r.color + text.slice(r.start, r.end) + COLORS.reset;
-    pos = r.end;
+    const ansiColor = Object.entries(DECORATION_COLORS).find(([, hex]) => hex === r.color)?.[0] as keyof typeof COLORS;
+    result += COLORS[ansiColor] + text.slice(r.start, r.start + r.length) + COLORS.reset;
+    pos = r.start + r.length;
   }
   result += text.slice(pos);
   return result;
@@ -182,35 +186,16 @@ function highlightPlainText(text: string): string {
  * Main entry point: apply semantic highlighting to terminal output.
  *
  * - If disabled, returns text unchanged.
- * - Skips text with complex ANSI (cursor moves, screen ops).
- * - For text with simple ANSI (colors), highlights only plain segments.
+ * - Skips all ANSI and control data. Native device formatting always wins.
  * - Validates all candidates before coloring.
  */
 export function highlightTerminalOutput(text: string, enabled: boolean): string {
   if (!enabled || !text) return text;
 
-  // Skip very short fragments (likely partial sequences)
+  // Skip very short fragments (likely partial tokens).
   if (text.length < 3) return text;
 
-  // If text has complex control sequences (cursor movement, alternate screen, etc.)
-  // pass through completely — these are fullscreen apps, not line-based output
-  if (RE_COMPLEX_ANSI.test(text)) return text;
+  if (text.includes("\x1b") || RE_TERMINAL_CONTROL.test(text)) return text;
 
-  // If text has no ANSI at all, highlight the whole thing
-  if (!RE_ANY_ANSI.test(text)) {
-    return highlightPlainText(text);
-  }
-
-  // Text has simple ANSI (e.g. existing colors from device).
-  // Split into ANSI sequences and plain text, only highlight plain parts.
-  const segments = splitAnsiSegments(text);
-  let result = "";
-  for (const seg of segments) {
-    if (seg.isAnsi) {
-      result += seg.content;
-    } else {
-      result += highlightPlainText(seg.content);
-    }
-  }
-  return result;
+  return highlightPlainText(text);
 }

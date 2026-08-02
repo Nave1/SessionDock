@@ -18,6 +18,8 @@ interface SessionState {
   addFolder: (folder: Folder) => void;
   updateFolderInStore: (folder: Folder) => void;
   removeFolder: (id: string) => void;
+  moveFolder: (id: string, parentId?: string) => void;
+  deleteFolderPreservingContents: (id: string) => void;
 
   setCredentials: (credentials: CredentialProfile[]) => void;
   setSearchResults: (results: SearchResult[]) => void;
@@ -56,6 +58,28 @@ export const useSessionStore = create<SessionState>((set) => ({
     set((state) => ({
       folders: state.folders.filter((f) => f.id !== id),
     })),
+  moveFolder: (id, parentId) =>
+    set((state) => ({
+      folders: state.folders.map((folder) =>
+        folder.id === id
+          ? { ...folder, parent_id: parentId, updated_at: new Date().toISOString() }
+          : folder
+      ),
+    })),
+  deleteFolderPreservingContents: (id) =>
+    set((state) => {
+      const folder = state.folders.find((item) => item.id === id);
+      if (!folder) return state;
+
+      return {
+        folders: state.folders
+          .filter((item) => item.id !== id)
+          .map((item) => item.parent_id === id ? { ...item, parent_id: folder.parent_id } : item),
+        sessions: state.sessions.map((session) =>
+          session.folder_id === id ? { ...session, folder_id: folder.parent_id } : session
+        ),
+      };
+    }),
 
   setCredentials: (credentials) => set({ credentials }),
   setSearchResults: (results) => set({ searchResults: results }),

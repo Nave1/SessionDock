@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
-use std::net::TcpStream;
+use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
 use ssh2::{Channel, Session};
@@ -35,6 +35,37 @@ impl NativeSshManager {
     }
 }
 
+fn open_ssh_session(host: &str, port: u16) -> Result<Session, AppError> {
+    let target = format!("{}:{}", host, port);
+    let addresses = (host, port)
+        .to_socket_addrs()
+        .map_err(|e| AppError::Ssh(format!("Address resolution failed for {}: {}", target, e)))?;
+    let mut last_error = None;
+
+    for socket_addr in addresses {
+        match TcpStream::connect_timeout(&socket_addr, Duration::from_secs(10)) {
+            Ok(tcp) => {
+                tcp.set_nonblocking(false)
+                    .map_err(|e| AppError::Ssh(format!("Socket setup failed for {}: {}", target, e)))?;
+
+                let mut session = Session::new()
+                    .map_err(|e| AppError::Ssh(format!("SSH initialization failed: {}", e)))?;
+                session.set_timeout(10_000);
+                session.set_tcp_stream(tcp);
+                session.handshake()
+                    .map_err(|e| AppError::Ssh(format!("SSH handshake with {} failed: {}", target, e)))?;
+                return Ok(session);
+            }
+            Err(error) => last_error = Some(error),
+        }
+    }
+
+    Err(AppError::Ssh(match last_error {
+        Some(error) => format!("TCP connection to {} failed: {}", target, error),
+        None => format!("Address resolution returned no addresses for {}", target),
+    }))
+}
+
 /// Connect to an SSH server using password authentication.
 /// Returns immediately after shell is opened.
 /// Spawns a background task to stream output to the frontend.
@@ -47,31 +78,14 @@ pub async fn connect_ssh(
     username: &str,
     password: &str,
 ) -> Result<(), AppError> {
-    let addr = format!("{}:{}", host, port);
     let tab_id_owned = tab_id.to_string();
 
-    // TCP connect with timeout (blocking, run in spawn_blocking)
-    let tcp = tokio::task::spawn_blocking({
-        let addr = addr.clone();
-        move || {
-            TcpStream::connect_timeout(
-                &addr.parse().map_err(|e| AppError::Ssh(format!("Invalid address: {}", e)))?,
-                Duration::from_secs(10),
-            ).map_err(|e| AppError::Ssh(format!("Connection failed: {}", e)))
-        }
+    let mut session = tokio::task::spawn_blocking({
+        let host = host.to_string();
+        move || open_ssh_session(&host, port)
     })
     .await
     .map_err(|e| AppError::Ssh(format!("Task error: {}", e)))??;
-
-    tcp.set_nonblocking(false)
-        .map_err(|e| AppError::Ssh(format!("Socket error: {}", e)))?;
-
-    // SSH handshake
-    let mut session = Session::new()
-        .map_err(|e| AppError::Ssh(format!("SSH init error: {}", e)))?;
-    session.set_tcp_stream(tcp);
-    session.handshake()
-        .map_err(|e| AppError::Ssh(format!("SSH handshake failed: {}", e)))?;
 
     // Try authentication methods directly without calling auth_methods()
     // auth_methods() sends a "none" request that some devices count as a
@@ -113,8 +127,18 @@ pub async fn connect_ssh(
         }
     }
 
-    // If keyboard-interactive failed, try password auth
+    // A failed method can consume the only permitted authentication attempt on
+    // some appliances. Reconnect before trying password so fallback starts with
+    // a clean server-side attempt counter.
     if !auth_success && !password.is_empty() {
+        session = tokio::task::spawn_blocking({
+            let host = host.to_string();
+            move || open_ssh_session(&host, port)
+        })
+        .await
+        .map_err(|e| AppError::Ssh(format!("Authentication retry task failed: {}", e)))?
+        .map_err(|e| AppError::Ssh(format!("{}; password retry connection failed: {}", last_error, e)))?;
+
         match session.userauth_password(username, password) {
             Ok(()) if session.authenticated() => {
                 auth_success = true;
@@ -126,9 +150,11 @@ pub async fn connect_ssh(
                 }
             }
             Err(e) => {
-                if last_error.is_empty() {
-                    last_error = format!("Password rejected: {}", e);
-                }
+                last_error = if last_error.is_empty() {
+                    format!("Password rejected: {}", e)
+                } else {
+                    format!("{}; password authentication failed: {}", last_error, e)
+                };
             }
         }
     }

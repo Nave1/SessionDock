@@ -52,7 +52,7 @@
     },
     "updater": {
       "endpoints": [
-        "https://github.com/sessiondock/sessiondock/releases/latest/download/latest.json"
+        "https://github.com/Nave1/SessionDock/releases/latest/download/latest.json"
       ],
       "pubkey": "",
       "windows": {

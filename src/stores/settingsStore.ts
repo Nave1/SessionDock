@@ -20,6 +20,7 @@ interface SettingsState {
   scrollbackLines: number;
   copyOnSelect: boolean;
   bellMode: string;
+  semanticTerminalColors: boolean;
 
   // SSH
   sshTimeout: number;
@@ -61,6 +62,7 @@ export const useSettingsStore = create<SettingsState>()(
       scrollbackLines: 10000,
       copyOnSelect: false,
       bellMode: "None",
+      semanticTerminalColors: true,
 
       // SSH defaults
       sshTimeout: 30,

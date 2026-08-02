@@ -98,6 +98,23 @@ pub fn update_folder(
         if pid == &id {
             return Err(AppError::Validation("Folder cannot be its own parent".into()));
         }
+
+        let creates_cycle: bool = conn.query_row(
+            "WITH RECURSIVE descendants(id) AS (
+                SELECT id FROM folders WHERE parent_id = ?1
+                UNION ALL
+                SELECT folders.id FROM folders
+                JOIN descendants ON folders.parent_id = descendants.id
+             )
+             SELECT EXISTS(SELECT 1 FROM descendants WHERE id = ?2)",
+            rusqlite::params![id, pid],
+            |row| row.get(0),
+        )?;
+        if creates_cycle {
+            return Err(AppError::Validation(
+                "Folder cannot be moved into one of its descendants".into(),
+            ));
+        }
     }
 
     conn.execute(
@@ -121,40 +138,63 @@ pub fn delete_folder(
     id: String,
     action: String,
 ) -> Result<(), AppError> {
-    let conn = db.conn();
+    let mut conn = db.conn();
+    let transaction = conn.transaction()?;
 
     match action.as_str() {
         "move_to_parent" => {
             // Get folder's parent
-            let parent_id: Option<String> = conn.query_row(
+            let parent_id: Option<String> = transaction.query_row(
                 "SELECT parent_id FROM folders WHERE id = ?1",
                 rusqlite::params![id],
                 |row| row.get(0),
             ).map_err(|_| AppError::NotFound("Folder not found".into()))?;
 
             // Move sessions to parent folder
-            conn.execute(
+            transaction.execute(
                 "UPDATE sessions SET folder_id = ?1 WHERE folder_id = ?2",
                 rusqlite::params![parent_id, id],
             )?;
 
             // Move child folders to parent
-            conn.execute(
+            transaction.execute(
                 "UPDATE folders SET parent_id = ?1 WHERE parent_id = ?2",
                 rusqlite::params![parent_id, id],
             )?;
 
             // Delete the folder
-            conn.execute("DELETE FROM folders WHERE id = ?1", rusqlite::params![id])?;
+            transaction.execute("DELETE FROM folders WHERE id = ?1", rusqlite::params![id])?;
         }
         "delete_all" => {
-            // Delete sessions in this folder
-            conn.execute(
-                "DELETE FROM sessions WHERE folder_id = ?1",
+            let folder_count: i64 = transaction.query_row(
+                "SELECT COUNT(*) FROM folders WHERE id = ?1",
+                rusqlite::params![id],
+                |row| row.get(0),
+            )?;
+            if folder_count == 0 {
+                return Err(AppError::NotFound("Folder not found".into()));
+            }
+
+            transaction.execute(
+                "WITH RECURSIVE subtree(id) AS (
+                    SELECT id FROM folders WHERE id = ?1
+                    UNION ALL
+                    SELECT folders.id FROM folders
+                    JOIN subtree ON folders.parent_id = subtree.id
+                 )
+                 DELETE FROM sessions WHERE folder_id IN (SELECT id FROM subtree)",
                 rusqlite::params![id],
             )?;
-            // Delete child folders recursively (SQLite cascade handles children via SET NULL)
-            conn.execute("DELETE FROM folders WHERE id = ?1", rusqlite::params![id])?;
+            transaction.execute(
+                "WITH RECURSIVE subtree(id) AS (
+                    SELECT id FROM folders WHERE id = ?1
+                    UNION ALL
+                    SELECT folders.id FROM folders
+                    JOIN subtree ON folders.parent_id = subtree.id
+                 )
+                 DELETE FROM folders WHERE id IN (SELECT id FROM subtree)",
+                rusqlite::params![id],
+            )?;
         }
         _ => {
             return Err(AppError::Validation(
@@ -163,5 +203,6 @@ pub fn delete_folder(
         }
     }
 
+    transaction.commit()?;
     Ok(())
 }
