@@ -69,3 +69,8 @@ signing/
 
 # Crash reports
 crash-reports/
+
+# Publish approved Windows installers only
+!release/
+release/*
+!release/*.exe
