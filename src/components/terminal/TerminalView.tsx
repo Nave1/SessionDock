@@ -121,14 +121,18 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     }
   }, [tabId, host, port, protocol, username, password]);
 
-  const handleReconnect = useCallback(() => {
+  const handleReconnect = useCallback(async () => {
     const term = terminalRef.current;
     if (!term) return;
     connectedRef.current = false;
     term.writeln("");
     term.writeln("\x1b[38;2;251;191;36m--- Reconnecting ---\x1b[39m");
-    invoke("close_terminal", { tabId, protocol }).catch(() => {});
-    setTimeout(() => connectToHost(), 500);
+    try {
+      await invoke("close_terminal", { tabId, protocol });
+    } catch { /* ignore close errors */ }
+    // Wait for connection to fully close before reconnecting
+    await new Promise(r => setTimeout(r, 500));
+    connectToHost();
   }, [tabId, protocol, connectToHost]);
 
   const handleClear = useCallback(() => {

@@ -173,16 +173,25 @@ pub async fn connect_ssh(
     tokio::spawn(async move {
         let mut buf = [0u8; 4096];
         loop {
-            tokio::time::sleep(Duration::from_millis(10)).await;
+            tokio::time::sleep(Duration::from_millis(20)).await;
 
-            let result = {
+            // Single lock acquisition per iteration — read stdout, stderr, check EOF
+            let (result, stderr_data, is_eof) = {
                 let mut c = conn_reader.lock().await;
-                c.channel.read(&mut buf)
-            };
+                let stdout_result = c.channel.read(&mut buf);
+                let mut stderr_buf = [0u8; 4096];
+                let stderr_n = c.channel.stderr().read(&mut stderr_buf).unwrap_or(0);
+                let eof = c.channel.eof();
+                (stdout_result, if stderr_n > 0 { Some(String::from_utf8_lossy(&stderr_buf[..stderr_n]).to_string()) } else { None }, eof)
+            }; // Lock released here
+
+            // Process stderr
+            if let Some(data) = stderr_data {
+                let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
+            }
 
             match result {
                 Ok(0) => {
-                    // Channel closed
                     let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
                     break;
                 }
@@ -191,23 +200,7 @@ pub async fn connect_ssh(
                     let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    // No data available, also check stderr
-                    let stderr_result = {
-                        let mut c = conn_reader.lock().await;
-                        c.channel.stderr().read(&mut buf)
-                    };
-                    if let Ok(n) = stderr_result {
-                        if n > 0 {
-                            let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                            let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
-                        }
-                    }
-                    // Check if EOF
-                    let eof = {
-                        let c = conn_reader.lock().await;
-                        c.channel.eof()
-                    };
-                    if eof {
+                    if is_eof {
                         let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
                         break;
                     }
@@ -229,8 +222,12 @@ pub async fn write_ssh(
     tab_id: &str,
     data: &[u8],
 ) -> Result<(), AppError> {
-    let conns = manager.connections.lock().await;
-    if let Some(conn) = conns.get(tab_id) {
+    // Get the connection Arc without holding the outer lock during write
+    let conn = {
+        let conns = manager.connections.lock().await;
+        conns.get(tab_id).cloned()
+    };
+    if let Some(conn) = conn {
         let mut c = conn.lock().await;
         c.session.set_blocking(true);
         c.channel.write_all(data)

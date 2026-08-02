@@ -205,7 +205,7 @@ function AboutSettings() {
       </div>
       <div className="pt-4 border-t border-dock-border">
         <button
-          onClick={() => window.open("https://github.com/sessiondock/sessiondock")}
+          onClick={() => { import("@tauri-apps/plugin-shell").then(m => m.open("https://github.com/sessiondock/sessiondock")); }}
           className="text-xs text-dock-accent hover:text-dock-accent-hover"
         >
           GitHub Repository →

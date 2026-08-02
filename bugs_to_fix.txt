@@ -1,0 +1,10 @@
+SessionDock BUGs to fix:
+
+1. ping doesn't work.
+2. when a session is saved I cannot open it from the sidebar menu.
+3. in the settings at the Data tab, none of the buttons are working.
+4. add colors to the terminal without damaging the fancuality of the software.
+5. in the settings at the About tab I have a GitHub repository link that doesn't work, he needs to lead to the actual repository.
+6. when i'm inside a session and I press the reconnect button it closing the session instead of reconnecting.
+7. when I'm hovering over the rest of the buttons in the session besides the reconnect button, none of them showing what they are doing.
+8. I want to export all the sessions so when I add them to the software and update the software I'll be able to upload all the sessions and folders as before.
