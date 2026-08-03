@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { MainContent } from "./components/MainContent";
 import { CommandPalette } from "./components/CommandPalette";
@@ -11,48 +11,72 @@ import { useAppStore } from "./stores/appStore";
 import { useSessionStore } from "./stores/sessionStore";
 import { useToastStore } from "./stores/toastStore";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { createFolder, createSession, getFolders, getSessions } from "./api/commands";
+import { parseCsvImport, parseJsonImport } from "./utils/importExport";
 import type { CreateSessionRequest, CreateFolderRequest } from "./types";
 
 function App() {
   const commandPaletteOpen = useAppStore((s) => s.commandPaletteOpen);
   const setCommandPaletteOpen = useAppStore((s) => s.setCommandPaletteOpen);
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
+  const [sessionFormFolderId, setSessionFormFolderId] = useState<string | undefined>();
   const [folderFormOpen, setFolderFormOpen] = useState(false);
   const [quickConnectOpen, setQuickConnectOpen] = useState(false);
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
   const addTab = useAppStore((s) => s.addTab);
   const folders = useSessionStore((s) => s.folders);
-  const { addSession, addFolder } = useSessionStore();
+  const { addSession, addFolder, setSessions, setFolders, setIsLoading } = useSessionStore();
   const addToast = useToastStore((s) => s.addToast);
 
   useKeyboardShortcuts({ onCommandPalette: () => setCommandPaletteOpen(true) });
 
-  const handleCreateSession = (data: CreateSessionRequest) => {
-    const session = {
-      ...data,
-      id: crypto.randomUUID(),
-      connection_timeout: data.connection_timeout ?? 30,
-      keepalive_interval: data.keepalive_interval ?? 60,
-      connection_count: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    addSession(session);
-    setSessionFormOpen(false);
-    addToast("success", `Session "${data.name}" created`);
+  const openSessionForm = (folderId?: string) => {
+    setSessionFormFolderId(folderId);
+    setSessionFormOpen(true);
   };
 
-  const handleCreateFolder = (data: CreateFolderRequest) => {
-    const folder = {
-      ...data,
-      id: crypto.randomUUID(),
-      sort_order: folders.length,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSavedData = async () => {
+      setIsLoading(true);
+      try {
+        const [savedSessions, savedFolders] = await Promise.all([getSessions(), getFolders()]);
+        if (!cancelled) {
+          setSessions(savedSessions);
+          setFolders(savedFolders);
+        }
+      } catch (error) {
+        if (!cancelled) addToast("error", `Failed to load saved data: ${String(error)}`);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     };
-    addFolder(folder);
-    setFolderFormOpen(false);
-    addToast("success", `Folder "${data.name}" created`);
+
+    void loadSavedData();
+    return () => { cancelled = true; };
+  }, [addToast, setFolders, setIsLoading, setSessions]);
+
+  const handleCreateSession = async (data: CreateSessionRequest) => {
+    try {
+      const session = await createSession(data);
+      addSession(session);
+      setSessionFormOpen(false);
+      addToast("success", `Session "${data.name}" created`);
+    } catch (error) {
+      addToast("error", `Failed to create session: ${String(error)}`);
+    }
+  };
+
+  const handleCreateFolder = async (data: CreateFolderRequest) => {
+    try {
+      const folder = await createFolder(data);
+      addFolder(folder);
+      setFolderFormOpen(false);
+      addToast("success", `Folder "${data.name}" created`);
+    } catch (error) {
+      addToast("error", `Failed to create folder: ${String(error)}`);
+    }
   };
 
   const handleQuickConnect = (config: { host: string; port: number; protocol: "ssh" | "telnet" | "serial"; username: string; password: string; saveAsSession: boolean }) => {
@@ -74,8 +98,7 @@ function App() {
 
     // If user wants to save, create a session
     if (config.saveAsSession) {
-      const session = {
-        id: crypto.randomUUID(),
+      const request: CreateSessionRequest = {
         name: config.host,
         host: config.host,
         port: config.port,
@@ -85,11 +108,10 @@ function App() {
         favorite: false,
         connection_timeout: 30,
         keepalive_interval: 60,
-        connection_count: 1,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
-      addSession(session);
+      void createSession(request)
+        .then(addSession)
+        .catch((error) => addToast("error", `Failed to save session: ${String(error)}`));
     }
   };
 
@@ -105,29 +127,29 @@ function App() {
 
       try {
         if (file.name.endsWith(".json")) {
-          const data = JSON.parse(text);
-          if (data.sessions && Array.isArray(data.sessions)) {
+          const data = parseJsonImport(text);
+          if (data) {
             let count = 0;
             for (const s of data.sessions) {
-              addSession({
-                id: crypto.randomUUID(),
+              const session = await createSession({
                 name: s.name || "Imported",
                 host: s.host || "",
                 port: s.port || 22,
-                protocol: s.protocol || "ssh",
+                protocol: s.protocol === "telnet" || s.protocol === "serial" ? s.protocol : "ssh",
                 username: s.username,
-                authentication_method: s.authentication_method || "password",
+                authentication_method: s.authentication_method === "private_key" || s.authentication_method === "ssh_agent" || s.authentication_method === "manual" ? s.authentication_method : "password",
                 favorite: s.favorite || false,
                 connection_timeout: s.connection_timeout || 30,
                 keepalive_interval: s.keepalive_interval || 60,
-                connection_count: 0,
                 device_type: s.device_type,
                 vendor: s.vendor,
                 model: s.model,
                 description: s.description,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                notes: s.notes,
+                startup_command: s.startup_command,
+                tags: s.tags,
               });
+              addSession(session);
               count++;
             }
             addToast("success", `Imported ${count} sessions`);
@@ -135,29 +157,28 @@ function App() {
             addToast("error", "Invalid JSON format");
           }
         } else if (file.name.endsWith(".csv")) {
-          const lines = text.split("\n").filter((l: string) => l.trim());
-          if (lines.length < 2) { addToast("error", "CSV file is empty"); return; }
+          const importedSessions = parseCsvImport(text);
+          if (importedSessions.length === 0) { addToast("error", "CSV file is empty"); return; }
           let count = 0;
-          for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(",");
-            if (cols[0]) {
-              addSession({
-                id: crypto.randomUUID(),
-                name: cols[0]?.trim().replace(/^"|"$/g, "") || "Imported",
-                host: cols[1]?.trim().replace(/^"|"$/g, "") || "",
-                port: parseInt(cols[2]) || 22,
-                protocol: (cols[3]?.trim() as "ssh" | "telnet" | "serial") || "ssh",
-                username: cols[4]?.trim().replace(/^"|"$/g, ""),
+          for (const imported of importedSessions) {
+              const protocol = imported.protocol === "telnet" || imported.protocol === "serial" ? imported.protocol : "ssh";
+              const session = await createSession({
+                name: imported.name || "Imported",
+                host: imported.host || "",
+                port: imported.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : 0),
+                protocol,
+                username: imported.username,
                 authentication_method: "password",
-                favorite: false,
+                favorite: imported.favorite ?? false,
                 connection_timeout: 30,
                 keepalive_interval: 60,
-                connection_count: 0,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
+                device_type: imported.device_type,
+                vendor: imported.vendor,
+                model: imported.model,
+                description: imported.description,
               });
+              addSession(session);
               count++;
-            }
           }
           addToast("success", `Imported ${count} sessions from CSV`);
         }
@@ -172,12 +193,12 @@ function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-dock-bg">
       <Sidebar
         width={sidebarWidth}
-        onNewSession={() => setSessionFormOpen(true)}
+        onNewSession={openSessionForm}
         onNewFolder={() => setFolderFormOpen(true)}
         onQuickConnect={() => setQuickConnectOpen(true)}
       />
       <MainContent
-        onNewSession={() => setSessionFormOpen(true)}
+        onNewSession={() => openSessionForm()}
         onNewFolder={() => setFolderFormOpen(true)}
         onQuickConnect={() => setQuickConnectOpen(true)}
         onImport={handleImport}
@@ -192,6 +213,7 @@ function App() {
           onSubmit={handleCreateSession}
           onCancel={() => setSessionFormOpen(false)}
           folders={folders.map((f) => ({ id: f.id, name: f.name }))}
+          initialFolderId={sessionFormFolderId}
         />
       )}
 

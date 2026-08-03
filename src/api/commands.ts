@@ -23,7 +23,7 @@ export async function getSession(id: string): Promise<Session> {
   return invoke("get_session", { id });
 }
 
-export async function updateSession(request: Partial<Session> & { id: string }): Promise<Session> {
+export async function updateSession(request: Partial<Session> & { id: string; clear_folder?: boolean }): Promise<Session> {
   return invoke("update_session", { request });
 }
 
@@ -50,8 +50,9 @@ export async function updateFolder(
   name?: string,
   parentId?: string,
   sortOrder?: number,
+  clearParent = false,
 ): Promise<Folder> {
-  return invoke("update_folder", { id, name, parentId, sortOrder });
+  return invoke("update_folder", { id, name, parentId, sortOrder, clearParent });
 }
 
 export async function deleteFolder(id: string, action: "move_to_parent" | "delete_all"): Promise<void> {
@@ -82,4 +83,14 @@ export async function deleteCredential(id: string): Promise<void> {
 
 export async function listSerialPorts(): Promise<SerialPortInfo[]> {
   return invoke("list_serial_ports");
+}
+
+// --- Data maintenance ---
+
+export async function clearRecentSessions(): Promise<void> {
+  return invoke("clear_recent_sessions");
+}
+
+export async function resetApplicationData(): Promise<void> {
+  return invoke("reset_application_data");
 }

@@ -1,7 +1,7 @@
-use tauri::State;
 use crate::db::Database;
 use crate::error::AppError;
 use crate::models::*;
+use tauri::State;
 
 #[tauri::command]
 pub fn create_session(
@@ -67,9 +67,8 @@ pub fn get_sessions(
 ) -> Result<Vec<Session>, AppError> {
     let conn = db.conn();
     let mut stmt = if let Some(fid) = &folder_id {
-        let mut s = conn.prepare(
-            "SELECT * FROM sessions WHERE folder_id = ?1 ORDER BY name COLLATE NOCASE"
-        )?;
+        let mut s = conn
+            .prepare("SELECT * FROM sessions WHERE folder_id = ?1 ORDER BY name COLLATE NOCASE")?;
         let sessions = query_sessions(&mut s, rusqlite::params![fid])?;
         return Ok(sessions);
     } else {
@@ -79,10 +78,7 @@ pub fn get_sessions(
 }
 
 #[tauri::command]
-pub fn get_session(
-    db: State<'_, Database>,
-    id: String,
-) -> Result<Session, AppError> {
+pub fn get_session(db: State<'_, Database>, id: String) -> Result<Session, AppError> {
     let conn = db.conn();
     get_session_by_id(&conn, &id)
 }
@@ -103,21 +99,28 @@ pub fn update_session(
     let port = request.port.unwrap_or(existing.port);
     let protocol = request.protocol.unwrap_or(existing.protocol);
     let favorite = request.favorite.unwrap_or(existing.favorite);
+    let folder_id = if request.clear_folder.unwrap_or(false) {
+        None
+    } else {
+        request.folder_id.or(existing.folder_id)
+    };
 
     conn.execute(
-        "UPDATE sessions SET name=?1, host=?2, port=?3, protocol=?4, favorite=?5, device_type=?6, vendor=?7, model=?8, description=?9, notes=?10, folder_id=?11, updated_at=?12 WHERE id=?13",
+        "UPDATE sessions SET name=?1, host=?2, port=?3, protocol=?4, favorite=?5, username=?6, authentication_method=?7, device_type=?8, vendor=?9, model=?10, description=?11, notes=?12, folder_id=?13, updated_at=?14 WHERE id=?15",
         rusqlite::params![
             name,
             host,
             port,
             protocol.as_str(),
             favorite as i32,
+            request.username.or(existing.username),
+            request.authentication_method.unwrap_or(existing.authentication_method).as_str(),
             request.device_type.or(existing.device_type),
             request.vendor.or(existing.vendor),
             request.model.or(existing.model),
             request.description.or(existing.description),
             request.notes.or(existing.notes),
-            request.folder_id.or(existing.folder_id),
+            folder_id,
             now,
             request.id,
         ],
@@ -142,10 +145,7 @@ pub fn update_session(
 }
 
 #[tauri::command]
-pub fn delete_session(
-    db: State<'_, Database>,
-    id: String,
-) -> Result<(), AppError> {
+pub fn delete_session(db: State<'_, Database>, id: String) -> Result<(), AppError> {
     let conn = db.conn();
     conn.execute("DELETE FROM sessions WHERE id = ?1", rusqlite::params![id])?;
     Ok(())
@@ -171,7 +171,7 @@ pub fn search_sessions(
          JOIN sessions s ON s.rowid = fts.rowid
          WHERE sessions_fts MATCH ?1
          ORDER BY rank
-         LIMIT 50"
+         LIMIT 50",
     )?;
 
     let results = stmt.query_map(rusqlite::params![search_term], |row| {
@@ -196,10 +196,12 @@ pub fn search_sessions(
     }
 
     // Also do a direct host/IP match if it looks like an IP
-    if !search_results.iter().any(|r| r.session.host.contains(query.trim())) {
-        let mut ip_stmt = conn.prepare(
-            "SELECT * FROM sessions WHERE host LIKE ?1 ORDER BY name LIMIT 10"
-        )?;
+    if !search_results
+        .iter()
+        .any(|r| r.session.host.contains(query.trim()))
+    {
+        let mut ip_stmt =
+            conn.prepare("SELECT * FROM sessions WHERE host LIKE ?1 ORDER BY name LIMIT 10")?;
         let like_term = format!("%{}%", query.trim());
         let ip_results = query_sessions(&mut ip_stmt, rusqlite::params![like_term])?;
         for session in ip_results {
@@ -300,7 +302,10 @@ fn ensure_tag(conn: &rusqlite::Connection, name: &str) -> Result<String, AppErro
     }
 }
 
-fn get_session_tags(conn: &rusqlite::Connection, session_id: &str) -> Result<Vec<String>, AppError> {
+fn get_session_tags(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<Vec<String>, AppError> {
     let mut stmt = conn.prepare(
         "SELECT t.name FROM tags t JOIN session_tags st ON st.tag_id = t.id WHERE st.session_id = ?1"
     )?;

@@ -63,6 +63,7 @@ pub struct UpdateSessionRequest {
     pub credential_profile_id: Option<String>,
     pub authentication_method: Option<AuthMethod>,
     pub folder_id: Option<String>,
+    pub clear_folder: Option<bool>,
     pub device_type: Option<String>,
     pub vendor: Option<String>,
     pub model: Option<String>,

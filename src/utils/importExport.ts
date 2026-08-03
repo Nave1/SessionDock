@@ -183,12 +183,28 @@ export function parseJsonImport(json: string): SafeExportData | null {
 /**
  * Download data as a file
  */
-export function downloadFile(content: string, filename: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+export async function saveTextFile(
+  content: string,
+  defaultPath: string,
+  name: string,
+  extensions: string[],
+): Promise<string | null> {
+  const [{ save }, { writeTextFile }] = await Promise.all([
+    import("@tauri-apps/plugin-dialog"),
+    import("@tauri-apps/plugin-fs"),
+  ]);
+  const path = await save({ defaultPath, filters: [{ name, extensions }] });
+  if (!path) return null;
+  await writeTextFile(path, content);
+  return path;
+}
+
+export async function openTextFile(name: string, extensions: string[]): Promise<{ path: string; content: string } | null> {
+  const [{ open }, { readTextFile }] = await Promise.all([
+    import("@tauri-apps/plugin-dialog"),
+    import("@tauri-apps/plugin-fs"),
+  ]);
+  const path = await open({ multiple: false, directory: false, filters: [{ name, extensions }] });
+  if (!path) return null;
+  return { path, content: await readTextFile(path) };
 }

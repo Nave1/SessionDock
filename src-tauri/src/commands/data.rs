@@ -1,8 +1,8 @@
-use tauri::State;
-use serde::{Deserialize, Serialize};
-use crate::db::Database;
 use crate::credential_vault::{self, CredentialVault};
+use crate::db::Database;
 use crate::error::AppError;
+use serde::{Deserialize, Serialize};
+use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExportData {
@@ -44,7 +44,8 @@ pub fn export_sessions_json(db: State<'_, Database>) -> Result<String, AppError>
         .collect();
 
     // Get all folders
-    let mut folder_stmt = conn.prepare("SELECT id, name, parent_id, sort_order FROM folders ORDER BY sort_order")?;
+    let mut folder_stmt =
+        conn.prepare("SELECT id, name, parent_id, sort_order FROM folders ORDER BY sort_order")?;
     let folders: Vec<serde_json::Value> = folder_stmt
         .query_map([], |row| {
             Ok(serde_json::json!({
@@ -87,7 +88,9 @@ pub fn export_sessions_csv(db: State<'_, Database>) -> Result<String, AppError> 
         "SELECT name, host, port, protocol, username, device_type, vendor, model, description, favorite FROM sessions ORDER BY name"
     )?;
 
-    let mut csv = String::from("Name,Host,Port,Protocol,Username,Device Type,Vendor,Model,Description,Favorite\n");
+    let mut csv = String::from(
+        "Name,Host,Port,Protocol,Username,Device Type,Vendor,Model,Description,Favorite\n",
+    );
 
     let rows = stmt.query_map([], |row| {
         Ok((
@@ -134,10 +137,7 @@ fn escape_csv(value: &str) -> String {
 
 /// Import sessions from JSON
 #[tauri::command]
-pub fn import_sessions_json(
-    db: State<'_, Database>,
-    json_data: String,
-) -> Result<u32, AppError> {
+pub fn import_sessions_json(db: State<'_, Database>, json_data: String) -> Result<u32, AppError> {
     let data: ExportData = serde_json::from_str(&json_data)
         .map_err(|e| AppError::Validation(format!("Invalid import data: {}", e)))?;
 
@@ -156,7 +156,9 @@ pub fn import_sessions_json(
         let port = session["port"].as_u64().unwrap_or(22) as u16;
         let protocol = session["protocol"].as_str().unwrap_or("ssh");
         let username = session["username"].as_str();
-        let auth_method = session["authentication_method"].as_str().unwrap_or("password");
+        let auth_method = session["authentication_method"]
+            .as_str()
+            .unwrap_or("password");
         let device_type = session["device_type"].as_str();
         let vendor = session["vendor"].as_str();
         let model = session["model"].as_str();
@@ -174,8 +176,52 @@ pub fn import_sessions_json(
     Ok(imported)
 }
 
+#[tauri::command]
+pub fn clear_recent_sessions(db: State<'_, Database>) -> Result<(), AppError> {
+    let conn = db.conn();
+    conn.execute(
+        "UPDATE sessions SET last_connected_at = NULL, connection_count = 0",
+        [],
+    )?;
+    conn.execute("DELETE FROM recently_closed_tabs", [])?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn reset_application_data(db: State<'_, Database>) -> Result<(), AppError> {
+    let mut conn = db.conn();
+    let transaction = conn.transaction()?;
+
+    let vault_references: Vec<String> = {
+        let mut statement =
+            transaction.prepare("SELECT vault_reference FROM credential_profiles")?;
+        let rows = statement.query_map([], |row| row.get(0))?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+
+    transaction.execute("DELETE FROM recently_closed_tabs", [])?;
+    transaction.execute("DELETE FROM session_tags", [])?;
+    transaction.execute("DELETE FROM sessions", [])?;
+    transaction.execute("DELETE FROM folders", [])?;
+    transaction.execute("DELETE FROM tags", [])?;
+    transaction.execute("DELETE FROM credential_profiles", [])?;
+    transaction.execute("DELETE FROM known_hosts", [])?;
+    transaction.execute("DELETE FROM command_snippets", [])?;
+    transaction.execute("DELETE FROM application_settings", [])?;
+    transaction.commit()?;
+
+    let vault = credential_vault::get_vault();
+    for reference in vault_references {
+        vault.delete_secret(&reference)?;
+    }
+    Ok(())
+}
+
 /// Get credential secret for connection (internal use only, never exposed to frontend display)
-pub fn get_credential_secret(db: &Database, credential_profile_id: &str) -> Result<String, AppError> {
+pub fn get_credential_secret(
+    db: &Database,
+    credential_profile_id: &str,
+) -> Result<String, AppError> {
     let conn = db.conn();
     let vault_ref: String = conn
         .query_row(
@@ -186,6 +232,7 @@ pub fn get_credential_secret(db: &Database, credential_profile_id: &str) -> Resu
         .map_err(|_| AppError::NotFound("Credential profile not found".into()))?;
 
     let vault = credential_vault::get_vault();
-    vault.get_secret(&vault_ref)?
+    vault
+        .get_secret(&vault_ref)?
         .ok_or_else(|| AppError::CredentialVault("Secret not found in vault".into()))
 }

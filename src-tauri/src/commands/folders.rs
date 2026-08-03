@@ -1,7 +1,7 @@
-use tauri::State;
 use crate::db::Database;
 use crate::error::AppError;
 use crate::models::*;
+use tauri::State;
 
 #[tauri::command]
 pub fn create_folder(
@@ -69,6 +69,7 @@ pub fn update_folder(
     id: String,
     name: Option<String>,
     parent_id: Option<String>,
+    clear_parent: Option<bool>,
     sort_order: Option<i32>,
 ) -> Result<Folder, AppError> {
     let conn = db.conn();
@@ -90,13 +91,19 @@ pub fn update_folder(
     ).map_err(|_| AppError::NotFound(format!("Folder not found: {}", id)))?;
 
     let new_name = name.unwrap_or(existing.name);
-    let new_parent_id = parent_id.or(existing.parent_id);
+    let new_parent_id = if clear_parent.unwrap_or(false) {
+        None
+    } else {
+        parent_id.or(existing.parent_id)
+    };
     let new_sort_order = sort_order.unwrap_or(existing.sort_order);
 
     // Prevent circular reference
     if let Some(ref pid) = new_parent_id {
         if pid == &id {
-            return Err(AppError::Validation("Folder cannot be its own parent".into()));
+            return Err(AppError::Validation(
+                "Folder cannot be its own parent".into(),
+            ));
         }
 
         let creates_cycle: bool = conn.query_row(
@@ -133,22 +140,20 @@ pub fn update_folder(
 }
 
 #[tauri::command]
-pub fn delete_folder(
-    db: State<'_, Database>,
-    id: String,
-    action: String,
-) -> Result<(), AppError> {
+pub fn delete_folder(db: State<'_, Database>, id: String, action: String) -> Result<(), AppError> {
     let mut conn = db.conn();
     let transaction = conn.transaction()?;
 
     match action.as_str() {
         "move_to_parent" => {
             // Get folder's parent
-            let parent_id: Option<String> = transaction.query_row(
-                "SELECT parent_id FROM folders WHERE id = ?1",
-                rusqlite::params![id],
-                |row| row.get(0),
-            ).map_err(|_| AppError::NotFound("Folder not found".into()))?;
+            let parent_id: Option<String> = transaction
+                .query_row(
+                    "SELECT parent_id FROM folders WHERE id = ?1",
+                    rusqlite::params![id],
+                    |row| row.get(0),
+                )
+                .map_err(|_| AppError::NotFound("Folder not found".into()))?;
 
             // Move sessions to parent folder
             transaction.execute(

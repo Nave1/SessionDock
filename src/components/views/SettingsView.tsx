@@ -3,6 +3,19 @@ import { useTranslation } from "react-i18next";
 import { useThemeStore, ThemeMode, AccentColor } from "../../stores/themeStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useAppVersion } from "../../hooks/useAppVersion";
+import { useSessionStore } from "../../stores/sessionStore";
+import { useToastStore } from "../../stores/toastStore";
+import {
+  clearRecentSessions,
+  createFolder,
+  createSession,
+  getFolders,
+  getSessions,
+  resetApplicationData,
+} from "../../api/commands";
+import { createCsvExport, createSafeExport, openTextFile, parseCsvImport, parseJsonImport, saveTextFile, type SafeExportData, type SafeExportSession } from "../../utils/importExport";
+import { decryptBackup, encryptBackup } from "../../utils/encryptedBackup";
+import type { CreateSessionRequest, Folder, Session } from "../../types";
 import {
   Settings as SettingsIcon,
   Monitor,
@@ -240,6 +253,89 @@ function SshSettings() {
 }
 
 function DataSettings() {
+  const { sessions, folders, setSessions, setFolders, setCredentials } = useSessionStore();
+  const addToast = useToastStore((state) => state.addToast);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+
+  const safeExport = () => createSafeExport(sessions, folders, new Map());
+  const dateStamp = new Date().toISOString().slice(0, 10);
+
+  const runAction = async (name: string, action: () => Promise<void>) => {
+    setBusyAction(name);
+    try {
+      await action();
+    } catch (error) {
+      addToast("error", `${name} failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const refreshData = async () => {
+    const [savedSessions, savedFolders] = await Promise.all([getSessions(), getFolders()]);
+    setSessions(savedSessions);
+    setFolders(savedFolders);
+  };
+
+  const importData = async (data: SafeExportData) => {
+    const folderIds = await importFolders(data.folders);
+    let imported = 0;
+    for (const session of data.sessions) {
+      await createSession(toCreateSessionRequest(session, folderIds));
+      imported++;
+    }
+    await refreshData();
+    addToast("success", `Imported ${imported} sessions and ${folderIds.size} folders`);
+  };
+
+  const importFolders = async (sourceFolders: Folder[]) => {
+    const idMap = new Map<string, string>();
+    let pending = [...sourceFolders];
+
+    while (pending.length > 0) {
+      const ready = pending.filter((folder) => !folder.parent_id || idMap.has(folder.parent_id));
+      if (ready.length === 0) throw new Error("Folder hierarchy contains an invalid parent reference");
+      for (const folder of ready) {
+        const created = await createFolder({
+          name: folder.name,
+          parent_id: folder.parent_id ? idMap.get(folder.parent_id) : undefined,
+        });
+        idMap.set(folder.id, created.id);
+      }
+      const readyIds = new Set(ready.map((folder) => folder.id));
+      pending = pending.filter((folder) => !readyIds.has(folder.id));
+    }
+    return idMap;
+  };
+
+  const importJsonContent = async (content: string) => {
+    const data = parseJsonImport(content);
+    if (!data) throw new Error("The selected file is not a valid SessionDock export");
+    await importData(data);
+  };
+
+  const importCsvContent = async (content: string) => {
+    const parsed = parseCsvImport(content);
+    if (parsed.length === 0) throw new Error("The CSV file does not contain any sessions");
+    for (const session of parsed) await createSession(toCreateSessionRequest(session));
+    await refreshData();
+    addToast("success", `Imported ${parsed.length} sessions`);
+  };
+
+  const actionButton = (name: string, label: string, action: () => Promise<void>, danger = false) => (
+    <button
+      onClick={() => void runAction(name, action)}
+      disabled={busyAction !== null}
+      className={`w-full px-3 py-2 rounded text-xs transition-colors text-left disabled:opacity-50 ${
+        danger
+          ? "bg-dock-error/10 text-dock-error border border-dock-error/20 hover:bg-dock-error/20"
+          : "bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border"
+      }`}
+    >
+      {busyAction === name ? `${label}...` : label}
+    </button>
+  );
+
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Database">
@@ -252,42 +348,106 @@ function DataSettings() {
       </SettingGroup>
       <SettingGroup title="Export">
         <div className="space-y-2">
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
-            Export all sessions (JSON)
-          </button>
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
-            Export all sessions (CSV)
-          </button>
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
-            Create encrypted backup
-          </button>
+          {actionButton("Export JSON", "Export all sessions (JSON)", async () => {
+            const path = await saveTextFile(
+              JSON.stringify(safeExport(), null, 2),
+              `sessiondock-${dateStamp}.json`,
+              "JSON",
+              ["json"],
+            );
+            if (path) addToast("success", `JSON export saved to ${path}`);
+          })}
+          {actionButton("Export CSV", "Export all sessions (CSV)", async () => {
+            const path = await saveTextFile(createCsvExport(sessions), `sessiondock-${dateStamp}.csv`, "CSV", ["csv"]);
+            if (path) addToast("success", `CSV export saved to ${path}`);
+          })}
+          {actionButton("Encrypted backup", "Create encrypted backup", async () => {
+            const password = window.prompt("Enter a password for this backup:");
+            if (!password) return;
+            const confirmation = window.prompt("Confirm the backup password:");
+            if (password !== confirmation) throw new Error("The passwords do not match");
+            const encrypted = await encryptBackup(JSON.stringify(safeExport()), password);
+            const path = await saveTextFile(
+              encrypted,
+              `sessiondock-${dateStamp}.sessiondock-backup`,
+              "SessionDock Backup",
+              ["sessiondock-backup"],
+            );
+            if (path) addToast("success", `Encrypted backup saved to ${path}`);
+          })}
         </div>
       </SettingGroup>
       <SettingGroup title="Import">
         <div className="space-y-2">
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
-            Import from JSON file
-          </button>
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
-            Import from CSV file
-          </button>
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-border transition-colors text-left">
-            Restore encrypted backup
-          </button>
+          {actionButton("Import JSON", "Import from JSON file", async () => {
+            const file = await openTextFile("JSON", ["json"]);
+            if (file) await importJsonContent(file.content);
+          })}
+          {actionButton("Import CSV", "Import from CSV file", async () => {
+            const file = await openTextFile("CSV", ["csv"]);
+            if (file) await importCsvContent(file.content);
+          })}
+          {actionButton("Restore backup", "Restore encrypted backup", async () => {
+            const file = await openTextFile("SessionDock Backup", ["sessiondock-backup"]);
+            if (!file) return;
+            const password = window.prompt("Enter the backup password:");
+            if (!password) return;
+            await importJsonContent(await decryptBackup(file.content, password));
+          })}
         </div>
       </SettingGroup>
       <SettingGroup title="Danger Zone">
         <div className="space-y-2">
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-error/10 text-dock-error border border-dock-error/20 hover:bg-dock-error/20 transition-colors text-left">
-            Clear recent sessions
-          </button>
-          <button className="w-full px-3 py-2 rounded text-xs bg-dock-error/10 text-dock-error border border-dock-error/20 hover:bg-dock-error/20 transition-colors text-left">
-            Reset all application data
-          </button>
+          {actionButton("Clear recent sessions", "Clear recent sessions", async () => {
+            await clearRecentSessions();
+            setSessions(sessions.map((session) => ({ ...session, last_connected_at: undefined, connection_count: 0 })));
+            addToast("success", "Recent session history cleared");
+          }, true)}
+          {actionButton("Reset application data", "Reset all application data", async () => {
+            if (!window.confirm("Delete all sessions, folders, credentials, snippets, and local application data? This cannot be undone.")) return;
+            await resetApplicationData();
+            setSessions([]);
+            setFolders([]);
+            setCredentials([]);
+            localStorage.clear();
+            window.location.reload();
+          }, true)}
         </div>
       </SettingGroup>
     </div>
   );
+}
+
+function toCreateSessionRequest(
+  session: SafeExportSession | Partial<Session>,
+  folderIds = new Map<string, string>(),
+): CreateSessionRequest {
+  const protocol = session.protocol === "telnet" || session.protocol === "serial" ? session.protocol : "ssh";
+  const authenticationMethod = session.authentication_method === "private_key"
+    || session.authentication_method === "ssh_agent"
+    || session.authentication_method === "manual"
+    ? session.authentication_method
+    : "password";
+
+  return {
+    name: session.name?.trim() || "Imported session",
+    host: session.host || "",
+    port: session.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : 0),
+    protocol,
+    username: session.username,
+    authentication_method: authenticationMethod,
+    folder_id: session.folder_id ? folderIds.get(session.folder_id) : undefined,
+    device_type: session.device_type,
+    vendor: session.vendor,
+    model: session.model,
+    description: session.description,
+    notes: session.notes,
+    favorite: session.favorite ?? false,
+    startup_command: session.startup_command,
+    connection_timeout: session.connection_timeout ?? 30,
+    keepalive_interval: session.keepalive_interval ?? 60,
+    tags: "tags" in session ? session.tags : undefined,
+  };
 }
 
 function SettingGroup({ title, children }: { title: string; children: React.ReactNode }) {

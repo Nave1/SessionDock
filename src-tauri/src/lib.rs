@@ -1,21 +1,23 @@
 use tauri::Manager;
 
 mod commands;
-mod db;
 mod credential_vault;
+mod db;
 mod error;
 mod models;
 mod protocols;
 mod terminal;
 
+use commands::connections::ConnectionManager;
 pub use db::Database;
 pub use error::AppError;
-use commands::connections::ConnectionManager;
 use terminal::{NativeSshManager, TelnetManager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -25,12 +27,10 @@ pub fn run() {
                 .app_data_dir()
                 .expect("Failed to get app data directory");
 
-            std::fs::create_dir_all(&app_data_dir)
-                .expect("Failed to create app data directory");
+            std::fs::create_dir_all(&app_data_dir).expect("Failed to create app data directory");
 
             let db_path = app_data_dir.join("sessiondock.db");
-            let database = Database::new(&db_path)
-                .expect("Failed to initialize database");
+            let database = Database::new(&db_path).expect("Failed to initialize database");
 
             app.manage(database);
             app.manage(ConnectionManager::new());
@@ -67,6 +67,8 @@ pub fn run() {
             commands::data::export_sessions_json,
             commands::data::export_sessions_csv,
             commands::data::import_sessions_json,
+            commands::data::clear_recent_sessions,
+            commands::data::reset_application_data,
             commands::terminal::spawn_terminal,
             commands::terminal::write_terminal,
             commands::terminal::resize_terminal,

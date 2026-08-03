@@ -4,6 +4,9 @@ import { useAppStore, ViewMode } from "../stores/appStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { FolderTree } from "./tree/FolderTree";
 import { getActiveFolderDrag, setActiveFolderDrag } from "../utils/folderTree";
+import { deleteFolder, updateFolder, updateSession } from "../api/commands";
+import { useToastStore } from "../stores/toastStore";
+import { createCsvExport, createSafeExport, saveTextFile } from "../utils/importExport";
 import {
   Home,
   List,
@@ -18,16 +21,56 @@ import {
 
 interface SidebarProps {
   width: number;
-  onNewSession: () => void;
+  onNewSession: (folderId?: string) => void;
   onNewFolder: () => void;
   onQuickConnect: () => void;
 }
 
 export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: SidebarProps) {
   const { t } = useTranslation();
-  const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId } = useAppStore();
+  const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId, addTab } = useAppStore();
   const { folders, sessions, moveFolder, deleteFolderPreservingContents } = useSessionStore();
+  const addToast = useToastStore((state) => state.addToast);
   const [rootDragOver, setRootDragOver] = useState(false);
+
+  const handleMoveFolder = async (folderId: string, parentId?: string) => {
+    try {
+      await updateFolder(folderId, undefined, parentId, undefined, !parentId);
+      moveFolder(folderId, parentId);
+    } catch (error) {
+      addToast("error", `Failed to move folder: ${String(error)}`);
+    }
+  };
+
+  const handleExportFolder = async (folderId: string, format: "json" | "csv") => {
+    const includedIds = new Set([folderId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const folder of folders) {
+        if (folder.parent_id && includedIds.has(folder.parent_id) && !includedIds.has(folder.id)) {
+          includedIds.add(folder.id);
+          changed = true;
+        }
+      }
+    }
+
+    const includedFolders = folders.filter((folder) => includedIds.has(folder.id));
+    const includedSessions = sessions.filter((session) => session.folder_id && includedIds.has(session.folder_id));
+    const rootName = folders.find((folder) => folder.id === folderId)?.name || "folder";
+    const filename = rootName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "folder";
+    if (format === "json") {
+      await saveTextFile(
+        JSON.stringify(createSafeExport(includedSessions, includedFolders, new Map()), null, 2),
+        `${filename}.json`,
+        "JSON",
+        ["json"],
+      );
+    } else {
+      await saveTextFile(createCsvExport(includedSessions), `${filename}.csv`, "CSV", ["csv"]);
+    }
+    addToast("success", `Exported ${includedSessions.length} sessions from ${rootName}`);
+  };
 
   const navItems: { view: ViewMode; icon: typeof Home; label: string }[] = [
     { view: "home", icon: Home, label: t("sidebar.home") },
@@ -74,7 +117,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
           <span>Connect</span>
         </button>
         <button
-          onClick={onNewSession}
+          onClick={() => onNewSession()}
           className="flex-1 flex items-center justify-center gap-1 px-2 py-[6px] rounded-md text-[11px] font-medium bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-surface-hover"
           title={t("sidebar.newSession")}
         >
@@ -126,7 +169,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
               setRootDragOver(true);
               const folderId = getActiveFolderDrag();
               if (folderId) {
-                moveFolder(folderId, undefined);
+                void handleMoveFolder(folderId, undefined);
                 setActiveFolderDrag(null);
               }
             }}
@@ -150,21 +193,53 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
               setSelectedFolderId(id);
               setCurrentView("folder");
             }}
-            onSelectSession={() => {}}
-            onMoveSession={(sessionId, folderId) => {
-              useSessionStore.getState().updateSessionInStore({
-                ...sessions.find((s) => s.id === sessionId)!,
-                folder_id: folderId,
+            onSelectSession={(session) => {
+              addTab({
+                id: crypto.randomUUID(),
+                sessionId: session.id,
+                sessionName: session.name,
+                host: session.host,
+                port: session.port,
+                protocol: session.protocol,
+                username: session.username,
+                status: "connecting",
+                pinned: false,
               });
             }}
-            onMoveFolder={(folderId, parentId) => moveFolder(folderId, parentId)}
-            onDeleteFolder={(folderId) => {
-              deleteFolderPreservingContents(folderId);
-              if (selectedFolderId === folderId) {
-                setSelectedFolderId(null);
-                setCurrentView("allSessions");
+            onMoveSession={async (sessionId, folderId) => {
+              try {
+                const updated = await updateSession({ id: sessionId, folder_id: folderId, clear_folder: !folderId });
+                useSessionStore.getState().updateSessionInStore(updated);
+              } catch (error) {
+                addToast("error", `Failed to move session: ${String(error)}`);
               }
             }}
+            onMoveFolder={(folderId, parentId) => void handleMoveFolder(folderId, parentId)}
+            onDeleteFolder={async (folderId) => {
+              try {
+                await deleteFolder(folderId, "move_to_parent");
+                deleteFolderPreservingContents(folderId);
+                if (selectedFolderId === folderId) {
+                  setSelectedFolderId(null);
+                  setCurrentView("allSessions");
+                }
+              } catch (error) {
+                addToast("error", `Failed to delete folder: ${String(error)}`);
+              }
+            }}
+            onCreateSessionInFolder={onNewSession}
+            onRenameFolder={async (folder) => {
+              const name = window.prompt("Folder name:", folder.name)?.trim();
+              if (!name || name === folder.name) return;
+              try {
+                const updated = await updateFolder(folder.id, name);
+                useSessionStore.getState().updateFolderInStore(updated);
+                addToast("success", `Folder renamed to "${name}"`);
+              } catch (error) {
+                addToast("error", `Failed to rename folder: ${String(error)}`);
+              }
+            }}
+            onExportFolder={(folderId, format) => void handleExportFolder(folderId, format)}
           />
           {folders.length === 0 && (
             <p className="px-2.5 py-3 text-[11px] text-dock-text-muted italic">

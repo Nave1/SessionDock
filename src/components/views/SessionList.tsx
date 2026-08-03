@@ -3,7 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Star, ExternalLink, GripVertical, Pencil, Trash2, X } from "lucide-react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useToastStore } from "../../stores/toastStore";
+import { deleteSession, updateSession } from "../../api/commands";
 import type { Session } from "../../types";
+import { beginSessionPointerDrag } from "../../utils/folderTree";
 
 interface SessionListProps {
   sessions: Session[];
@@ -16,7 +18,7 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
   const { t } = useTranslation();
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const { updateSessionInStore, removeSession } = useSessionStore();
+  const { folders, updateSessionInStore, removeSession } = useSessionStore();
   const addToast = useToastStore((s) => s.addToast);
 
   if (sessions.length === 0) {
@@ -27,18 +29,15 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
     );
   }
 
-  const handleDragStart = (e: React.DragEvent, session: Session) => {
-    e.dataTransfer.setData("application/sessiondock-session", JSON.stringify({
-      id: session.id,
-      name: session.name,
-    }));
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDelete = (session: Session) => {
-    removeSession(session.id);
-    setDeleteConfirm(null);
-    addToast("success", `"${session.name}" deleted`);
+  const handleDelete = async (session: Session) => {
+    try {
+      await deleteSession(session.id);
+      removeSession(session.id);
+      setDeleteConfirm(null);
+      addToast("success", `"${session.name}" deleted`);
+    } catch (error) {
+      addToast("error", `Failed to delete session: ${String(error)}`);
+    }
   };
 
   return (
@@ -48,8 +47,7 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
         {sessions.map((session) => (
           <div
             key={session.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, session)}
+            onPointerDown={(event) => beginSessionPointerDrag(event.nativeEvent, session.id)}
             className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-dock-surface transition-colors group cursor-pointer"
             onDoubleClick={() => onConnect(session)}
           >
@@ -136,10 +134,19 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
       {editingSession && (
         <EditSessionDialog
           session={editingSession}
-          onSave={(updated) => {
-            updateSessionInStore(updated);
-            setEditingSession(null);
-            addToast("success", `"${updated.name}" updated`);
+          folders={folders}
+          onSave={async (updated) => {
+            try {
+              const saved = await updateSession({
+                ...updated,
+                clear_folder: !updated.folder_id,
+              });
+              updateSessionInStore(saved);
+              setEditingSession(null);
+              addToast("success", `"${saved.name}" updated`);
+            } catch (error) {
+              addToast("error", `Failed to update session: ${String(error)}`);
+            }
           }}
           onClose={() => setEditingSession(null)}
         />
@@ -150,18 +157,22 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
 
 // --- Edit Session Dialog ---
 
-function EditSessionDialog({ session, onSave, onClose }: {
+function EditSessionDialog({ session, folders, onSave, onClose }: {
   session: Session;
-  onSave: (session: Session) => void;
+  folders: { id: string; name: string }[];
+  onSave: (session: Session) => Promise<void>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [form, setForm] = useState({ ...session });
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
-    onSave({ ...form, updated_at: new Date().toISOString() });
+    setSaving(true);
+    await onSave({ ...form, updated_at: new Date().toISOString() });
+    setSaving(false);
   };
 
   return (
@@ -199,6 +210,18 @@ function EditSessionDialog({ session, onSave, onClose }: {
           {/* Username */}
           <Field label={t("session.username")} value={form.username || ""} onChange={(v) => setForm((p) => ({ ...p, username: v || undefined }))} />
 
+          <div>
+            <label className="block text-[11px] text-dock-text-muted mb-1.5">{t("session.folder")}</label>
+            <select
+              value={form.folder_id || ""}
+              onChange={(e) => setForm((p) => ({ ...p, folder_id: e.target.value || undefined }))}
+              className="w-full px-3 py-2 rounded-lg bg-dock-bg border border-dock-border text-[12px] text-dock-text focus:border-dock-accent focus:outline-none"
+            >
+              <option value="">No folder</option>
+              {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+            </select>
+          </div>
+
           {/* Device info */}
           <div className="grid grid-cols-3 gap-3">
             <Field label={t("session.deviceType")} value={form.device_type || ""} onChange={(v) => setForm((p) => ({ ...p, device_type: v || undefined }))} />
@@ -221,9 +244,9 @@ function EditSessionDialog({ session, onSave, onClose }: {
               className="px-4 py-2 rounded-lg text-[12px] text-dock-text-muted bg-dock-surface hover:bg-dock-surface-hover">
               {t("session.cancel")}
             </button>
-            <button type="submit"
+            <button type="submit" disabled={saving}
               className="px-4 py-2 rounded-lg text-[12px] text-white bg-dock-accent hover:bg-dock-accent-hover">
-              {t("session.save")}
+              {saving ? "Saving..." : t("session.save")}
             </button>
           </div>
         </form>

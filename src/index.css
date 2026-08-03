@@ -96,3 +96,9 @@ body {
 .xterm-container .xterm {
   padding: 12px;
 }
+
+[data-session-drag-active="true"] {
+  outline: 1px solid var(--color-dock-accent);
+  outline-offset: -1px;
+  background-color: color-mix(in srgb, var(--color-dock-accent) 18%, transparent);
+}

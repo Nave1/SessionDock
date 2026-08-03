@@ -7,9 +7,10 @@ interface SessionFormProps {
   onSubmit: (data: CreateSessionRequest) => void;
   onCancel: () => void;
   folders: { id: string; name: string }[];
+  initialFolderId?: string;
 }
 
-export function SessionForm({ onSubmit, onCancel, folders }: SessionFormProps) {
+export function SessionForm({ onSubmit, onCancel, folders, initialFolderId }: SessionFormProps) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<CreateSessionRequest>({
     name: "",
@@ -18,6 +19,7 @@ export function SessionForm({ onSubmit, onCancel, folders }: SessionFormProps) {
     protocol: "ssh",
     authentication_method: "password",
     favorite: false,
+    folder_id: initialFolderId,
   });
 
   const handleSubmit = (e: React.FormEvent) => {

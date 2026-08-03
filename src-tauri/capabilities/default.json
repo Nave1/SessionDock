@@ -1,11 +1,15 @@
 {
   "identifier": "default",
   "description": "Default capabilities for SessionDock",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "shell:allow-open",
     "updater:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "dialog:default",
+    "fs:default"
   ]
 }

@@ -1,13 +1,16 @@
-import { useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import {
   ChevronRight,
   ChevronDown,
+  Download,
+  FilePlus2,
   Folder as FolderIcon,
   FolderOpen,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import type { Folder, Session } from "../../types";
-import { canMoveFolder, getActiveFolderDrag, setActiveFolderDrag } from "../../utils/folderTree";
+import { beginSessionPointerDrag, canMoveFolder, getActiveFolderDrag, getActiveSessionDrag, setActiveFolderDrag, setActiveSessionDrag, shouldSuppressSessionClick } from "../../utils/folderTree";
 
 interface FolderTreeProps {
   folders: Folder[];
@@ -15,9 +18,12 @@ interface FolderTreeProps {
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
   onSelectSession: (session: Session) => void;
-  onMoveSession?: (sessionId: string, folderId: string) => void;
+  onMoveSession?: (sessionId: string, folderId?: string) => void;
   onMoveFolder?: (folderId: string, parentId?: string) => void;
   onDeleteFolder?: (folderId: string) => void;
+  onCreateSessionInFolder?: (folderId: string) => void;
+  onRenameFolder?: (folder: Folder) => void;
+  onExportFolder?: (folderId: string, format: "json" | "csv") => void;
 }
 
 interface TreeNode {
@@ -70,14 +76,45 @@ export function FolderTree({
   onMoveSession,
   onMoveFolder,
   onDeleteFolder,
+  onCreateSessionInFolder,
+  onRenameFolder,
+  onExportFolder,
 }: FolderTreeProps) {
   const tree = buildTree(folders, sessions);
+  const unfiledSessions = sessions.filter((session) => !session.folder_id);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{ folder: Folder; x: number; y: number } | null>(null);
+  const [unfiledDragOver, setUnfiledDragOver] = useState(false);
   const draggedFolderIdRef = useRef<string | null>(null);
   const dropTargetFolderIdRef = useRef<string | null>(null);
 
-  if (tree.length === 0) {
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("click", close);
+    window.addEventListener("blur", close);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("blur", close);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [contextMenu]);
+
+  useEffect(() => {
+    const handleSessionMove = (event: Event) => {
+      const { sessionId, folderId } = (event as CustomEvent<{ sessionId: string; folderId?: string }>).detail;
+      onMoveSession?.(sessionId, folderId);
+    };
+    window.addEventListener("sessiondock:move-session", handleSessionMove);
+    return () => window.removeEventListener("sessiondock:move-session", handleSessionMove);
+  }, [onMoveSession]);
+
+  if (tree.length === 0 && unfiledSessions.length === 0) {
     return null;
   }
 
@@ -138,8 +175,74 @@ export function FolderTree({
           draggedFolderIdRef={draggedFolderIdRef}
           dropTargetFolderIdRef={dropTargetFolderIdRef}
           setRootDragOver={setRootDragOver}
+          onOpenContextMenu={(folder, x, y) => setContextMenu({ folder, x, y })}
         />
       ))}
+      <div
+        data-session-unfiled
+        className={`mt-2 min-h-8 border-t pt-1 ${unfiledDragOver ? "border-dock-accent bg-dock-accent/10" : "border-dock-border"}`}
+          onDragOver={(event) => {
+            if (!getActiveSessionDrag() && !event.dataTransfer.types.includes("application/sessiondock-session")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            setUnfiledDragOver(true);
+            const sessionId = getActiveSessionDrag();
+            if (sessionId) {
+              onMoveSession?.(sessionId, undefined);
+              setActiveSessionDrag(null);
+            }
+          }}
+          onDragLeave={(event) => {
+            if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+            setUnfiledDragOver(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            const payload = event.dataTransfer.getData("application/sessiondock-session");
+            const sessionId = getActiveSessionDrag() || (payload ? JSON.parse(payload).id : null);
+            if (sessionId) onMoveSession?.(sessionId, undefined);
+            setActiveSessionDrag(null);
+            setUnfiledDragOver(false);
+          }}
+      >
+        <div className="px-2 py-1 text-[10px] font-medium uppercase text-dock-text-muted">
+          Unfiled · Drop here {unfiledSessions.length > 0 && `(${unfiledSessions.length})`}
+        </div>
+        {unfiledSessions.map((session) => (
+          <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} depth={0} />
+        ))}
+      </div>
+      {contextMenu && (
+        <div
+          role="menu"
+          className="fixed z-[70] min-w-44 rounded-md border border-dock-border bg-dock-sidebar py-1 shadow-2xl"
+          style={{ left: Math.min(contextMenu.x, window.innerWidth - 190), top: Math.min(contextMenu.y, window.innerHeight - 190) }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <ContextMenuButton icon={FilePlus2} label="New session" onClick={() => {
+            onCreateSessionInFolder?.(contextMenu.folder.id);
+            setContextMenu(null);
+          }} />
+          <ContextMenuButton icon={Pencil} label="Rename folder" onClick={() => {
+            onRenameFolder?.(contextMenu.folder);
+            setContextMenu(null);
+          }} />
+          <div className="my-1 border-t border-dock-border" />
+          <ContextMenuButton icon={Download} label="Export as JSON" onClick={() => {
+            onExportFolder?.(contextMenu.folder.id, "json");
+            setContextMenu(null);
+          }} />
+          <ContextMenuButton icon={Download} label="Export as CSV" onClick={() => {
+            onExportFolder?.(contextMenu.folder.id, "csv");
+            setContextMenu(null);
+          }} />
+          <div className="my-1 border-t border-dock-border" />
+          <ContextMenuButton icon={Trash2} label="Delete folder" danger onClick={() => {
+            setDeleteConfirmId(contextMenu.folder.id);
+            setContextMenu(null);
+          }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -159,13 +262,14 @@ function TreeNodeItem({
   draggedFolderIdRef,
   dropTargetFolderIdRef,
   setRootDragOver,
+  onOpenContextMenu,
 }: {
   node: TreeNode;
   depth: number;
   selectedFolderId: string | null;
   onSelectFolder: (id: string) => void;
   onSelectSession: (session: Session) => void;
-  onMoveSession?: (sessionId: string, folderId: string) => void;
+  onMoveSession?: (sessionId: string, folderId?: string) => void;
   onMoveFolder?: (folderId: string, parentId?: string) => void;
   onDeleteFolder?: (folderId: string) => void;
   canAcceptFolder: (folderId: string, targetId: string) => boolean;
@@ -174,6 +278,7 @@ function TreeNodeItem({
   draggedFolderIdRef: MutableRefObject<string | null>;
   dropTargetFolderIdRef: MutableRefObject<string | null>;
   setRootDragOver: (active: boolean) => void;
+  onOpenContextMenu: (folder: Folder, x: number, y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const [dragOver, setDragOver] = useState(false);
@@ -181,7 +286,7 @@ function TreeNodeItem({
   const hasChildren = node.children.length > 0 || node.sessions.length > 0;
 
   const handleDragOver = (e: React.DragEvent) => {
-    const hasSession = e.dataTransfer.types.includes("application/sessiondock-session");
+    const hasSession = e.dataTransfer.types.includes("application/sessiondock-session") || Boolean(getActiveSessionDrag());
     const hasFolder = e.dataTransfer.types.includes("application/sessiondock-folder");
     const hasFolderFallback = e.dataTransfer.types.includes("text/plain") || Boolean(draggedFolderIdRef.current);
     if (hasSession || hasFolder || hasFolderFallback) {
@@ -189,6 +294,12 @@ function TreeNodeItem({
       e.dataTransfer.dropEffect = "move";
       dropTargetFolderIdRef.current = node.folder.id;
       setDragOver(true);
+      const sessionId = getActiveSessionDrag();
+      if (sessionId) {
+        onMoveSession?.(sessionId, node.folder.id);
+        setActiveSessionDrag(null);
+        setExpanded(true);
+      }
     }
   };
 
@@ -202,9 +313,10 @@ function TreeNodeItem({
     e.preventDefault();
     setDragOver(false);
     const data = e.dataTransfer.getData("application/sessiondock-session");
-    if (data && onMoveSession) {
-      const { id } = JSON.parse(data);
-      onMoveSession(id, node.folder.id);
+    const sessionId = getActiveSessionDrag() || (data ? JSON.parse(data).id : null);
+    if (sessionId && onMoveSession) {
+      onMoveSession(sessionId, node.folder.id);
+      setActiveSessionDrag(null);
       setExpanded(true);
       return;
     }
@@ -258,6 +370,11 @@ function TreeNodeItem({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onOpenContextMenu(node.folder, event.clientX, event.clientY);
+        }}
         className={`group w-full flex items-center rounded text-xs transition-colors ${
           dragOver
             ? "bg-dock-accent/25 text-dock-accent ring-1 ring-dock-accent"
@@ -342,25 +459,54 @@ function TreeNodeItem({
               draggedFolderIdRef={draggedFolderIdRef}
               dropTargetFolderIdRef={dropTargetFolderIdRef}
               setRootDragOver={setRootDragOver}
+              onOpenContextMenu={onOpenContextMenu}
             />
           ))}
           {node.sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => onSelectSession(session)}
-              className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-dock-text-muted hover:text-dock-text hover:bg-dock-surface transition-colors"
-              style={{ paddingLeft: `${(depth + 1) * 12 + 8}px` }}
-            >
-              <ProtocolDot protocol={session.protocol} />
-              <span className="truncate">{session.name}</span>
-              <span className="ml-auto text-[10px] opacity-60">
-                {session.host}
-              </span>
-            </button>
+            <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} depth={depth + 1} />
           ))}
         </>
       )}
     </div>
+  );
+}
+
+function ContextMenuButton({ icon: Icon, label, onClick, danger = false }: {
+  icon: typeof FolderIcon;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      role="menuitem"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs ${
+        danger ? "text-dock-error hover:bg-dock-error/10" : "text-dock-text-muted hover:bg-dock-surface hover:text-dock-text"
+      }`}
+    >
+      <Icon size={13} />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function SessionTreeItem({ session, onSelectSession, depth }: {
+  session: Session;
+  onSelectSession: (session: Session) => void;
+  depth: number;
+}) {
+  return (
+    <button
+      onPointerDown={(event) => beginSessionPointerDrag(event.nativeEvent, session.id)}
+      onClick={() => { if (!shouldSuppressSessionClick()) onSelectSession(session); }}
+      className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-dock-text-muted hover:text-dock-text hover:bg-dock-surface transition-colors cursor-grab active:cursor-grabbing"
+      style={{ paddingLeft: `${depth * 12 + 8}px` }}
+    >
+      <ProtocolDot protocol={session.protocol} />
+      <span className="truncate">{session.name}</span>
+      <span className="ml-auto text-[10px] opacity-60">{session.host}</span>
+    </button>
   );
 }
 

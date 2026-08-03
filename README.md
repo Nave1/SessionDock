@@ -4,7 +4,7 @@ A modern, fast, lightweight desktop application for managing and opening SSH, Te
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.5.0-blue)
+![Version](https://img.shields.io/badge/version-0.6.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -26,13 +26,17 @@ Built for network engineers, data-center technicians, system administrators, and
 ### Session organization
 
 - **Saved sessions** - Store connection profiles with protocol, host, port, username, vendor, model, device type, description, and tags.
+- **Persistent local library** - Sessions and folders are stored in SQLite and restored automatically when SessionDock starts.
 - **Session editing and deletion** - Update saved profiles or remove them with confirmation.
+- **Session folder assignment** - Choose a folder while creating or editing a session, or drag sessions between folders and the permanent Unfiled area.
 - **Nested folders** - Build multi-level folder hierarchies and drag folders into other folders.
 - **Root reordering** - Drag nested folders back to the top level using the Sidebar root target.
 - **Content-preserving folder deletion** - Delete a folder while moving its direct child folders and sessions to the deleted folder's parent.
+- **Folder context actions** - Right-click a folder to create a session inside it, rename it, export its subtree as JSON/CSV, or delete it.
 - **Session search** - Search by name, host, vendor, model, description, and tags.
 - **Command palette** - Press `Ctrl+K` to search sessions and run common application actions from the keyboard.
-- **Import and export utilities** - Parse and generate JSON or CSV session data without exporting credential secrets.
+- **Native import and export** - Use Windows Open/Save dialogs for safe JSON/CSV import and export without credential secrets.
+- **Encrypted backups** - Create and restore password-encrypted AES-GCM backups from the Data settings page.
 
 ### Interface and preferences
 
@@ -75,7 +79,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.5.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.6.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -115,7 +119,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.5.0_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.6.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -123,7 +127,7 @@ npx tauri build
 ### Run Tests
 
 ```powershell
-npm test          # 65 unit tests
+npm test          # 68 unit tests
 npx tsc --noEmit  # TypeScript check
 ```
 
