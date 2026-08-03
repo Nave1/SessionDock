@@ -22,7 +22,7 @@ import {
 interface SidebarProps {
   width: number;
   onNewSession: (folderId?: string) => void;
-  onNewFolder: () => void;
+  onNewFolder: (parentId?: string) => void;
   onQuickConnect: () => void;
 }
 
@@ -125,7 +125,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
           <span>Session</span>
         </button>
         <button
-          onClick={onNewFolder}
+          onClick={() => onNewFolder()}
           className="flex items-center justify-center px-2 py-[6px] rounded-md text-[11px] bg-dock-surface text-dock-text-muted hover:text-dock-text hover:bg-dock-surface-hover"
           title={t("sidebar.newFolder")}
         >
@@ -228,6 +228,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
               }
             }}
             onCreateSessionInFolder={onNewSession}
+            onCreateFolderInFolder={onNewFolder}
             onRenameFolder={async (folder) => {
               const name = window.prompt("Folder name:", folder.name)?.trim();
               if (!name || name === folder.name) return;

@@ -7,12 +7,13 @@ interface FolderFormProps {
   onSubmit: (data: CreateFolderRequest) => void;
   onCancel: () => void;
   folders: { id: string; name: string }[];
+  initialParentId?: string;
 }
 
-export function FolderForm({ onSubmit, onCancel, folders }: FolderFormProps) {
+export function FolderForm({ onSubmit, onCancel, folders, initialParentId }: FolderFormProps) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
-  const [parentId, setParentId] = useState<string>("");
+  const [parentId, setParentId] = useState(initialParentId || "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

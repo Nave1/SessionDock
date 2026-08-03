@@ -5,6 +5,7 @@ import {
   Download,
   FilePlus2,
   Folder as FolderIcon,
+  FolderPlus,
   FolderOpen,
   Pencil,
   Trash2,
@@ -22,6 +23,7 @@ interface FolderTreeProps {
   onMoveFolder?: (folderId: string, parentId?: string) => void;
   onDeleteFolder?: (folderId: string) => void;
   onCreateSessionInFolder?: (folderId: string) => void;
+  onCreateFolderInFolder?: (folderId: string) => void;
   onRenameFolder?: (folder: Folder) => void;
   onExportFolder?: (folderId: string, format: "json" | "csv") => void;
 }
@@ -77,6 +79,7 @@ export function FolderTree({
   onMoveFolder,
   onDeleteFolder,
   onCreateSessionInFolder,
+  onCreateFolderInFolder,
   onRenameFolder,
   onExportFolder,
 }: FolderTreeProps) {
@@ -221,6 +224,10 @@ export function FolderTree({
         >
           <ContextMenuButton icon={FilePlus2} label="New session" onClick={() => {
             onCreateSessionInFolder?.(contextMenu.folder.id);
+            setContextMenu(null);
+          }} />
+          <ContextMenuButton icon={FolderPlus} label="New folder" onClick={() => {
+            onCreateFolderInFolder?.(contextMenu.folder.id);
             setContextMenu(null);
           }} />
           <ContextMenuButton icon={Pencil} label="Rename folder" onClick={() => {

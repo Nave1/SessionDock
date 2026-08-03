@@ -21,6 +21,7 @@ function App() {
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [sessionFormFolderId, setSessionFormFolderId] = useState<string | undefined>();
   const [folderFormOpen, setFolderFormOpen] = useState(false);
+  const [folderFormParentId, setFolderFormParentId] = useState<string | undefined>();
   const [quickConnectOpen, setQuickConnectOpen] = useState(false);
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
   const addTab = useAppStore((s) => s.addTab);
@@ -33,6 +34,11 @@ function App() {
   const openSessionForm = (folderId?: string) => {
     setSessionFormFolderId(folderId);
     setSessionFormOpen(true);
+  };
+
+  const openFolderForm = (parentId?: string) => {
+    setFolderFormParentId(parentId);
+    setFolderFormOpen(true);
   };
 
   useEffect(() => {
@@ -194,7 +200,7 @@ function App() {
       <Sidebar
         width={sidebarWidth}
         onNewSession={openSessionForm}
-        onNewFolder={() => setFolderFormOpen(true)}
+        onNewFolder={openFolderForm}
         onQuickConnect={() => setQuickConnectOpen(true)}
       />
       <MainContent
@@ -222,6 +228,7 @@ function App() {
           onSubmit={handleCreateFolder}
           onCancel={() => setFolderFormOpen(false)}
           folders={folders.map((f) => ({ id: f.id, name: f.name }))}
+          initialParentId={folderFormParentId}
         />
       )}
 
