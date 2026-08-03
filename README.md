@@ -1,10 +1,12 @@
+<img src="public/icon-48.png" alt="SessionDock logo" width="48" height="48">
+
 # SessionDock
 
 A modern, fast, lightweight desktop application for managing and opening SSH, Telnet, and Serial terminal sessions.
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.6.0-blue)
+![Version](https://img.shields.io/badge/version-0.6.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -32,7 +34,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Nested folders** - Build multi-level folder hierarchies and drag folders into other folders.
 - **Root reordering** - Drag nested folders back to the top level using the Sidebar root target.
 - **Content-preserving folder deletion** - Delete a folder while moving its direct child folders and sessions to the deleted folder's parent.
-- **Folder context actions** - Right-click a folder to create a session inside it, rename it, export its subtree as JSON/CSV, or delete it.
+- **Folder context actions** - Right-click a folder to create a session or nested folder inside it, rename it, export its subtree as JSON/CSV, or delete it.
 - **Session search** - Search by name, host, vendor, model, description, and tags.
 - **Command palette** - Press `Ctrl+K` to search sessions and run common application actions from the keyboard.
 - **Native import and export** - Use Windows Open/Save dialogs for safe JSON/CSV import and export without credential secrets.
@@ -47,7 +49,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Keyboard shortcuts** - Quickly create sessions, close tabs, change tabs, and open the command palette.
 - **English and Hebrew UI** - Includes right-to-left layout support for Hebrew.
 - **Local-first design** - No account, analytics, telemetry, or cloud backend; application data remains on the local device.
-- **Native desktop experience** - Compact Tauri interface with no console window and a Windows NSIS installer.
+- **Native desktop experience** - Compact Tauri interface with custom SessionDock branding, no console window, and a Windows NSIS installer.
 
 ## Security
 
@@ -73,13 +75,13 @@ Built for network engineers, data-center technicians, system administrators, and
 | State | Zustand (with persist middleware) |
 | i18n | react-i18next |
 | Updates | tauri-plugin-updater |
-| Icons | Lucide React |
+| Icons | Lucide React + custom SessionDock application icons |
 
 ## Installation
 
 ### Windows
 
-Download `SessionDock_0.6.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.6.1_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -119,7 +121,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.6.0_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.6.1_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -143,6 +145,7 @@ npx tsc --noEmit  # TypeScript check
 
 ```
 SessionDock/
+├── public/                       # Browser favicon and in-app logo assets
 ├── src/                          # React frontend
 │   ├── components/               # UI components
 │   │   ├── forms/                # Session, Folder, QuickConnect, Credential forms

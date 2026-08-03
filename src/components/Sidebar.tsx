@@ -86,9 +86,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 h-12 border-b border-dock-border flex-shrink-0">
-        <div className="w-5 h-5 rounded bg-dock-accent flex items-center justify-center">
-          <span className="text-[10px] font-bold text-white">S</span>
-        </div>
+        <img src="/icon-32.png" alt="" aria-hidden="true" width="20" height="20" className="w-5 h-5" />
         <span className="text-[13px] font-semibold text-dock-text tracking-tight">
           SessionDock
         </span>

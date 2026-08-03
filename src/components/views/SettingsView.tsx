@@ -202,9 +202,7 @@ function AboutSettings() {
   return (
     <div className="space-y-4 max-w-lg">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-dock-accent flex items-center justify-center text-white text-lg font-bold">
-          S
-        </div>
+        <img src="/icon-48.png" alt="" aria-hidden="true" width="48" height="48" className="w-12 h-12" />
         <div>
           <h3 className="text-sm font-semibold text-dock-text">SessionDock</h3>
           <p className="text-xs text-dock-text-muted">
