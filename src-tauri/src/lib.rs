@@ -67,6 +67,8 @@ pub fn run() {
             commands::data::export_sessions_json,
             commands::data::export_sessions_csv,
             commands::data::import_sessions_json,
+            commands::data::write_text_file_to_path,
+            commands::data::read_text_file_from_path,
             commands::data::clear_recent_sessions,
             commands::data::reset_application_data,
             commands::terminal::spawn_terminal,

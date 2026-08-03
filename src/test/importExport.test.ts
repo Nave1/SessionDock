@@ -1,6 +1,19 @@
-import { describe, it, expect } from "vitest";
-import { createCsvExport, parseCsvImport, createSafeExport, parseJsonImport } from "../utils/importExport";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { createCsvExport, parseCsvImport, createSafeExport, openTextFile, parseJsonImport, saveTextFile } from "../utils/importExport";
 import type { Session, Folder } from "../types";
+
+const fileMocks = vi.hoisted(() => ({
+  invoke: vi.fn(),
+  open: vi.fn(),
+  save: vi.fn(),
+}));
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: fileMocks.invoke }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: fileMocks.open, save: fileMocks.save }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 const mockSession: Session = {
   id: "test-1",
@@ -129,5 +142,32 @@ describe("JSON Import", () => {
   it("rejects invalid JSON", () => {
     expect(parseJsonImport("not json")).toBeNull();
     expect(parseJsonImport('{"foo": "bar"}')).toBeNull();
+  });
+});
+
+describe("Native file dialogs", () => {
+  it("writes the selected save path through the native command", async () => {
+    fileMocks.save.mockResolvedValue("C:\\Exports\\sessions.json");
+    fileMocks.invoke.mockResolvedValue(undefined);
+
+    await expect(saveTextFile("export data", "sessions.json", "JSON", ["json"]))
+      .resolves.toBe("C:\\Exports\\sessions.json");
+    expect(fileMocks.invoke).toHaveBeenCalledWith("write_text_file_to_path", {
+      path: "C:\\Exports\\sessions.json",
+      content: "export data",
+    });
+  });
+
+  it("reads the selected open path through the native command", async () => {
+    fileMocks.open.mockResolvedValue("C:\\Exports\\sessions.json");
+    fileMocks.invoke.mockResolvedValue("import data");
+
+    await expect(openTextFile("JSON", ["json"])).resolves.toEqual({
+      path: "C:\\Exports\\sessions.json",
+      content: "import data",
+    });
+    expect(fileMocks.invoke).toHaveBeenCalledWith("read_text_file_from_path", {
+      path: "C:\\Exports\\sessions.json",
+    });
   });
 });

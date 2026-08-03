@@ -6,7 +6,7 @@ A modern, fast, lightweight desktop application for managing and opening SSH, Te
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.6.1-blue)
+![Version](https://img.shields.io/badge/version-0.6.2-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -37,8 +37,8 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Folder context actions** - Right-click a folder to create a session or nested folder inside it, rename it, export its subtree as JSON/CSV, or delete it.
 - **Session search** - Search by name, host, vendor, model, description, and tags.
 - **Command palette** - Press `Ctrl+K` to search sessions and run common application actions from the keyboard.
-- **Native import and export** - Use Windows Open/Save dialogs for safe JSON/CSV import and export without credential secrets.
-- **Encrypted backups** - Create and restore password-encrypted AES-GCM backups from the Data settings page.
+- **Native import and export** - Use Windows Open/Save dialogs for reliable JSON/CSV import and export to any user-selected path without credential secrets.
+- **Encrypted backups** - Create and restore password-encrypted AES-GCM backups from the Data settings page using native file dialogs.
 
 ### Interface and preferences
 
@@ -69,6 +69,9 @@ Built for network engineers, data-center technicians, system administrators, and
 | Styling | Tailwind CSS 4 |
 | Terminal | xterm.js 5 |
 | SSH Backend | ssh2 crate (libssh2) — native in-process, no external ssh.exe |
+
+
+
 | Database | SQLite with FTS5 (rusqlite) |
 | Serial | serialport crate |
 | Credentials | keyring crate (Win Credential Manager / macOS Keychain) |
@@ -81,7 +84,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.6.1_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.6.2_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -121,7 +124,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.6.1_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.6.2_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -129,7 +132,7 @@ npx tauri build
 ### Run Tests
 
 ```powershell
-npm test          # 68 unit tests
+npm test          # 70 unit tests
 npx tsc --noEmit  # TypeScript check
 ```
 

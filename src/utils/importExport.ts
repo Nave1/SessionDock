@@ -1,4 +1,5 @@
 import type { Session, Folder } from "../types";
+import { invoke } from "@tauri-apps/api/core";
 
 export interface SafeExportData {
   version: "1.0";
@@ -189,22 +190,16 @@ export async function saveTextFile(
   name: string,
   extensions: string[],
 ): Promise<string | null> {
-  const [{ save }, { writeTextFile }] = await Promise.all([
-    import("@tauri-apps/plugin-dialog"),
-    import("@tauri-apps/plugin-fs"),
-  ]);
+  const { save } = await import("@tauri-apps/plugin-dialog");
   const path = await save({ defaultPath, filters: [{ name, extensions }] });
   if (!path) return null;
-  await writeTextFile(path, content);
+  await invoke("write_text_file_to_path", { path, content });
   return path;
 }
 
 export async function openTextFile(name: string, extensions: string[]): Promise<{ path: string; content: string } | null> {
-  const [{ open }, { readTextFile }] = await Promise.all([
-    import("@tauri-apps/plugin-dialog"),
-    import("@tauri-apps/plugin-fs"),
-  ]);
+  const { open } = await import("@tauri-apps/plugin-dialog");
   const path = await open({ multiple: false, directory: false, filters: [{ name, extensions }] });
   if (!path) return null;
-  return { path, content: await readTextFile(path) };
+  return { path, content: await invoke<string>("read_text_file_from_path", { path }) };
 }

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-08-03
+
+### Fixed
+- Save JSON/CSV exports, folder exports, and encrypted backups to the user-selected path
+- Read JSON/CSV imports and encrypted backups reliably from native Open dialogs
+- Flush completed file writes before reporting a successful save
+
 ## [0.6.1] - 2026-08-03
 
 ### Added

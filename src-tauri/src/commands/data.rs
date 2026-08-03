@@ -2,6 +2,8 @@ use crate::credential_vault::{self, CredentialVault};
 use crate::db::Database;
 use crate::error::AppError;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
+use std::path::Path;
 use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -14,6 +16,23 @@ pub struct ExportData {
     pub folders: Vec<serde_json::Value>,
     pub tags: Vec<String>,
     pub credential_profiles: Option<Vec<serde_json::Value>>,
+}
+
+#[tauri::command]
+pub fn write_text_file_to_path(path: String, content: String) -> Result<(), AppError> {
+    write_text_file(Path::new(&path), &content)
+}
+
+fn write_text_file(path: &Path, content: &str) -> Result<(), AppError> {
+    let mut file = std::fs::File::create(path)?;
+    file.write_all(content.as_bytes())?;
+    file.sync_all()?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_text_file_from_path(path: String) -> Result<String, AppError> {
+    Ok(std::fs::read_to_string(path)?)
 }
 
 /// Export all sessions and folders as safe JSON (no credentials)
@@ -235,4 +254,25 @@ pub fn get_credential_secret(
     vault
         .get_secret(&vault_ref)?
         .ok_or_else(|| AppError::CredentialVault("Secret not found in vault".into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{read_text_file_from_path, write_text_file};
+
+    #[test]
+    fn writes_overwrites_and_reads_selected_text_file() {
+        let path = std::env::temp_dir().join(format!(
+            "sessiondock-file-io-{}.json",
+            uuid::Uuid::new_v4()
+        ));
+
+        write_text_file(&path, "first export").unwrap();
+        write_text_file(&path, "replacement export").unwrap();
+
+        let content = read_text_file_from_path(path.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(content, "replacement export");
+
+        std::fs::remove_file(path).unwrap();
+    }
 }
