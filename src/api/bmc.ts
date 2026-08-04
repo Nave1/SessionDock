@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { nativeInvoke } from "./native";
 
 export interface BmcWebviewBounds {
   connectionId: string;
@@ -9,23 +9,23 @@ export interface BmcWebviewBounds {
 }
 
 export async function createBmcWebview(request: BmcWebviewBounds & { url: string; cookiePersistence: string }): Promise<string> {
-  return invoke("create_bmc_webview", { request });
+  return nativeInvoke("create_bmc_webview", { request });
 }
 
 export async function setBmcWebviewBounds(request: BmcWebviewBounds): Promise<void> {
-  return invoke("set_bmc_webview_bounds", { request });
+  return nativeInvoke("set_bmc_webview_bounds", { request });
 }
 
 export async function setBmcWebviewVisible(connectionId: string, visible: boolean): Promise<void> {
-  return invoke("set_bmc_webview_visible", { connectionId, visible });
+  return nativeInvoke("set_bmc_webview_visible", { connectionId, visible });
 }
 
 export async function reloadBmcWebview(connectionId: string): Promise<void> {
-  return invoke("reload_bmc_webview", { connectionId });
+  return nativeInvoke("reload_bmc_webview", { connectionId });
 }
 
 export async function closeBmcWebview(connectionId: string, clearBrowsingData: boolean): Promise<void> {
-  return invoke("close_bmc_webview", { connectionId, clearBrowsingData });
+  return nativeInvoke("close_bmc_webview", { connectionId, clearBrowsingData });
 }
 
 export interface BmcTestResult {
@@ -45,5 +45,5 @@ export async function testBmcConnection(request: {
   ignoreTlsErrors: boolean;
   testRedfish: boolean;
 }): Promise<BmcTestResult> {
-  return invoke("test_bmc_connection", { request });
+  return nativeInvoke("test_bmc_connection", { request });
 }

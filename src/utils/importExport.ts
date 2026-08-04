@@ -1,5 +1,5 @@
 import type { Session, Folder } from "../types";
-import { invoke } from "@tauri-apps/api/core";
+import { nativeInvoke } from "../api/native";
 import { safePersistedBmcUrl } from "./bmcUrl";
 
 export interface SafeExportData {
@@ -250,7 +250,7 @@ export async function saveTextFile(
   const { save } = await import("@tauri-apps/plugin-dialog");
   const path = await save({ defaultPath, filters: [{ name, extensions }] });
   if (!path) return null;
-  await invoke("write_text_file_to_path", { path, content });
+  await nativeInvoke("write_text_file_to_path", { path, content });
   return path;
 }
 
@@ -258,5 +258,5 @@ export async function openTextFile(name: string, extensions: string[]): Promise<
   const { open } = await import("@tauri-apps/plugin-dialog");
   const path = await open({ multiple: false, directory: false, filters: [{ name, extensions }] });
   if (!path) return null;
-  return { path, content: await invoke<string>("read_text_file_from_path", { path }) };
+  return { path, content: await nativeInvoke<string>("read_text_file_from_path", { path }) };
 }

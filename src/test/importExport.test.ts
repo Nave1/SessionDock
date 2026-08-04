@@ -8,7 +8,10 @@ const fileMocks = vi.hoisted(() => ({
   save: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({ invoke: fileMocks.invoke }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: fileMocks.invoke,
+  isTauri: () => true,
+}));
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: fileMocks.open, save: fileMocks.save }));
 
 beforeEach(() => {

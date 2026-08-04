@@ -3,7 +3,7 @@ import { Terminal as XTerm, type IDecoration, type IMarker } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { invoke } from "@tauri-apps/api/core";
+import { nativeInvoke } from "../../api/native";
 import { listen } from "@tauri-apps/api/event";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown } from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -180,7 +180,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     term.writeln(`\x1b[38;2;251;191;36mAuthenticating...\x1b[39m`);
 
     try {
-      await invoke("spawn_terminal", {
+      await nativeInvoke("spawn_terminal", {
         tabId,
         host,
         port,
@@ -201,7 +201,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     term.writeln("");
     term.writeln("\x1b[38;2;251;191;36m--- Reconnecting ---\x1b[39m");
     try {
-      await invoke("close_terminal", { tabId, protocol });
+      await nativeInvoke("close_terminal", { tabId, protocol });
     } catch { /* ignore close errors */ }
     // Wait for connection to fully close before reconnecting
     await new Promise(r => setTimeout(r, 500));
@@ -219,7 +219,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
 
   const handlePaste = useCallback(async () => {
     const text = await navigator.clipboard.readText();
-    if (text) invoke("write_terminal", { tabId, data: text, protocol }).catch(() => {});
+    if (text) nativeInvoke("write_terminal", { tabId, data: text, protocol }).catch(() => {});
   }, [tabId, protocol]);
 
   // Search functions
@@ -298,7 +298,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     // Semantic highlighting must NEVER intercept, modify, delay, or parse this path.
     // No trim, no ANSI injection, no local echo, no command buffering.
     terminal.onData((data) => {
-      invoke("write_terminal", { tabId, data, protocol }).catch(() => {});
+      nativeInvoke("write_terminal", { tabId, data, protocol }).catch(() => {});
     });
 
     // Ctrl+F to open search (intercept before terminal)
@@ -337,7 +337,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     resizeObserver.observe(containerRef.current);
 
     terminal.onResize(({ cols, rows }) => {
-      invoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
+      nativeInvoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
     });
 
     // Deferring startup lets React Strict Mode cancel its development-only
@@ -352,7 +352,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
       unlistenData.then((fn) => fn());
       unlistenStatus.then((fn) => fn());
       terminal.dispose();
-      invoke("close_terminal", { tabId, protocol }).catch(() => {});
+      nativeInvoke("close_terminal", { tabId, protocol }).catch(() => {});
     };
   }, [tabId]); // eslint-disable-line react-hooks/exhaustive-deps
 
