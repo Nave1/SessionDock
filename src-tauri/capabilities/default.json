@@ -1,7 +1,7 @@
 {
   "identifier": "default",
   "description": "Default capabilities for SessionDock",
-  "windows": [
+  "webviews": [
     "main"
   ],
   "permissions": [

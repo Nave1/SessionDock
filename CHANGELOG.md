@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-03
+
+### Added
+- Saved and Quick Connect BMC / KVM over IP sessions with Dell iDRAC, HPE iLO, Lenovo XClarity, and Supermicro presets
+- Restricted native child WebViews with per-tab lifecycle, native bounds, external-browser mode, reload controls, and cookie policy
+- HTTP(S) reachability and Redfish diagnostics with structured status and latency results
+- BMC server, serial, site, and rack metadata in SQLite FTS search and credential-free JSON/CSV import/export
+- English and Hebrew BMC configuration strings
+
+### Security
+- Scope privileged Tauri capabilities to the main application WebView so remote BMC pages receive no SessionDock IPC permissions
+- Deny BMC popup creation, restrict navigation to HTTP(S), reject embedded URL credentials, and disable devtools
+- Omit token-, ticket-, password-, and session-bearing console URLs from persistence and exports
+- Keep embedded certificate validation enabled; diagnostic TLS exceptions are isolated to their individual HTTP client
+
 ## [0.6.2] - 2026-08-03
 
 ### Fixed

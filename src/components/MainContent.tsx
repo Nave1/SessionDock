@@ -5,6 +5,8 @@ import { SettingsView } from "./views/SettingsView";
 import { SessionList } from "./views/SessionList";
 import { TerminalTabs } from "./TerminalTabs";
 import { TerminalView } from "./terminal/TerminalView";
+import { BmcConsoleView } from "./bmc/BmcConsoleView";
+import type { Session } from "../types";
 
 interface MainContentProps {
   onNewSession: () => void;
@@ -17,15 +19,17 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
   const { currentView, tabs, activeTabId, addTab, selectedFolderId } = useAppStore();
   const { sessions } = useSessionStore();
 
-  const handleConnect = (session: { id: string; name: string; host: string; port?: number; protocol: string; username?: string }) => {
+  const handleConnect = (session: Session) => {
     addTab({
       id: crypto.randomUUID(),
       sessionId: session.id,
       sessionName: session.name,
       host: session.host,
+      port: session.port,
       protocol: session.protocol,
       status: "connecting",
       pinned: false,
+      bmc: session.protocol === "bmc" ? session : undefined,
     });
   };
 
@@ -53,14 +57,18 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
               key={tab.id}
               className={`absolute inset-0 ${showTerminal && tab.id === activeTabId ? "z-10" : "z-0 hidden"}`}
             >
-              <TerminalView
-                tabId={tab.id}
-                host={tab.host}
-                port={tab.port ?? sess?.port ?? (tab.protocol === "ssh" ? 22 : 23)}
-                protocol={tab.protocol}
-                username={tab.username ?? sess?.username}
-                password={tab.password}
-              />
+              {tab.protocol === "bmc" ? (
+                <BmcConsoleView tab={tab} active={showTerminal === true && tab.id === activeTabId} />
+              ) : (
+                <TerminalView
+                  tabId={tab.id}
+                  host={tab.host}
+                  port={tab.port ?? sess?.port ?? (tab.protocol === "ssh" ? 22 : 23)}
+                  protocol={tab.protocol}
+                  username={tab.username ?? sess?.username}
+                  password={tab.password}
+                />
+              )}
             </div>
           );
         })}

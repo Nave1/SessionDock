@@ -53,7 +53,32 @@
   "protocols": {
     "ssh": "SSH",
     "telnet": "Telnet",
-    "serial": "Serial"
+    "serial": "Serial",
+    "bmc": "BMC / KVM"
+  },
+  "bmc": {
+    "settings": "BMC Remote Console",
+    "vendorPreset": "Vendor preset",
+    "custom": "Custom",
+    "webPath": "Web path",
+    "consoleUrl": "Console URL (optional)",
+    "viewerMode": "Viewer mode",
+    "cookiePersistence": "Cookie persistence",
+    "timeout": "Timeout (seconds)",
+    "serverHostname": "Server hostname",
+    "serialNumber": "Serial number",
+    "site": "Site",
+    "rack": "Rack",
+    "useHttps": "Use HTTPS",
+    "redfish": "Test Redfish API",
+    "autoConsole": "Open console automatically",
+    "fullscreen": "Open fullscreen",
+    "invalidUrl": "Enter a valid HTTP or HTTPS URL without embedded credentials.",
+    "sensitiveUrlWarning": "This URL contains a token or session value. It can be used for this connection but will not be saved or exported.",
+    "tlsNotice": "Certificate validation remains enabled in embedded mode. SessionDock never disables TLS validation globally.",
+    "testConnection": "Test connection",
+    "reachable": "Reachable",
+    "unreachable": "Unreachable"
   },
   "terminal": {
     "connecting": "Connecting...",

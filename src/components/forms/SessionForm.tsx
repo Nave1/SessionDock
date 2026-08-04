@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { CreateSessionRequest } from "../../types";
+import { BmcSessionFields } from "./BmcSessionFields";
+import { safePersistedBmcUrl } from "../../utils/bmcUrl";
 
 interface SessionFormProps {
   onSubmit: (data: CreateSessionRequest) => void;
@@ -25,12 +27,19 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId }: Se
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || (!formData.host.trim() && formData.protocol !== "serial")) return;
-    onSubmit(formData);
+    try {
+      onSubmit({
+        ...formData,
+        bmc_console_url: formData.protocol === "bmc" ? safePersistedBmcUrl(formData.bmc_console_url) : undefined,
+      });
+    } catch {
+      return;
+    }
   };
 
-  const handleProtocolChange = (protocol: "ssh" | "telnet" | "serial") => {
-    const defaultPorts = { ssh: 22, telnet: 23, serial: 0 };
-    setFormData((prev) => ({ ...prev, protocol, port: defaultPorts[protocol] }));
+  const handleProtocolChange = (protocol: CreateSessionRequest["protocol"]) => {
+    const defaultPorts = { ssh: 22, telnet: 23, serial: 0, bmc: 443 };
+    setFormData((prev) => ({ ...prev, protocol, port: defaultPorts[protocol], ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "application" } : {}) }));
   };
 
   return (
@@ -54,7 +63,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId }: Se
               {t("session.protocol")}
             </label>
             <div className="flex gap-1">
-              {(["ssh", "telnet", "serial"] as const).map((p) => (
+              {(["ssh", "telnet", "serial", "bmc"] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -79,6 +88,10 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId }: Se
             placeholder="e.g. Core-Switch-01"
             required
           />
+
+          {formData.protocol === "bmc" && (
+            <BmcSessionFields value={formData} onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))} />
+          )}
 
           {/* Host (not for serial) */}
           {formData.protocol !== "serial" && (

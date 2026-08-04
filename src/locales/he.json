@@ -53,7 +53,32 @@
   "protocols": {
     "ssh": "SSH",
     "telnet": "Telnet",
-    "serial": "Serial"
+    "serial": "Serial",
+    "bmc": "BMC / KVM"
+  },
+  "bmc": {
+    "settings": "מסוף BMC מרוחק",
+    "vendorPreset": "הגדרת יצרן",
+    "custom": "מותאם אישית",
+    "webPath": "נתיב אינטרנט",
+    "consoleUrl": "כתובת מסוף (אופציונלי)",
+    "viewerMode": "מצב תצוגה",
+    "cookiePersistence": "שמירת עוגיות",
+    "timeout": "זמן קצוב (שניות)",
+    "serverHostname": "שם השרת",
+    "serialNumber": "מספר סידורי",
+    "site": "אתר",
+    "rack": "ארון",
+    "useHttps": "שימוש ב-HTTPS",
+    "redfish": "בדיקת Redfish API",
+    "autoConsole": "פתיחת המסוף אוטומטית",
+    "fullscreen": "פתיחה במסך מלא",
+    "invalidUrl": "יש להזין כתובת HTTP או HTTPS תקינה ללא פרטי כניסה מובנים.",
+    "sensitiveUrlWarning": "הכתובת מכילה אסימון או מזהה הפעלה. ניתן להשתמש בה בחיבור הנוכחי, אך היא לא תישמר ולא תיוצא.",
+    "tlsNotice": "אימות תעודות נשאר פעיל במצב מוטמע. SessionDock אינו מבטל אימות TLS באופן גלובלי.",
+    "testConnection": "בדיקת חיבור",
+    "reachable": "זמין",
+    "unreachable": "לא זמין"
   },
   "terminal": {
     "connecting": "מתחבר...",

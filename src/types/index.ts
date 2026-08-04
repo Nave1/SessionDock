@@ -1,9 +1,31 @@
-export interface Session {
+export type Protocol = "ssh" | "telnet" | "serial" | "bmc";
+export type BmcViewerMode = "web" | "external-browser" | "vnc";
+export type BmcCookiePersistence = "tab" | "application" | "persistent";
+
+export interface BmcSessionConfig {
+  bmc_use_https: boolean;
+  bmc_web_path?: string;
+  bmc_console_url?: string;
+  bmc_viewer_mode: BmcViewerMode;
+  bmc_ignore_tls_errors: boolean;
+  bmc_open_console_automatically: boolean;
+  bmc_open_fullscreen: boolean;
+  bmc_timeout_seconds: number;
+  bmc_server_hostname?: string;
+  bmc_server_serial_number?: string;
+  bmc_rack?: string;
+  bmc_rack_unit?: string;
+  bmc_site?: string;
+  bmc_redfish_enabled: boolean;
+  bmc_cookie_persistence: BmcCookiePersistence;
+}
+
+export interface Session extends BmcSessionConfig {
   id: string;
   name: string;
   host: string;
   port: number;
-  protocol: "ssh" | "telnet" | "serial";
+  protocol: Protocol;
   username?: string;
   credential_profile_id?: string;
   authentication_method: "password" | "private_key" | "ssh_agent" | "manual";
@@ -25,11 +47,11 @@ export interface Session {
   connection_count: number;
 }
 
-export interface CreateSessionRequest {
+export interface CreateSessionRequest extends Partial<BmcSessionConfig> {
   name: string;
   host: string;
   port: number;
-  protocol: "ssh" | "telnet" | "serial";
+  protocol: Protocol;
   username?: string;
   credential_profile_id?: string;
   authentication_method: "password" | "private_key" | "ssh_agent" | "manual";

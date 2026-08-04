@@ -34,6 +34,14 @@ const mockSession: Session = {
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   last_connected_at: "2026-07-01T00:00:00Z",
+  bmc_use_https: true,
+  bmc_viewer_mode: "web",
+  bmc_ignore_tls_errors: false,
+  bmc_open_console_automatically: false,
+  bmc_open_fullscreen: false,
+  bmc_timeout_seconds: 30,
+  bmc_redfish_enabled: true,
+  bmc_cookie_persistence: "application",
 };
 
 const mockFolder: Folder = {
@@ -65,6 +73,12 @@ describe("CSV Export", () => {
     const session = { ...mockSession, description: "Has, comma" };
     const csv = createCsvExport([session]);
     expect(csv).toContain('"Has, comma"');
+  });
+
+  it("omits a BMC console URL containing a ticket", () => {
+    const bmc = { ...mockSession, protocol: "bmc" as const, bmc_console_url: "https://bmc.lab/console?ticket=secret" };
+    expect(createCsvExport([bmc])).not.toContain("secret");
+    expect(createSafeExport([bmc], [], new Map()).sessions[0].bmc_console_url).toBeUndefined();
   });
 });
 

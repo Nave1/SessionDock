@@ -26,6 +26,21 @@ pub struct Session {
     pub updated_at: String,
     pub last_connected_at: Option<String>,
     pub connection_count: u32,
+    pub bmc_use_https: bool,
+    pub bmc_web_path: Option<String>,
+    pub bmc_console_url: Option<String>,
+    pub bmc_viewer_mode: BmcViewerMode,
+    pub bmc_ignore_tls_errors: bool,
+    pub bmc_open_console_automatically: bool,
+    pub bmc_open_fullscreen: bool,
+    pub bmc_timeout_seconds: u32,
+    pub bmc_server_hostname: Option<String>,
+    pub bmc_server_serial_number: Option<String>,
+    pub bmc_rack: Option<String>,
+    pub bmc_rack_unit: Option<String>,
+    pub bmc_site: Option<String>,
+    pub bmc_redfish_enabled: bool,
+    pub bmc_cookie_persistence: BmcCookiePersistence,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +65,21 @@ pub struct CreateSessionRequest {
     pub keepalive_interval: Option<u32>,
     pub terminal_profile_id: Option<String>,
     pub tags: Option<Vec<String>>,
+    pub bmc_use_https: Option<bool>,
+    pub bmc_web_path: Option<String>,
+    pub bmc_console_url: Option<String>,
+    pub bmc_viewer_mode: Option<BmcViewerMode>,
+    pub bmc_ignore_tls_errors: Option<bool>,
+    pub bmc_open_console_automatically: Option<bool>,
+    pub bmc_open_fullscreen: Option<bool>,
+    pub bmc_timeout_seconds: Option<u32>,
+    pub bmc_server_hostname: Option<String>,
+    pub bmc_server_serial_number: Option<String>,
+    pub bmc_rack: Option<String>,
+    pub bmc_rack_unit: Option<String>,
+    pub bmc_site: Option<String>,
+    pub bmc_redfish_enabled: Option<bool>,
+    pub bmc_cookie_persistence: Option<BmcCookiePersistence>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +101,21 @@ pub struct UpdateSessionRequest {
     pub notes: Option<String>,
     pub favorite: Option<bool>,
     pub tags: Option<Vec<String>>,
+    pub bmc_use_https: Option<bool>,
+    pub bmc_web_path: Option<String>,
+    pub bmc_console_url: Option<String>,
+    pub bmc_viewer_mode: Option<BmcViewerMode>,
+    pub bmc_ignore_tls_errors: Option<bool>,
+    pub bmc_open_console_automatically: Option<bool>,
+    pub bmc_open_fullscreen: Option<bool>,
+    pub bmc_timeout_seconds: Option<u32>,
+    pub bmc_server_hostname: Option<String>,
+    pub bmc_server_serial_number: Option<String>,
+    pub bmc_rack: Option<String>,
+    pub bmc_rack_unit: Option<String>,
+    pub bmc_site: Option<String>,
+    pub bmc_redfish_enabled: Option<bool>,
+    pub bmc_cookie_persistence: Option<BmcCookiePersistence>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +124,7 @@ pub enum Protocol {
     Ssh,
     Telnet,
     Serial,
+    Bmc,
 }
 
 impl Protocol {
@@ -87,6 +133,7 @@ impl Protocol {
             Protocol::Ssh => "ssh",
             Protocol::Telnet => "telnet",
             Protocol::Serial => "serial",
+            Protocol::Bmc => "bmc",
         }
     }
 
@@ -95,6 +142,7 @@ impl Protocol {
             "ssh" => Protocol::Ssh,
             "telnet" => Protocol::Telnet,
             "serial" => Protocol::Serial,
+            "bmc" => Protocol::Bmc,
             _ => Protocol::Ssh,
         }
     }
@@ -104,6 +152,59 @@ impl Protocol {
             Protocol::Ssh => 22,
             Protocol::Telnet => 23,
             Protocol::Serial => 0,
+            Protocol::Bmc => 443,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BmcViewerMode {
+    Web,
+    ExternalBrowser,
+    Vnc,
+}
+
+impl BmcViewerMode {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Web => "web",
+            Self::ExternalBrowser => "external-browser",
+            Self::Vnc => "vnc",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "external-browser" => Self::ExternalBrowser,
+            "vnc" => Self::Vnc,
+            _ => Self::Web,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BmcCookiePersistence {
+    Tab,
+    Application,
+    Persistent,
+}
+
+impl BmcCookiePersistence {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Tab => "tab",
+            Self::Application => "application",
+            Self::Persistent => "persistent",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "tab" => Self::Tab,
+            "persistent" => Self::Persistent,
+            _ => Self::Application,
         }
     }
 }

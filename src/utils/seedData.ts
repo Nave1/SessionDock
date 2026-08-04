@@ -126,6 +126,14 @@ export function generateSeedData(sessionCount: number = 100): {
       last_connected_at: Math.random() > 0.3
         ? new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString()
         : undefined,
+      bmc_use_https: true,
+      bmc_viewer_mode: "web",
+      bmc_ignore_tls_errors: false,
+      bmc_open_console_automatically: false,
+      bmc_open_fullscreen: false,
+      bmc_timeout_seconds: 30,
+      bmc_redfish_enabled: true,
+      bmc_cookie_persistence: "application",
     };
 
     sessions.push(session);

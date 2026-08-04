@@ -6,6 +6,8 @@ import { useToastStore } from "../../stores/toastStore";
 import { deleteSession, updateSession } from "../../api/commands";
 import type { Session } from "../../types";
 import { beginSessionPointerDrag } from "../../utils/folderTree";
+import { BmcSessionFields } from "../forms/BmcSessionFields";
+import { safePersistedBmcUrl } from "../../utils/bmcUrl";
 
 interface SessionListProps {
   sessions: Session[];
@@ -171,7 +173,16 @@ function EditSessionDialog({ session, folders, onSave, onClose }: {
     e.preventDefault();
     if (!form.name.trim()) return;
     setSaving(true);
-    await onSave({ ...form, updated_at: new Date().toISOString() });
+    try {
+      await onSave({
+        ...form,
+        bmc_console_url: form.protocol === "bmc" ? safePersistedBmcUrl(form.bmc_console_url) : undefined,
+        updated_at: new Date().toISOString(),
+      });
+    } catch {
+      setSaving(false);
+      return;
+    }
     setSaving(false);
   };
 
@@ -199,7 +210,7 @@ function EditSessionDialog({ session, folders, onSave, onClose }: {
           <div>
             <label className="block text-[11px] text-dock-text-muted mb-1.5">{t("session.protocol")}</label>
             <div className="flex gap-1">
-              {(["ssh", "telnet", "serial"] as const).map((p) => (
+              {(["ssh", "telnet", "serial", "bmc"] as const).map((p) => (
                 <button key={p} type="button" onClick={() => setForm((prev) => ({ ...prev, protocol: p }))}
                   className={`px-3 py-1.5 rounded text-[11px] font-medium ${form.protocol === p ? "bg-dock-accent text-white" : "bg-dock-surface text-dock-text-muted"}`}
                 >{p.toUpperCase()}</button>
@@ -209,6 +220,10 @@ function EditSessionDialog({ session, folders, onSave, onClose }: {
 
           {/* Username */}
           <Field label={t("session.username")} value={form.username || ""} onChange={(v) => setForm((p) => ({ ...p, username: v || undefined }))} />
+
+          {form.protocol === "bmc" && (
+            <BmcSessionFields value={form} onChange={(patch) => setForm((previous) => ({ ...previous, ...patch }))} />
+          )}
 
           <div>
             <label className="block text-[11px] text-dock-text-muted mb-1.5">{t("session.folder")}</label>

@@ -1,5 +1,6 @@
 import type { Session, Folder } from "../types";
 import { invoke } from "@tauri-apps/api/core";
+import { safePersistedBmcUrl } from "./bmcUrl";
 
 export interface SafeExportData {
   version: "1.0";
@@ -29,6 +30,20 @@ export interface SafeExportSession {
   connection_timeout: number;
   keepalive_interval: number;
   tags: string[];
+  bmc_use_https?: boolean;
+  bmc_web_path?: string;
+  bmc_console_url?: string;
+  bmc_viewer_mode?: Session["bmc_viewer_mode"];
+  bmc_open_console_automatically?: boolean;
+  bmc_open_fullscreen?: boolean;
+  bmc_timeout_seconds?: number;
+  bmc_server_hostname?: string;
+  bmc_server_serial_number?: string;
+  bmc_rack?: string;
+  bmc_rack_unit?: string;
+  bmc_site?: string;
+  bmc_redfish_enabled?: boolean;
+  bmc_cookie_persistence?: Session["bmc_cookie_persistence"];
 }
 
 /**
@@ -65,6 +80,20 @@ export function createSafeExport(
       connection_timeout: s.connection_timeout,
       keepalive_interval: s.keepalive_interval,
       tags: sessionTags.get(s.id) || [],
+      bmc_use_https: s.protocol === "bmc" ? s.bmc_use_https : undefined,
+      bmc_web_path: s.protocol === "bmc" ? s.bmc_web_path : undefined,
+      bmc_console_url: s.protocol === "bmc" ? safePersistedBmcUrl(s.bmc_console_url) : undefined,
+      bmc_viewer_mode: s.protocol === "bmc" ? s.bmc_viewer_mode : undefined,
+      bmc_open_console_automatically: s.protocol === "bmc" ? s.bmc_open_console_automatically : undefined,
+      bmc_open_fullscreen: s.protocol === "bmc" ? s.bmc_open_fullscreen : undefined,
+      bmc_timeout_seconds: s.protocol === "bmc" ? s.bmc_timeout_seconds : undefined,
+      bmc_server_hostname: s.protocol === "bmc" ? s.bmc_server_hostname : undefined,
+      bmc_server_serial_number: s.protocol === "bmc" ? s.bmc_server_serial_number : undefined,
+      bmc_rack: s.protocol === "bmc" ? s.bmc_rack : undefined,
+      bmc_rack_unit: s.protocol === "bmc" ? s.bmc_rack_unit : undefined,
+      bmc_site: s.protocol === "bmc" ? s.bmc_site : undefined,
+      bmc_redfish_enabled: s.protocol === "bmc" ? s.bmc_redfish_enabled : undefined,
+      bmc_cookie_persistence: s.protocol === "bmc" ? s.bmc_cookie_persistence : undefined,
     })),
     folders,
     tags: Array.from(allTags),
@@ -78,6 +107,8 @@ export function createCsvExport(sessions: Session[]): string {
   const headers = [
     "Name", "Host", "Port", "Protocol", "Username",
     "Device Type", "Vendor", "Model", "Description", "Favorite",
+    "BMC HTTPS", "BMC Web Path", "BMC Console URL", "BMC Viewer Mode",
+    "BMC Server Hostname", "BMC Serial Number", "BMC Site", "BMC Rack", "BMC Rack Unit",
   ];
 
   const rows = sessions.map((s) => [
@@ -91,6 +122,15 @@ export function createCsvExport(sessions: Session[]): string {
     escapeCsv(s.model || ""),
     escapeCsv(s.description || ""),
     s.favorite ? "Yes" : "No",
+    s.protocol === "bmc" && s.bmc_use_https ? "Yes" : "No",
+    escapeCsv(s.protocol === "bmc" ? s.bmc_web_path || "" : ""),
+    escapeCsv(s.protocol === "bmc" ? safePersistedBmcUrl(s.bmc_console_url) || "" : ""),
+    s.protocol === "bmc" ? s.bmc_viewer_mode : "",
+    escapeCsv(s.protocol === "bmc" ? s.bmc_server_hostname || "" : ""),
+    escapeCsv(s.protocol === "bmc" ? s.bmc_server_serial_number || "" : ""),
+    escapeCsv(s.protocol === "bmc" ? s.bmc_site || "" : ""),
+    escapeCsv(s.protocol === "bmc" ? s.bmc_rack || "" : ""),
+    escapeCsv(s.protocol === "bmc" ? s.bmc_rack_unit || "" : ""),
   ]);
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -125,13 +165,30 @@ export function parseCsvImport(csv: string): Partial<Session>[] {
         case "name": session.name = value; break;
         case "host": session.host = value; break;
         case "port": session.port = parseInt(value) || 22; break;
-        case "protocol": session.protocol = value as Session["protocol"]; break;
+        case "protocol":
+          if (["ssh", "telnet", "serial", "bmc"].includes(value.toLowerCase())) {
+            session.protocol = value.toLowerCase() as Session["protocol"];
+          }
+          break;
         case "username": session.username = value; break;
         case "device type": session.device_type = value; break;
         case "vendor": session.vendor = value; break;
         case "model": session.model = value; break;
         case "description": session.description = value; break;
         case "favorite": session.favorite = value.toLowerCase() === "yes"; break;
+        case "bmc https": session.bmc_use_https = value.toLowerCase() === "yes"; break;
+        case "bmc web path": session.bmc_web_path = value; break;
+        case "bmc console url": session.bmc_console_url = safePersistedBmcUrl(value); break;
+        case "bmc viewer mode":
+          if (["web", "external-browser", "vnc"].includes(value)) {
+            session.bmc_viewer_mode = value as Session["bmc_viewer_mode"];
+          }
+          break;
+        case "bmc server hostname": session.bmc_server_hostname = value; break;
+        case "bmc serial number": session.bmc_server_serial_number = value; break;
+        case "bmc site": session.bmc_site = value; break;
+        case "bmc rack": session.bmc_rack = value; break;
+        case "bmc rack unit": session.bmc_rack_unit = value; break;
       }
     });
 

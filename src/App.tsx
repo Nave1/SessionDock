@@ -4,7 +4,7 @@ import { MainContent } from "./components/MainContent";
 import { CommandPalette } from "./components/CommandPalette";
 import { SessionForm } from "./components/forms/SessionForm";
 import { FolderForm } from "./components/forms/FolderForm";
-import { QuickConnect } from "./components/forms/QuickConnect";
+import { QuickConnect, type QuickConnectConfig } from "./components/forms/QuickConnect";
 import { ToastContainer } from "./components/ToastContainer";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useAppStore } from "./stores/appStore";
@@ -14,6 +14,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { createFolder, createSession, getFolders, getSessions } from "./api/commands";
 import { parseCsvImport, parseJsonImport } from "./utils/importExport";
 import type { CreateSessionRequest, CreateFolderRequest } from "./types";
+import { safePersistedBmcUrl } from "./utils/bmcUrl";
 
 function App() {
   const commandPaletteOpen = useAppStore((s) => s.commandPaletteOpen);
@@ -85,7 +86,7 @@ function App() {
     }
   };
 
-  const handleQuickConnect = (config: { host: string; port: number; protocol: "ssh" | "telnet" | "serial"; username: string; password: string; saveAsSession: boolean }) => {
+  const handleQuickConnect = (config: QuickConnectConfig) => {
     const tabId = crypto.randomUUID();
     addTab({
       id: tabId,
@@ -98,6 +99,7 @@ function App() {
       password: config.password || undefined,
       status: "connecting",
       pinned: false,
+      bmc: config.protocol === "bmc" ? config : undefined,
     });
     setQuickConnectOpen(false);
     addToast("info", `Connecting to ${config.host}...`);
@@ -114,6 +116,21 @@ function App() {
         favorite: false,
         connection_timeout: 30,
         keepalive_interval: 60,
+        bmc_use_https: config.bmc_use_https,
+        bmc_web_path: config.bmc_web_path,
+        bmc_console_url: safePersistedBmcUrl(config.bmc_console_url),
+        bmc_viewer_mode: config.bmc_viewer_mode,
+        bmc_ignore_tls_errors: false,
+        bmc_open_console_automatically: config.bmc_open_console_automatically,
+        bmc_open_fullscreen: config.bmc_open_fullscreen,
+        bmc_timeout_seconds: config.bmc_timeout_seconds,
+        bmc_server_hostname: config.bmc_server_hostname,
+        bmc_server_serial_number: config.bmc_server_serial_number,
+        bmc_rack: config.bmc_rack,
+        bmc_rack_unit: config.bmc_rack_unit,
+        bmc_site: config.bmc_site,
+        bmc_redfish_enabled: config.bmc_redfish_enabled,
+        bmc_cookie_persistence: config.bmc_cookie_persistence,
       };
       void createSession(request)
         .then(addSession)
@@ -141,7 +158,7 @@ function App() {
                 name: s.name || "Imported",
                 host: s.host || "",
                 port: s.port || 22,
-                protocol: s.protocol === "telnet" || s.protocol === "serial" ? s.protocol : "ssh",
+                protocol: s.protocol === "telnet" || s.protocol === "serial" || s.protocol === "bmc" ? s.protocol : "ssh",
                 username: s.username,
                 authentication_method: s.authentication_method === "private_key" || s.authentication_method === "ssh_agent" || s.authentication_method === "manual" ? s.authentication_method : "password",
                 favorite: s.favorite || false,
@@ -154,6 +171,20 @@ function App() {
                 notes: s.notes,
                 startup_command: s.startup_command,
                 tags: s.tags,
+                bmc_use_https: s.bmc_use_https,
+                bmc_web_path: s.bmc_web_path,
+                bmc_console_url: safePersistedBmcUrl(s.bmc_console_url),
+                bmc_viewer_mode: s.bmc_viewer_mode,
+                bmc_open_console_automatically: s.bmc_open_console_automatically,
+                bmc_open_fullscreen: s.bmc_open_fullscreen,
+                bmc_timeout_seconds: s.bmc_timeout_seconds,
+                bmc_server_hostname: s.bmc_server_hostname,
+                bmc_server_serial_number: s.bmc_server_serial_number,
+                bmc_rack: s.bmc_rack,
+                bmc_rack_unit: s.bmc_rack_unit,
+                bmc_site: s.bmc_site,
+                bmc_redfish_enabled: s.bmc_redfish_enabled,
+                bmc_cookie_persistence: s.bmc_cookie_persistence,
               });
               addSession(session);
               count++;
@@ -167,7 +198,7 @@ function App() {
           if (importedSessions.length === 0) { addToast("error", "CSV file is empty"); return; }
           let count = 0;
           for (const imported of importedSessions) {
-              const protocol = imported.protocol === "telnet" || imported.protocol === "serial" ? imported.protocol : "ssh";
+              const protocol = imported.protocol === "telnet" || imported.protocol === "serial" || imported.protocol === "bmc" ? imported.protocol : "ssh";
               const session = await createSession({
                 name: imported.name || "Imported",
                 host: imported.host || "",
@@ -182,6 +213,15 @@ function App() {
                 vendor: imported.vendor,
                 model: imported.model,
                 description: imported.description,
+                bmc_use_https: imported.bmc_use_https,
+                bmc_web_path: imported.bmc_web_path,
+                bmc_console_url: safePersistedBmcUrl(imported.bmc_console_url),
+                bmc_viewer_mode: imported.bmc_viewer_mode,
+                bmc_server_hostname: imported.bmc_server_hostname,
+                bmc_server_serial_number: imported.bmc_server_serial_number,
+                bmc_site: imported.bmc_site,
+                bmc_rack: imported.bmc_rack,
+                bmc_rack_unit: imported.bmc_rack_unit,
               });
               addSession(session);
               count++;

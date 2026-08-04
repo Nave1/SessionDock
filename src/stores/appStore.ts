@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { BmcSessionConfig, Protocol } from "../types";
 
 export type ViewMode = "home" | "allSessions" | "favorites" | "recent" | "folder" | "settings" | "credentials" | "tags";
 
@@ -19,11 +20,12 @@ export interface TerminalTab {
   sessionName: string;
   host: string;
   port?: number;
-  protocol: string;
+  protocol: Protocol;
   username?: string;
   password?: string;
   status: ConnectionStatus;
   pinned: boolean;
+  bmc?: Partial<BmcSessionConfig>;
 }
 
 interface AppState {

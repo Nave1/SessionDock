@@ -2,11 +2,11 @@
 
 # SessionDock
 
-A modern, fast, lightweight desktop application for managing and opening SSH, Telnet, and Serial terminal sessions.
+A modern desktop application for managing SSH, Telnet, Serial, and BMC remote-console sessions.
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.6.2-blue)
+![Version](https://img.shields.io/badge/version-0.7.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -18,6 +18,8 @@ Built for network engineers, data-center technicians, system administrators, and
 - **SSH authentication** - Supports password and keyboard-interactive authentication with an in-terminal credential prompt.
 - **Hostname and IP support** - Resolves DNS names, tries all resolved addresses, and reports connection errors by stage.
 - **Quick Connect** - Open an SSH, Telnet, or Serial connection without creating a saved session first.
+- **BMC / KVM over IP** - Open iDRAC, iLO, XClarity, Supermicro IPMI, and other browser-based management consoles in restricted native child WebViews or the default browser.
+- **BMC diagnostics** - Test HTTP(S) reachability, latency, authentication responses, and optional Redfish discovery before connecting.
 - **Telnet support** - Connect to legacy network equipment with a clear transport security warning.
 - **Serial support** - Detect serial ports and configure baud rate, data bits, stop bits, parity, and flow control.
 - **Tabbed terminal workspace** - Run multiple concurrent sessions with connection-state indicators and close/reconnect controls.
@@ -58,6 +60,15 @@ Built for network engineers, data-center technicians, system administrators, and
 - No telemetry, no analytics, no cloud backend
 - All data stays local on your device
 - Credential vault abstraction for Windows Credential Manager and macOS Keychain
+- BMC remote pages receive no SessionDock capability or privileged IPC access; popup creation is denied and navigation is limited to HTTP(S)
+- Token-, ticket-, and session-bearing console URLs are available ephemerally but omitted from persistence and export
+- Embedded BMC certificate validation remains enabled; SessionDock never applies a global TLS bypass
+
+### BMC limitations
+
+- Vendor consoles that require Java applets, native browser extensions, or unrestricted popup windows may need External Browser mode.
+- The "ignore TLS errors" preference applies only to the explicit connection diagnostic request. Tauri/WebView2 does not expose a safe per-child-WebView certificate bypass, so embedded consoles continue to validate certificates.
+- Tab cookie isolation uses the platform WebView's incognito support. Behavior depends on the installed WebView2/WKWebView version.
 
 ## Tech Stack
 
@@ -84,7 +95,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.6.2_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.7.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -124,7 +135,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.6.2_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.7.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -132,7 +143,7 @@ npx tauri build
 ### Run Tests
 
 ```powershell
-npm test          # 70 unit tests
+npm test          # unit tests
 npx tsc --noEmit  # TypeScript check
 ```
 

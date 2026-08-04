@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X, AlertTriangle } from "lucide-react";
+import type { BmcSessionConfig, Protocol } from "../../types";
+import { BmcSessionFields } from "./BmcSessionFields";
 
 interface QuickConnectProps {
   onConnect: (config: QuickConnectConfig) => void;
   onCancel: () => void;
 }
 
-export interface QuickConnectConfig {
+export interface QuickConnectConfig extends Partial<BmcSessionConfig> {
   host: string;
   port: number;
-  protocol: "ssh" | "telnet" | "serial";
+  protocol: Protocol;
   username: string;
   password: string;
   saveAsSession: boolean;
@@ -43,15 +45,15 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
     }
   };
 
-  const handleProtocolChange = (protocol: "ssh" | "telnet" | "serial") => {
-    const ports = { ssh: 22, telnet: 23, serial: 0 };
-    setConfig((prev) => ({ ...prev, protocol, port: ports[protocol] }));
+  const handleProtocolChange = (protocol: Protocol) => {
+    const ports = { ssh: 22, telnet: 23, serial: 0, bmc: 443 };
+    setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
     setShowTelnetWarning(false);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md bg-dock-sidebar border border-dock-border rounded-lg shadow-2xl overflow-hidden">
+      <div className="w-full max-w-md max-h-[90vh] bg-dock-sidebar border border-dock-border rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-dock-border">
           <h2 className="text-sm font-semibold text-dock-text">
             {t("home.quickConnect")}
@@ -61,10 +63,10 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 max-h-[calc(90vh-49px)] overflow-y-auto">
           {/* Protocol */}
           <div className="flex gap-1">
-            {(["ssh", "telnet", "serial"] as const).map((p) => (
+            {(["ssh", "telnet", "serial", "bmc"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
@@ -156,7 +158,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
           </div>
 
           {/* Password */}
-          {config.protocol === "ssh" && (
+          {(config.protocol === "ssh" || config.protocol === "bmc") && (
             <div>
               <label className="block text-xs text-dock-text-muted mb-1.5">
                 {t("session.password")}
@@ -170,6 +172,10 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
                 className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
               />
             </div>
+          )}
+
+          {config.protocol === "bmc" && (
+            <BmcSessionFields value={config} onChange={(patch) => setConfig((previous) => ({ ...previous, ...patch }))} />
           )}
 
           {/* Save option */}

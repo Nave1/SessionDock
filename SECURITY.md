@@ -29,6 +29,8 @@ If you discover a security vulnerability, please report it responsibly:
 | Private key passphrases | OS Credential Vault | Yes (OS-managed) |
 | SSH host fingerprints | SQLite | No |
 | Application settings | SQLite | No |
+| Non-secret BMC metadata | SQLite | No |
+| BMC console URLs with tokens/tickets | Ephemeral tab memory only | N/A |
 
 ### SSH Host Key Verification
 
@@ -60,6 +62,14 @@ Sanitized logs never contain:
 - Authentication tokens
 - Terminal input that may contain secrets
 
+### BMC Remote Content
+
+- BMC pages run in native child WebViews whose `bmc-*` labels match no privileged Tauri capability.
+- Remote pages cannot invoke SessionDock commands or access its filesystem, shell, updater, dialog, or process plugins.
+- Navigation is restricted to HTTP(S), popup creation is denied, and embedded URL credentials are rejected.
+- Sensitive query values are redacted in the UI and omitted from SQLite, JSON, and CSV.
+- Embedded certificate verification is never disabled globally or per application WebView.
+
 ### Data Privacy
 
 - No analytics
@@ -74,4 +84,4 @@ Sanitized logs never contain:
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x | Yes |
+| 0.7.x | Yes |

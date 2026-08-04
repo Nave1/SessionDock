@@ -79,6 +79,12 @@ pub fn run() {
             commands::snippets::create_snippet,
             commands::snippets::update_snippet,
             commands::snippets::delete_snippet,
+            commands::bmc::create_bmc_webview,
+            commands::bmc::set_bmc_webview_bounds,
+            commands::bmc::set_bmc_webview_visible,
+            commands::bmc::reload_bmc_webview,
+            commands::bmc::close_bmc_webview,
+            commands::bmc::test_bmc_connection,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
