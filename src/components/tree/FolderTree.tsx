@@ -441,7 +441,7 @@ function TreeNodeItem({
           {expanded ? (
             <FolderOpen size={13} className="text-dock-warning" />
           ) : (
-            <FolderIcon size={13} className="text-dock-text-muted" />
+            <FolderIcon size={13} className="text-dock-folder-closed" />
           )}
           <span className="truncate">{node.folder.name}</span>
           {node.sessions.length > 0 && (

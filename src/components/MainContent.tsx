@@ -38,6 +38,9 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
     : sessions;
 
   const favoriteSessions = sessions.filter((s) => s.favorite);
+  const recentSessions = [...sessions]
+    .filter((session) => session.last_connected_at)
+    .sort((first, second) => (second.last_connected_at || "").localeCompare(first.last_connected_at || ""));
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   // Only show terminal when no specific view is selected (user clicked a tab, not a nav item)
@@ -82,6 +85,8 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
             <SessionList sessions={sessions} title="All Sessions" onConnect={handleConnect} onEdit={() => {}} />
           ) : currentView === "favorites" ? (
             <SessionList sessions={favoriteSessions} title="Favorites" onConnect={handleConnect} onEdit={() => {}} />
+          ) : currentView === "recent" ? (
+            <SessionList sessions={recentSessions} title="Recent Sessions" onConnect={handleConnect} onEdit={() => {}} />
           ) : currentView === "folder" ? (
             <SessionList sessions={filteredSessions} title="Folder Sessions" onConnect={handleConnect} onEdit={() => {}} />
           ) : (

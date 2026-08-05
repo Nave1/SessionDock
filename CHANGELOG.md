@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-08-05
+
+### Changed
+- Increase secondary and muted text contrast in light and dark modes
+- Give closed folders a distinct burnished-amber icon color
+
+### Fixed
+- Show previously connected sessions in newest-first order in the Recent tab
+
 ## [0.8.2] - 2026-08-05
 
 ### Fixed

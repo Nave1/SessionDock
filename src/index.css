@@ -7,8 +7,9 @@
   --color-dock-surface-hover: #1c1c26;
   --color-dock-border: #232334;
   --color-dock-text: #f2f2f7;
-  --color-dock-text-secondary: #c8c8d8;
-  --color-dock-text-muted: #a0a0b8;
+  --color-dock-text-secondary: #d8d8e3;
+  --color-dock-text-muted: #b5b5c7;
+  --color-dock-folder-closed: #d99045;
   --color-dock-accent: #5b8af5;
   --color-dock-accent-hover: #7aa2f7;
   --color-dock-accent-subtle: #5b8af514;

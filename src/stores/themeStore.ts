@@ -54,8 +54,9 @@ function applyTheme(mode: ThemeMode, accent: AccentColor) {
     root.style.setProperty("--color-dock-surface-hover", "#1c1c26");
     root.style.setProperty("--color-dock-border", "#232334");
     root.style.setProperty("--color-dock-text", "#f2f2f7");
-    root.style.setProperty("--color-dock-text-secondary", "#c8c8d8");
-    root.style.setProperty("--color-dock-text-muted", "#a0a0b8");
+    root.style.setProperty("--color-dock-text-secondary", "#d8d8e3");
+    root.style.setProperty("--color-dock-text-muted", "#b5b5c7");
+    root.style.setProperty("--color-dock-folder-closed", "#d99045");
   } else {
     root.classList.remove("dark");
     root.classList.add("light");
@@ -65,8 +66,9 @@ function applyTheme(mode: ThemeMode, accent: AccentColor) {
     root.style.setProperty("--color-dock-surface-hover", "#ecedf0");
     root.style.setProperty("--color-dock-border", "#e2e4e8");
     root.style.setProperty("--color-dock-text", "#1a1a2e");
-    root.style.setProperty("--color-dock-text-secondary", "#4a4a60");
-    root.style.setProperty("--color-dock-text-muted", "#8888a0");
+    root.style.setProperty("--color-dock-text-secondary", "#343449");
+    root.style.setProperty("--color-dock-text-muted", "#62627a");
+    root.style.setProperty("--color-dock-folder-closed", "#b86724");
   }
 }
 
