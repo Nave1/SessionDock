@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-08-05
+
+### Fixed
+- Resolve Windows PAC/WPAD proxy settings before checking for or downloading updates
+
 ## [0.8.1] - 2026-08-05
 
 ### Fixed

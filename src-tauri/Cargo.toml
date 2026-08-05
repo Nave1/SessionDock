@@ -1,6 +1,6 @@
 [package]
 name = "sessiondock"
-version = "0.8.1"
+version = "0.8.2"
 description = "Terminal Session Manager"
 authors = ["SessionDock Contributors"]
 edition = "2021"
@@ -35,6 +35,9 @@ anyhow = "1"
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winbase", "winhttp"] }
 
 # SSH crates - uncomment when implementing full SSH protocol
 # russh = "0.46"

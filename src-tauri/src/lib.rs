@@ -7,6 +7,7 @@ mod error;
 mod models;
 mod protocols;
 mod terminal;
+mod updater_proxy;
 
 use commands::connections::ConnectionManager;
 pub use db::Database;
@@ -15,6 +16,8 @@ use terminal::{NativeSshManager, TelnetManager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    updater_proxy::configure();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
