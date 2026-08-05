@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { check } from "@tauri-apps/plugin-updater";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { Download, X, RefreshCw, AlertTriangle } from "lucide-react";
 import { useAppStore } from "../stores/appStore";
@@ -14,6 +14,7 @@ export function UpdateNotification() {
   const [dismissed, setDismissed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const updateRef = useRef<Update | null>(null);
 
   const { version: installedVersion } = useAppVersion();
   const tabs = useAppStore((s) => s.tabs);
@@ -23,18 +24,29 @@ export function UpdateNotification() {
     try {
       const update = await check();
       if (update) {
+        updateRef.current = update;
         setUpdateAvailable(true);
         setUpdateVersion(update.version);
         setUpdateNotes(update.body || "");
       }
-    } catch {
-      // Silently fail
+    } catch (checkError) {
+      console.warn("Unable to check for SessionDock updates", checkError);
     }
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(checkForUpdate, 5000);
-    return () => clearTimeout(timer);
+    const initialTimer = window.setTimeout(checkForUpdate, 5000);
+    const interval = window.setInterval(checkForUpdate, 6 * 60 * 60 * 1000);
+    const checkWhenVisible = () => {
+      if (document.visibilityState === "visible") void checkForUpdate();
+    };
+    document.addEventListener("visibilitychange", checkWhenVisible);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
+      updateRef.current?.close();
+    };
   }, [checkForUpdate]);
 
   const handleUpdateClick = () => {
@@ -49,16 +61,26 @@ export function UpdateNotification() {
     setShowSessionWarning(false);
     setDownloading(true);
     setError(null);
+    setProgress(0);
     try {
-      const update = await check();
-      if (!update) return;
+      const update = updateRef.current ?? await check();
+      if (!update) {
+        setUpdateAvailable(false);
+        setDownloading(false);
+        return;
+      }
+
+      let downloadedBytes = 0;
+      let totalBytes = 0;
 
       await update.downloadAndInstall((event) => {
-        if (event.event === "Progress") {
-          const { contentLength, chunkLength } = event.data as { contentLength: number; chunkLength: number };
-          if (contentLength) {
-            setProgress(Math.round((chunkLength / contentLength) * 100));
-          }
+        if (event.event === "Started") {
+          totalBytes = event.data.contentLength ?? 0;
+        } else if (event.event === "Progress") {
+          downloadedBytes += event.data.chunkLength;
+          if (totalBytes > 0) setProgress(Math.min(100, Math.round((downloadedBytes / totalBytes) * 100)));
+        } else if (event.event === "Finished") {
+          setProgress(100);
         }
       });
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import type { CreateSessionRequest } from "../../types";
+import type { CreateSessionRequest, Session } from "../../types";
 import { BmcSessionFields } from "./BmcSessionFields";
 import { safePersistedBmcUrl } from "../../utils/bmcUrl";
 
@@ -10,19 +10,22 @@ interface SessionFormProps {
   onCancel: () => void;
   folders: { id: string; name: string }[];
   initialFolderId?: string;
+  initialSession?: Session;
 }
 
-export function SessionForm({ onSubmit, onCancel, folders, initialFolderId }: SessionFormProps) {
+export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, initialSession }: SessionFormProps) {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState<CreateSessionRequest>({
-    name: "",
-    host: "",
-    port: 22,
-    protocol: "ssh",
-    authentication_method: "password",
-    favorite: false,
-    folder_id: initialFolderId,
-  });
+  const [formData, setFormData] = useState<CreateSessionRequest>(() => initialSession
+    ? { ...initialSession }
+    : {
+        name: "",
+        host: "",
+        port: 22,
+        protocol: "ssh",
+        authentication_method: "password",
+        favorite: false,
+        folder_id: initialFolderId,
+      });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +51,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId }: Se
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-dock-border">
           <h2 className="text-sm font-semibold text-dock-text">
-            {t("sidebar.newSession")}
+            {initialSession ? `Edit ${initialSession.name}` : t("sidebar.newSession")}
           </h2>
           <button onClick={onCancel} className="text-dock-text-muted hover:text-dock-text">
             <X size={16} />

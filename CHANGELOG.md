@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-05
+
+### Added
+- Signed in-app updates with automatic checks, download progress, active-session warnings, installation, and restart
+- Resizable sidebar with persisted width and keyboard controls
+- Right-click session editing from the folder tree and session lists
+- Folder hierarchy and session placement preservation in JSON and CSV export/import
+
+### Changed
+- CSV exports now include backward-compatible folder and parent records
+- Release automation now produces signed Windows updater artifacts and `latest.json`
+
+### Fixed
+- Prevent transient zero-byte SSH reads from being treated as disconnections
+- Enable configured SSH keepalives and report remote EOF, exit status, transport errors, and keepalive failures
+- Remove stale SSH connections and restore nonblocking mode after write failures
+- Guard native Tauri IPC in browser previews with an actionable desktop-runtime message
+- Preserve BMC protocol and metadata during import
+
+### Security
+- Verify updater packages with an embedded public key while keeping signing credentials outside Git
+- Continue excluding credentials and sensitive BMC URL parameters from exported data
+
 ## [0.7.0] - 2026-08-03
 
 ### Added

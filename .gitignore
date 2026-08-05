@@ -10,6 +10,8 @@ release/
 
 # Signing keys
 src-tauri/.tauri-private-key
+src-tauri/.tauri-private-key.pub
+src-tauri/.tauri-key-password
 
 # Tauri
 src-tauri/target/

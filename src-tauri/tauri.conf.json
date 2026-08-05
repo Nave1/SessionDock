@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui-org/nicegui/main/nicegui/static/tauri-conf-schema.json",
   "productName": "SessionDock",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "identifier": "com.sessiondock.app",
   "build": {
     "frontendDist": "../dist",
@@ -44,7 +44,7 @@
         "displayLanguageSelector": true
       }
     },
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "shell": {
@@ -54,7 +54,7 @@
       "endpoints": [
         "https://github.com/Nave1/SessionDock/releases/latest/download/latest.json"
       ],
-      "pubkey": "",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCOUUzNDdCM0FDMUE1NjkKUldScHBjRTZlelNleTVBdVV3ZXQ4OXNTdnZNSVp5RFlaYnhHemdPazlTUG1CbFFIZHFJM2hSWksK",
       "windows": {
         "installMode": "passive"
       }

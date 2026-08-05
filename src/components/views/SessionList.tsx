@@ -50,6 +50,10 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
           <div
             key={session.id}
             onPointerDown={(event) => beginSessionPointerDrag(event.nativeEvent, session.id)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              setEditingSession(session);
+            }}
             className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-dock-surface transition-colors group cursor-pointer"
             onDoubleClick={() => onConnect(session)}
           >

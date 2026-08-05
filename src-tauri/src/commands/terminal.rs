@@ -15,6 +15,7 @@ pub async fn spawn_terminal(
     protocol: String,
     username: Option<String>,
     password: Option<String>,
+    keepalive_secs: Option<u32>,
 ) -> Result<(), AppError> {
     match protocol.as_str() {
         "ssh" => {
@@ -36,7 +37,9 @@ pub async fn spawn_terminal(
                 port,
                 user,
                 pass,
-            ).await?;
+                keepalive_secs.unwrap_or(60),
+            )
+            .await?;
         }
         "telnet" => {
             crate::terminal::spawn_telnet(

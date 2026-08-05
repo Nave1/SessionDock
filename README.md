@@ -6,7 +6,7 @@ A modern desktop application for managing SSH, Telnet, Serial, and BMC remote-co
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.7.0-blue)
+![Version](https://img.shields.io/badge/version-0.8.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -79,7 +79,7 @@ Built for network engineers, data-center technicians, system administrators, and
 | Build | Vite 6 |
 | Styling | Tailwind CSS 4 |
 | Terminal | xterm.js 5 |
-| SSH Backend | ssh2 crate (libssh2) — native in-process, no external ssh.exe |
+| SSH Backend | ssh2 crate (libssh2) â€” native in-process, no external ssh.exe |
 
 
 
@@ -95,13 +95,13 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.7.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.8.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
 - Upgrade in-place over previous versions (no uninstall needed)
 
-> **Note:** Since the app is unsigned, Windows SmartScreen may show a warning. Click "More info" → "Run anyway".
+> **Note:** Since the app is unsigned, Windows SmartScreen may show a warning. Click "More info" â†’ "Run anyway".
 
 ## Development Setup
 
@@ -135,7 +135,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.7.0_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.8.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -159,65 +159,64 @@ npx tsc --noEmit  # TypeScript check
 
 ```
 SessionDock/
-├── public/                       # Browser favicon and in-app logo assets
-├── src/                          # React frontend
-│   ├── components/               # UI components
-│   │   ├── forms/                # Session, Folder, QuickConnect, Credential forms
-│   │   ├── views/                # HomeView, SettingsView, SessionList
-│   │   ├── terminal/             # TerminalView (xterm.js)
-│   │   ├── tree/                 # FolderTree with drag-and-drop
-│   │   ├── search/               # SearchPanel with highlighting
-│   │   ├── Sidebar.tsx           # Navigation sidebar
-│   │   ├── MainContent.tsx       # View routing and terminal display
-│   │   ├── TerminalTabs.tsx      # Tab bar
-│   │   ├── CommandPalette.tsx    # Ctrl+K command palette
-│   │   ├── ToastContainer.tsx    # Toast notifications
-│   │   └── UpdateNotification.tsx # Auto-update UI
-│   ├── stores/                   # Zustand state management
-│   │   ├── appStore.ts           # UI state, tabs, navigation
-│   │   ├── sessionStore.ts       # Sessions, folders, credentials
-│   │   ├── settingsStore.ts      # Persistent settings
-│   │   ├── themeStore.ts         # Theme mode + accent color
-│   │   └── toastStore.ts         # Notifications
-│   ├── locales/                  # i18n (en.json, he.json)
-│   ├── types/                    # TypeScript interfaces
-│   ├── api/                      # Tauri IPC command wrappers
-│   ├── utils/                    # Import/export, seed data
-│   └── hooks/                    # Keyboard shortcuts
-├── src-tauri/                    # Rust backend
-│   ├── src/
-│   │   ├── commands/             # Tauri IPC handlers
-│   │   │   ├── sessions.rs       # Session CRUD + FTS5 search
-│   │   │   ├── folders.rs        # Folder CRUD with nesting
-│   │   │   ├── credentials.rs    # Credential profiles (vault integration)
-│   │   │   ├── connections.rs    # SSH/Telnet connection management
-│   │   │   ├── terminal.rs       # spawn/write/close terminal commands
-│   │   │   ├── known_hosts.rs    # Host key verification
-│   │   │   ├── data.rs           # Export JSON/CSV, import
-│   │   │   └── serial.rs        # Serial port listing
-│   │   ├── terminal.rs          # Native SSH (ssh2/libssh2) + Telnet process manager
-│   │   ├── credential_vault/    # OS vault abstraction (keyring)
-│   │   ├── protocols/           # SSH, Telnet, Serial protocol types
-│   │   ├── migrations/          # SQLite schema (FTS5, indexes)
-│   │   ├── db.rs                # Database init + migrations
-│   │   ├── models.rs            # Data models (Session, Folder, etc.)
-│   │   ├── error.rs             # Error types
-│   │   └── lib.rs               # Tauri app setup + command registration
-│   ├── icons/                   # App icons (ICO, PNG, ICNS)
-│   ├── capabilities/            # Tauri security permissions
-│   └── tauri.conf.json          # Tauri configuration
-├── release/                     # Built installers (gitignored)
-├── scripts/                     # Build and update scripts
-│   ├── generate-update-manifest.ps1
-│   └── serve-updates.ps1
-├── .github/                     # CI/CD workflows
-│   ├── workflows/ci.yml         # PR checks (lint, test, build)
-│   └── workflows/release.yml    # Windows + macOS release builds
-├── build.ps1                    # One-command build script
-├── SECURITY.md                  # Security model documentation
-├── CONTRIBUTING.md              # Contribution guidelines
-├── CHANGELOG.md                 # Version history
-└── LICENSE                      # MIT
+â”œâ”€â”€ public/                       # Browser favicon and in-app logo assets
+â”œâ”€â”€ src/                          # React frontend
+â”‚   â”œâ”€â”€ components/               # UI components
+â”‚   â”‚   â”œâ”€â”€ forms/                # Session, Folder, QuickConnect, Credential forms
+â”‚   â”‚   â”œâ”€â”€ views/                # HomeView, SettingsView, SessionList
+â”‚   â”‚   â”œâ”€â”€ terminal/             # TerminalView (xterm.js)
+â”‚   â”‚   â”œâ”€â”€ tree/                 # FolderTree with drag-and-drop
+â”‚   â”‚   â”œâ”€â”€ search/               # SearchPanel with highlighting
+â”‚   â”‚   â”œâ”€â”€ Sidebar.tsx           # Navigation sidebar
+â”‚   â”‚   â”œâ”€â”€ MainContent.tsx       # View routing and terminal display
+â”‚   â”‚   â”œâ”€â”€ TerminalTabs.tsx      # Tab bar
+â”‚   â”‚   â”œâ”€â”€ CommandPalette.tsx    # Ctrl+K command palette
+â”‚   â”‚   â”œâ”€â”€ ToastContainer.tsx    # Toast notifications
+â”‚   â”‚   â””â”€â”€ UpdateNotification.tsx # Auto-update UI
+â”‚   â”œâ”€â”€ stores/                   # Zustand state management
+â”‚   â”‚   â”œâ”€â”€ appStore.ts           # UI state, tabs, navigation
+â”‚   â”‚   â”œâ”€â”€ sessionStore.ts       # Sessions, folders, credentials
+â”‚   â”‚   â”œâ”€â”€ settingsStore.ts      # Persistent settings
+â”‚   â”‚   â”œâ”€â”€ themeStore.ts         # Theme mode + accent color
+â”‚   â”‚   â””â”€â”€ toastStore.ts         # Notifications
+â”‚   â”œâ”€â”€ locales/                  # i18n (en.json, he.json)
+â”‚   â”œâ”€â”€ types/                    # TypeScript interfaces
+â”‚   â”œâ”€â”€ api/                      # Tauri IPC command wrappers
+â”‚   â”œâ”€â”€ utils/                    # Import/export, seed data
+â”‚   â””â”€â”€ hooks/                    # Keyboard shortcuts
+â”œâ”€â”€ src-tauri/                    # Rust backend
+â”‚   â”œâ”€â”€ src/
+â”‚   â”‚   â”œâ”€â”€ commands/             # Tauri IPC handlers
+â”‚   â”‚   â”‚   â”œâ”€â”€ sessions.rs       # Session CRUD + FTS5 search
+â”‚   â”‚   â”‚   â”œâ”€â”€ folders.rs        # Folder CRUD with nesting
+â”‚   â”‚   â”‚   â”œâ”€â”€ credentials.rs    # Credential profiles (vault integration)
+â”‚   â”‚   â”‚   â”œâ”€â”€ connections.rs    # SSH/Telnet connection management
+â”‚   â”‚   â”‚   â”œâ”€â”€ terminal.rs       # spawn/write/close terminal commands
+â”‚   â”‚   â”‚   â”œâ”€â”€ known_hosts.rs    # Host key verification
+â”‚   â”‚   â”‚   â”œâ”€â”€ data.rs           # Export JSON/CSV, import
+â”‚   â”‚   â”‚   â””â”€â”€ serial.rs        # Serial port listing
+â”‚   â”‚   â”œâ”€â”€ terminal.rs          # Native SSH (ssh2/libssh2) + Telnet process manager
+â”‚   â”‚   â”œâ”€â”€ credential_vault/    # OS vault abstraction (keyring)
+â”‚   â”‚   â”œâ”€â”€ protocols/           # SSH, Telnet, Serial protocol types
+â”‚   â”‚   â”œâ”€â”€ migrations/          # SQLite schema (FTS5, indexes)
+â”‚   â”‚   â”œâ”€â”€ db.rs                # Database init + migrations
+â”‚   â”‚   â”œâ”€â”€ models.rs            # Data models (Session, Folder, etc.)
+â”‚   â”‚   â”œâ”€â”€ error.rs             # Error types
+â”‚   â”‚   â””â”€â”€ lib.rs               # Tauri app setup + command registration
+â”‚   â”œâ”€â”€ icons/                   # App icons (ICO, PNG, ICNS)
+â”‚   â”œâ”€â”€ capabilities/            # Tauri security permissions
+â”‚   â””â”€â”€ tauri.conf.json          # Tauri configuration
+â”œâ”€â”€ release/                     # Built installers (gitignored)
+â”œâ”€â”€ scripts/                     # Build and update scripts
+â”‚   â””â”€â”€ serve-updates.ps1
+â”œâ”€â”€ .github/                     # CI/CD workflows
+â”‚   â”œâ”€â”€ workflows/ci.yml         # PR checks (lint, test, build)
+â”‚   â””â”€â”€ workflows/release.yml    # Signed Windows release and updater artifacts
+â”œâ”€â”€ build.ps1                    # One-command build script
+â”œâ”€â”€ SECURITY.md                  # Security model documentation
+â”œâ”€â”€ CONTRIBUTING.md              # Contribution guidelines
+â”œâ”€â”€ CHANGELOG.md                 # Version history
+â””â”€â”€ LICENSE                      # MIT
 ```
 
 ## Auto-Updates
@@ -230,11 +229,19 @@ SessionDock includes a built-in update system:
 
 **To publish an update:**
 ```powershell
-# 1. Bump version in tauri.conf.json and package.json
-# 2. Build with manifest
-.\build.ps1 -Release
-# 3. Upload .exe + latest.json to GitHub Releases
+# One-time repository setup (run only from a trusted machine):
+Get-Content src-tauri\.tauri-private-key -Raw | gh secret set TAURI_SIGNING_PRIVATE_KEY
+Get-Content src-tauri\.tauri-key-password -Raw | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+
+# For each release, bump the version in package.json, src-tauri/tauri.conf.json,
+# and src-tauri/Cargo.toml, then push a matching version tag.
+git tag v0.8.0
+git push origin v0.8.0
 ```
+
+The release workflow builds signed updater packages and publishes `latest.json` automatically. Installed copies check shortly after launch, whenever the app becomes active, and every six hours. The updater downloads, verifies, installs, and restarts SessionDock in place.
+
+Keep `src-tauri/.tauri-private-key` and `src-tauri/.tauri-key-password` private and backed up securely. Losing either prevents existing installations from trusting future updates. Never commit them to Git.
 
 ## Keyboard Shortcuts
 
@@ -248,7 +255,7 @@ SessionDock includes a built-in update system:
 
 ## License
 
-MIT License — see [LICENSE](LICENSE)
+MIT License â€” see [LICENSE](LICENSE)
 
 ## Security Policy
 

@@ -132,9 +132,10 @@ interface TerminalViewProps {
   protocol: string;
   username?: string;
   password?: string;
+  keepaliveInterval?: number;
 }
 
-export function TerminalView({ tabId, host, port, protocol, username, password }: TerminalViewProps) {
+export function TerminalView({ tabId, host, port, protocol, username, password, keepaliveInterval = 60 }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -187,12 +188,13 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
         protocol,
         username: finalUsername || null,
         password: finalPassword || null,
+        keepaliveSecs: keepaliveInterval,
       });
     } catch (err) {
       term.writeln(`\x1b[38;2;248;113;113mConnection failed: ${err}\x1b[39m`);
       connectedRef.current = false;
     }
-  }, [tabId, host, port, protocol, username, password]);
+  }, [tabId, host, port, protocol, username, password, keepaliveInterval]);
 
   const handleReconnect = useCallback(async () => {
     const term = terminalRef.current;
@@ -324,10 +326,16 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
     });
 
     // Listen for status changes
+    let disconnectReason = "";
+    const unlistenCloseDetail = listen<string>(`terminal-close-detail-${tabId}`, (event) => {
+      disconnectReason = event.payload;
+    });
     const unlistenStatus = listen<string>(`terminal-status-${tabId}`, (event) => {
       if (event.payload === "disconnected") {
         terminal.writeln("");
-        terminal.writeln("\x1b[38;2;251;191;36mConnection closed.\x1b[39m");
+        const detail = disconnectReason || "The connection ended without a reason from the remote host.";
+        terminal.writeln(`\x1b[38;2;251;191;36mConnection closed: ${detail}\x1b[39m`);
+        disconnectReason = "";
         connectedRef.current = false;
       }
     });
@@ -350,6 +358,7 @@ export function TerminalView({ tabId, host, port, protocol, username, password }
       clearSemanticDecorations(semanticDecorations);
       resizeObserver.disconnect();
       unlistenData.then((fn) => fn());
+      unlistenCloseDetail.then((fn) => fn());
       unlistenStatus.then((fn) => fn());
       terminal.dispose();
       nativeInvoke("close_terminal", { tabId, protocol }).catch(() => {});

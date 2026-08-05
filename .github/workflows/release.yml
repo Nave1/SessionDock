@@ -34,46 +34,18 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+      - name: Verify updater signing key
+        shell: pwsh
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'SessionDock ${{ github.ref_name }}'
-          releaseBody: 'See CHANGELOG.md for details.'
-          releaseDraft: false
-          prerelease: false
-          includeUpdaterJson: true
-
-  build-macos:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        target: [aarch64-apple-darwin, x86_64-apple-darwin]
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-
-      - name: Install dependencies
-        run: npm ci
+          UPDATER_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          UPDATER_SIGNING_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:UPDATER_SIGNING_KEY)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY must be configured to publish signed updates."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:UPDATER_SIGNING_PASSWORD)) {
+            throw "TAURI_SIGNING_PRIVATE_KEY_PASSWORD must be configured to publish signed updates."
+          }
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -88,4 +60,3 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
-          args: --target ${{ matrix.target }}

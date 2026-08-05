@@ -67,6 +67,7 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
                   protocol={tab.protocol}
                   username={tab.username ?? sess?.username}
                   password={tab.password}
+                  keepaliveInterval={sess?.keepalive_interval ?? 60}
                 />
               )}
             </div>

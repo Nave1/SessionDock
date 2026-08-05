@@ -1,5 +1,5 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { createCsvExport, parseCsvImport, createSafeExport, openTextFile, parseJsonImport, saveTextFile } from "../utils/importExport";
+import { createCsvExport, importFolderHierarchy, parseCsvImport, parseCsvImportData, createSafeExport, openTextFile, parseJsonImport, saveTextFile } from "../utils/importExport";
 import type { Session, Folder } from "../types";
 
 const fileMocks = vi.hoisted(() => ({
@@ -106,6 +106,53 @@ describe("CSV Import", () => {
     const sessions = parseCsvImport(csv);
     expect(sessions[0].name).toBe("Switch, Main");
     expect(sessions[0].description).toBe('A "special" device');
+  });
+
+  it("round-trips nested folders and session placement", () => {
+    const childFolder: Folder = {
+      ...mockFolder,
+      id: "folder-2",
+      name: "Switches",
+      parent_id: mockFolder.id,
+      sort_order: 1,
+    };
+    const csv = createCsvExport(
+      [{ ...mockSession, folder_id: childFolder.id }],
+      [mockFolder, childFolder],
+    );
+
+    const imported = parseCsvImportData(csv);
+    expect(imported.folders).toEqual([
+      { id: "folder-1", name: "Data Center", parent_id: undefined, sort_order: 0 },
+      { id: "folder-2", name: "Switches", parent_id: "folder-1", sort_order: 1 },
+    ]);
+    expect(imported.sessions[0].folder_id).toBe("folder-2");
+  });
+
+  it("remaps parent and session folder IDs during import", async () => {
+    const created: Array<{ name: string; parent_id?: string }> = [];
+    const idMap = await importFolderHierarchy(
+      [
+        { id: "old-root", name: "Data Center", sort_order: 0 },
+        { id: "old-child", name: "Switches", parent_id: "old-root", sort_order: 0 },
+      ],
+      async (folder) => {
+        created.push(folder);
+        return {
+          id: `new-${created.length}`,
+          ...folder,
+          sort_order: 0,
+          created_at: "2026-01-01T00:00:00Z",
+          updated_at: "2026-01-01T00:00:00Z",
+        };
+      },
+    );
+
+    expect(created).toEqual([
+      { name: "Data Center", parent_id: undefined },
+      { name: "Switches", parent_id: "new-1" },
+    ]);
+    expect(idMap.get("old-child")).toBe("new-2");
   });
 });
 

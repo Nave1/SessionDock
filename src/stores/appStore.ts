@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { BmcSessionConfig, Protocol } from "../types";
 
 export type ViewMode = "home" | "allSessions" | "favorites" | "recent" | "folder" | "settings" | "credentials" | "tags";
@@ -51,7 +52,7 @@ interface AppState {
   reorderTabs: (fromIndex: number, toIndex: number) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>()(persist((set) => ({
   sidebarWidth: 260,
   currentView: "home",
   selectedFolderId: null,
@@ -59,7 +60,7 @@ export const useAppStore = create<AppState>((set) => ({
   tabs: [],
   activeTabId: null,
 
-  setSidebarWidth: (width) => set({ sidebarWidth: width }),
+  setSidebarWidth: (width) => set({ sidebarWidth: Math.min(480, Math.max(200, width)) }),
   setCurrentView: (view) => set({ currentView: view }),
   setSelectedFolderId: (id) => set({ selectedFolderId: id }),
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
@@ -94,4 +95,7 @@ export const useAppStore = create<AppState>((set) => ({
       newTabs.splice(toIndex, 0, moved);
       return { tabs: newTabs };
     }),
+}), {
+  name: "sessiondock-app-ui",
+  partialize: (state) => ({ sidebarWidth: state.sidebarWidth }),
 }));

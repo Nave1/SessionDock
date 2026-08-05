@@ -26,6 +26,7 @@ interface FolderTreeProps {
   onCreateFolderInFolder?: (folderId: string) => void;
   onRenameFolder?: (folder: Folder) => void;
   onExportFolder?: (folderId: string, format: "json" | "csv") => void;
+  onEditSession?: (session: Session) => void;
 }
 
 interface TreeNode {
@@ -82,19 +83,24 @@ export function FolderTree({
   onCreateFolderInFolder,
   onRenameFolder,
   onExportFolder,
+  onEditSession,
 }: FolderTreeProps) {
   const tree = buildTree(folders, sessions);
   const unfiledSessions = sessions.filter((session) => !session.folder_id);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
   const [contextMenu, setContextMenu] = useState<{ folder: Folder; x: number; y: number } | null>(null);
+  const [sessionContextMenu, setSessionContextMenu] = useState<{ session: Session; x: number; y: number } | null>(null);
   const [unfiledDragOver, setUnfiledDragOver] = useState(false);
   const draggedFolderIdRef = useRef<string | null>(null);
   const dropTargetFolderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!contextMenu) return;
-    const close = () => setContextMenu(null);
+    if (!contextMenu && !sessionContextMenu) return;
+    const close = () => {
+      setContextMenu(null);
+      setSessionContextMenu(null);
+    };
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
@@ -106,7 +112,7 @@ export function FolderTree({
       window.removeEventListener("blur", close);
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [contextMenu]);
+  }, [contextMenu, sessionContextMenu]);
 
   useEffect(() => {
     const handleSessionMove = (event: Event) => {
@@ -178,7 +184,14 @@ export function FolderTree({
           draggedFolderIdRef={draggedFolderIdRef}
           dropTargetFolderIdRef={dropTargetFolderIdRef}
           setRootDragOver={setRootDragOver}
-          onOpenContextMenu={(folder, x, y) => setContextMenu({ folder, x, y })}
+          onOpenContextMenu={(folder, x, y) => {
+            setSessionContextMenu(null);
+            setContextMenu({ folder, x, y });
+          }}
+          onOpenSessionContextMenu={(session, x, y) => {
+            setContextMenu(null);
+            setSessionContextMenu({ session, x, y });
+          }}
         />
       ))}
       <div
@@ -212,7 +225,7 @@ export function FolderTree({
           Unfiled · Drop here {unfiledSessions.length > 0 && `(${unfiledSessions.length})`}
         </div>
         {unfiledSessions.map((session) => (
-          <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} depth={0} />
+          <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} onOpenContextMenu={(selected, x, y) => setSessionContextMenu({ session: selected, x, y })} depth={0} />
         ))}
       </div>
       {contextMenu && (
@@ -250,6 +263,19 @@ export function FolderTree({
           }} />
         </div>
       )}
+      {sessionContextMenu && (
+        <div
+          role="menu"
+          className="fixed z-[70] min-w-44 rounded-md border border-dock-border bg-dock-sidebar py-1 shadow-2xl"
+          style={{ left: Math.min(sessionContextMenu.x, window.innerWidth - 190), top: Math.min(sessionContextMenu.y, window.innerHeight - 80) }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <ContextMenuButton icon={Pencil} label="Edit session" onClick={() => {
+            onEditSession?.(sessionContextMenu.session);
+            setSessionContextMenu(null);
+          }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -270,6 +296,7 @@ function TreeNodeItem({
   dropTargetFolderIdRef,
   setRootDragOver,
   onOpenContextMenu,
+  onOpenSessionContextMenu,
 }: {
   node: TreeNode;
   depth: number;
@@ -286,6 +313,7 @@ function TreeNodeItem({
   dropTargetFolderIdRef: MutableRefObject<string | null>;
   setRootDragOver: (active: boolean) => void;
   onOpenContextMenu: (folder: Folder, x: number, y: number) => void;
+  onOpenSessionContextMenu: (session: Session, x: number, y: number) => void;
 }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const [dragOver, setDragOver] = useState(false);
@@ -467,10 +495,11 @@ function TreeNodeItem({
               dropTargetFolderIdRef={dropTargetFolderIdRef}
               setRootDragOver={setRootDragOver}
               onOpenContextMenu={onOpenContextMenu}
+              onOpenSessionContextMenu={onOpenSessionContextMenu}
             />
           ))}
           {node.sessions.map((session) => (
-            <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} depth={depth + 1} />
+            <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} onOpenContextMenu={onOpenSessionContextMenu} depth={depth + 1} />
           ))}
         </>
       )}
@@ -498,15 +527,21 @@ function ContextMenuButton({ icon: Icon, label, onClick, danger = false }: {
   );
 }
 
-function SessionTreeItem({ session, onSelectSession, depth }: {
+function SessionTreeItem({ session, onSelectSession, onOpenContextMenu, depth }: {
   session: Session;
   onSelectSession: (session: Session) => void;
+  onOpenContextMenu: (session: Session, x: number, y: number) => void;
   depth: number;
 }) {
   return (
     <button
       onPointerDown={(event) => beginSessionPointerDrag(event.nativeEvent, session.id)}
       onClick={() => { if (!shouldSuppressSessionClick()) onSelectSession(session); }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpenContextMenu(session, event.clientX, event.clientY);
+      }}
       className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-dock-text-muted hover:text-dock-text hover:bg-dock-surface transition-colors cursor-grab active:cursor-grabbing"
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >

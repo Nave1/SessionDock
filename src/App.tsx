@@ -11,9 +11,9 @@ import { useAppStore } from "./stores/appStore";
 import { useSessionStore } from "./stores/sessionStore";
 import { useToastStore } from "./stores/toastStore";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { createFolder, createSession, getFolders, getSessions } from "./api/commands";
-import { parseCsvImport, parseJsonImport } from "./utils/importExport";
-import type { CreateSessionRequest, CreateFolderRequest } from "./types";
+import { createFolder, createSession, getFolders, getSessions, updateSession } from "./api/commands";
+import { importFolderHierarchy, parseCsvImportData, parseJsonImport } from "./utils/importExport";
+import type { CreateSessionRequest, CreateFolderRequest, Session } from "./types";
 import { safePersistedBmcUrl } from "./utils/bmcUrl";
 
 function App() {
@@ -21,10 +21,12 @@ function App() {
   const setCommandPaletteOpen = useAppStore((s) => s.setCommandPaletteOpen);
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [sessionFormFolderId, setSessionFormFolderId] = useState<string | undefined>();
+  const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [folderFormOpen, setFolderFormOpen] = useState(false);
   const [folderFormParentId, setFolderFormParentId] = useState<string | undefined>();
   const [quickConnectOpen, setQuickConnectOpen] = useState(false);
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
+  const setSidebarWidth = useAppStore((s) => s.setSidebarWidth);
   const addTab = useAppStore((s) => s.addTab);
   const folders = useSessionStore((s) => s.folders);
   const { addSession, addFolder, setSessions, setFolders, setIsLoading } = useSessionStore();
@@ -72,6 +74,23 @@ function App() {
       addToast("success", `Session "${data.name}" created`);
     } catch (error) {
       addToast("error", `Failed to create session: ${String(error)}`);
+    }
+  };
+
+  const handleUpdateSession = async (data: CreateSessionRequest) => {
+    if (!editingSession) return;
+    try {
+      const session = await updateSession({
+        ...editingSession,
+        ...data,
+        id: editingSession.id,
+        clear_folder: !data.folder_id,
+      });
+      useSessionStore.getState().updateSessionInStore(session);
+      setEditingSession(null);
+      addToast("success", `Session "${session.name}" updated`);
+    } catch (error) {
+      addToast("error", `Failed to update session: ${String(error)}`);
     }
   };
 
@@ -152,9 +171,10 @@ function App() {
         if (file.name.endsWith(".json")) {
           const data = parseJsonImport(text);
           if (data) {
+            const folderIds = await importFolderHierarchy(data.folders, createFolder);
             let count = 0;
             for (const s of data.sessions) {
-              const session = await createSession({
+              await createSession({
                 name: s.name || "Imported",
                 host: s.host || "",
                 port: s.port || 22,
@@ -170,6 +190,7 @@ function App() {
                 description: s.description,
                 notes: s.notes,
                 startup_command: s.startup_command,
+                folder_id: s.folder_id ? folderIds.get(s.folder_id) : undefined,
                 tags: s.tags,
                 bmc_use_https: s.bmc_use_https,
                 bmc_web_path: s.bmc_web_path,
@@ -186,47 +207,53 @@ function App() {
                 bmc_redfish_enabled: s.bmc_redfish_enabled,
                 bmc_cookie_persistence: s.bmc_cookie_persistence,
               });
-              addSession(session);
               count++;
             }
-            addToast("success", `Imported ${count} sessions`);
+            const [savedSessions, savedFolders] = await Promise.all([getSessions(), getFolders()]);
+            setSessions(savedSessions);
+            setFolders(savedFolders);
+            addToast("success", `Imported ${count} sessions and ${folderIds.size} folders`);
           } else {
             addToast("error", "Invalid JSON format");
           }
         } else if (file.name.endsWith(".csv")) {
-          const importedSessions = parseCsvImport(text);
-          if (importedSessions.length === 0) { addToast("error", "CSV file is empty"); return; }
+          const imported = parseCsvImportData(text);
+          if (imported.sessions.length === 0) { addToast("error", "CSV file is empty"); return; }
+          const folderIds = await importFolderHierarchy(imported.folders, createFolder);
           let count = 0;
-          for (const imported of importedSessions) {
-              const protocol = imported.protocol === "telnet" || imported.protocol === "serial" || imported.protocol === "bmc" ? imported.protocol : "ssh";
-              const session = await createSession({
-                name: imported.name || "Imported",
-                host: imported.host || "",
-                port: imported.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : 0),
+          for (const importedSession of imported.sessions) {
+              const protocol = importedSession.protocol === "telnet" || importedSession.protocol === "serial" || importedSession.protocol === "bmc" ? importedSession.protocol : "ssh";
+              await createSession({
+                name: importedSession.name || "Imported",
+                host: importedSession.host || "",
+                port: importedSession.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : 0),
                 protocol,
-                username: imported.username,
+                username: importedSession.username,
                 authentication_method: "password",
-                favorite: imported.favorite ?? false,
+                favorite: importedSession.favorite ?? false,
                 connection_timeout: 30,
                 keepalive_interval: 60,
-                device_type: imported.device_type,
-                vendor: imported.vendor,
-                model: imported.model,
-                description: imported.description,
-                bmc_use_https: imported.bmc_use_https,
-                bmc_web_path: imported.bmc_web_path,
-                bmc_console_url: safePersistedBmcUrl(imported.bmc_console_url),
-                bmc_viewer_mode: imported.bmc_viewer_mode,
-                bmc_server_hostname: imported.bmc_server_hostname,
-                bmc_server_serial_number: imported.bmc_server_serial_number,
-                bmc_site: imported.bmc_site,
-                bmc_rack: imported.bmc_rack,
-                bmc_rack_unit: imported.bmc_rack_unit,
+                folder_id: importedSession.folder_id ? folderIds.get(importedSession.folder_id) : undefined,
+                device_type: importedSession.device_type,
+                vendor: importedSession.vendor,
+                model: importedSession.model,
+                description: importedSession.description,
+                bmc_use_https: importedSession.bmc_use_https,
+                bmc_web_path: importedSession.bmc_web_path,
+                bmc_console_url: safePersistedBmcUrl(importedSession.bmc_console_url),
+                bmc_viewer_mode: importedSession.bmc_viewer_mode,
+                bmc_server_hostname: importedSession.bmc_server_hostname,
+                bmc_server_serial_number: importedSession.bmc_server_serial_number,
+                bmc_site: importedSession.bmc_site,
+                bmc_rack: importedSession.bmc_rack,
+                bmc_rack_unit: importedSession.bmc_rack_unit,
               });
-              addSession(session);
               count++;
           }
-          addToast("success", `Imported ${count} sessions from CSV`);
+          const [savedSessions, savedFolders] = await Promise.all([getSessions(), getFolders()]);
+          setSessions(savedSessions);
+          setFolders(savedFolders);
+          addToast("success", `Imported ${count} sessions and ${folderIds.size} folders from CSV`);
         }
       } catch {
         addToast("error", "Failed to parse import file");
@@ -239,7 +266,9 @@ function App() {
     <div className="flex h-screen w-screen overflow-hidden bg-dock-bg">
       <Sidebar
         width={sidebarWidth}
+        onResize={setSidebarWidth}
         onNewSession={openSessionForm}
+        onEditSession={setEditingSession}
         onNewFolder={openFolderForm}
         onQuickConnect={() => setQuickConnectOpen(true)}
       />
@@ -260,6 +289,15 @@ function App() {
           onCancel={() => setSessionFormOpen(false)}
           folders={folders.map((f) => ({ id: f.id, name: f.name }))}
           initialFolderId={sessionFormFolderId}
+        />
+      )}
+
+      {editingSession && (
+        <SessionForm
+          onSubmit={handleUpdateSession}
+          onCancel={() => setEditingSession(null)}
+          folders={folders.map((f) => ({ id: f.id, name: f.name }))}
+          initialSession={editingSession}
         />
       )}
 

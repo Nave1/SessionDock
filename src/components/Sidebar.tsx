@@ -21,12 +21,14 @@ import {
 
 interface SidebarProps {
   width: number;
+  onResize: (width: number) => void;
   onNewSession: (folderId?: string) => void;
+  onEditSession: (session: import("../types").Session) => void;
   onNewFolder: (parentId?: string) => void;
   onQuickConnect: () => void;
 }
 
-export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: SidebarProps) {
+export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFolder, onQuickConnect }: SidebarProps) {
   const { t } = useTranslation();
   const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId, addTab } = useAppStore();
   const { folders, sessions, moveFolder, deleteFolderPreservingContents } = useSessionStore();
@@ -55,7 +57,9 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
       }
     }
 
-    const includedFolders = folders.filter((folder) => includedIds.has(folder.id));
+    const includedFolders = folders
+      .filter((folder) => includedIds.has(folder.id))
+      .map((folder) => folder.id === folderId ? { ...folder, parent_id: undefined } : folder);
     const includedSessions = sessions.filter((session) => session.folder_id && includedIds.has(session.folder_id));
     const rootName = folders.find((folder) => folder.id === folderId)?.name || "folder";
     const filename = rootName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "folder";
@@ -67,7 +71,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
         ["json"],
       );
     } else {
-      await saveTextFile(createCsvExport(includedSessions), `${filename}.csv`, "CSV", ["csv"]);
+      await saveTextFile(createCsvExport(includedSessions, includedFolders), `${filename}.csv`, "CSV", ["csv"]);
     }
     addToast("success", `Exported ${includedSessions.length} sessions from ${rootName}`);
   };
@@ -81,7 +85,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
 
   return (
     <aside
-      className="flex flex-col h-full bg-dock-sidebar border-r border-dock-border"
+      className="relative flex flex-col h-full bg-dock-sidebar border-r border-dock-border"
       style={{ width: `${width}px`, minWidth: `${width}px` }}
     >
       {/* Logo */}
@@ -239,6 +243,7 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
               }
             }}
             onExportFolder={(folderId, format) => void handleExportFolder(folderId, format)}
+            onEditSession={onEditSession}
           />
           {folders.length === 0 && (
             <p className="px-2.5 py-3 text-[11px] text-dock-text-muted italic">
@@ -262,6 +267,32 @@ export function Sidebar({ width, onNewSession, onNewFolder, onQuickConnect }: Si
           <span>{t("sidebar.settings")}</span>
         </button>
       </div>
+      <div
+        role="separator"
+        aria-label="Resize sidebar"
+        aria-orientation="vertical"
+        tabIndex={0}
+        className="absolute inset-y-0 -right-[3px] z-40 w-[6px] cursor-col-resize hover:bg-dock-accent/60 focus:bg-dock-accent/60 focus:outline-none"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          event.currentTarget.setPointerCapture(event.pointerId);
+          const startX = event.clientX;
+          const startWidth = width;
+          const handleMove = (moveEvent: PointerEvent) => onResize(startWidth + moveEvent.clientX - startX);
+          const handleUp = () => {
+            document.body.style.userSelect = "";
+            window.removeEventListener("pointermove", handleMove);
+            window.removeEventListener("pointerup", handleUp);
+          };
+          document.body.style.userSelect = "none";
+          window.addEventListener("pointermove", handleMove);
+          window.addEventListener("pointerup", handleUp);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") onResize(width - 10);
+          if (event.key === "ArrowRight") onResize(width + 10);
+        }}
+      />
     </aside>
   );
 }

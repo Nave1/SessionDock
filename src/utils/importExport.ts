@@ -46,6 +46,13 @@ export interface SafeExportSession {
   bmc_cookie_persistence?: Session["bmc_cookie_persistence"];
 }
 
+export type ImportFolder = Pick<Folder, "id" | "name" | "parent_id" | "sort_order">;
+
+export interface CsvImportData {
+  sessions: Partial<Session>[];
+  folders: ImportFolder[];
+}
+
 /**
  * Create a safe JSON export (no credentials, no secrets)
  */
@@ -103,15 +110,30 @@ export function createSafeExport(
 /**
  * Create CSV export of non-secret session data
  */
-export function createCsvExport(sessions: Session[]): string {
+export function createCsvExport(sessions: Session[], folders: Folder[] = []): string {
   const headers = [
+    "Record Type", "Folder ID", "Folder Parent ID", "Folder Name", "Folder Sort Order",
     "Name", "Host", "Port", "Protocol", "Username",
     "Device Type", "Vendor", "Model", "Description", "Favorite",
     "BMC HTTPS", "BMC Web Path", "BMC Console URL", "BMC Viewer Mode",
     "BMC Server Hostname", "BMC Serial Number", "BMC Site", "BMC Rack", "BMC Rack Unit",
   ];
 
-  const rows = sessions.map((s) => [
+  const folderRows = folders.map((folder) => [
+    "Folder",
+    escapeCsv(folder.id),
+    escapeCsv(folder.parent_id || ""),
+    escapeCsv(folder.name),
+    String(folder.sort_order),
+    ...Array(headers.length - 5).fill(""),
+  ]);
+
+  const sessionRows = sessions.map((s) => [
+    "Session",
+    escapeCsv(s.folder_id || ""),
+    "",
+    "",
+    "",
     escapeCsv(s.name),
     escapeCsv(s.host),
     String(s.port),
@@ -133,7 +155,7 @@ export function createCsvExport(sessions: Session[]): string {
     escapeCsv(s.protocol === "bmc" ? s.bmc_rack_unit || "" : ""),
   ]);
 
-  return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+  return [headers.join(","), ...folderRows.map((r) => r.join(",")), ...sessionRows.map((r) => r.join(","))].join("\n");
 }
 
 function escapeCsv(value: string): string {
@@ -147,14 +169,38 @@ function escapeCsv(value: string): string {
  * Parse CSV import data
  */
 export function parseCsvImport(csv: string): Partial<Session>[] {
+  return parseCsvImportData(csv).sessions;
+}
+
+export function parseCsvImportData(csv: string): CsvImportData {
   const lines = csv.split("\n").filter((l) => l.trim());
-  if (lines.length < 2) return [];
+  if (lines.length < 2) return { sessions: [], folders: [] };
 
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
   const sessions: Partial<Session>[] = [];
+  const folders: ImportFolder[] = [];
 
   for (let i = 1; i < lines.length; i++) {
     const values = parseCsvLine(lines[i]);
+    const recordTypeIndex = headers.indexOf("record type");
+    const recordType = recordTypeIndex >= 0 ? values[recordTypeIndex]?.trim().toLowerCase() : "session";
+
+    if (recordType === "folder") {
+      const id = values[headers.indexOf("folder id")]?.trim();
+      const name = values[headers.indexOf("folder name")]?.trim();
+      if (id && name) {
+        const parentId = values[headers.indexOf("folder parent id")]?.trim();
+        const sortOrder = Number.parseInt(values[headers.indexOf("folder sort order")]?.trim() || "0", 10);
+        folders.push({
+          id,
+          name,
+          parent_id: parentId || undefined,
+          sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+        });
+      }
+      continue;
+    }
+
     const session: Partial<Session> = {};
 
     headers.forEach((header, index) => {
@@ -171,6 +217,7 @@ export function parseCsvImport(csv: string): Partial<Session>[] {
           }
           break;
         case "username": session.username = value; break;
+        case "folder id": session.folder_id = value; break;
         case "device type": session.device_type = value; break;
         case "vendor": session.vendor = value; break;
         case "model": session.model = value; break;
@@ -195,7 +242,36 @@ export function parseCsvImport(csv: string): Partial<Session>[] {
     if (session.name) sessions.push(session);
   }
 
-  return sessions;
+  return { sessions, folders };
+}
+
+export async function importFolderHierarchy(
+  sourceFolders: ImportFolder[],
+  create: (folder: { name: string; parent_id?: string }) => Promise<Folder>,
+): Promise<Map<string, string>> {
+  const sourceIds = new Set(sourceFolders.map((folder) => folder.id));
+  if (sourceIds.size !== sourceFolders.length) throw new Error("Folder hierarchy contains duplicate IDs");
+
+  const idMap = new Map<string, string>();
+  let pending = [...sourceFolders];
+
+  while (pending.length > 0) {
+    const ready = pending.filter((folder) => !folder.parent_id || idMap.has(folder.parent_id));
+    if (ready.length === 0) throw new Error("Folder hierarchy contains an invalid parent reference");
+
+    for (const folder of ready) {
+      const created = await create({
+        name: folder.name,
+        parent_id: folder.parent_id ? idMap.get(folder.parent_id) : undefined,
+      });
+      idMap.set(folder.id, created.id);
+    }
+
+    const readyIds = new Set(ready.map((folder) => folder.id));
+    pending = pending.filter((folder) => !readyIds.has(folder.id));
+  }
+
+  return idMap;
 }
 
 function parseCsvLine(line: string): string[] {

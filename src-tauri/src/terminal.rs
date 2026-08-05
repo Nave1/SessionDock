@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use ssh2::{Channel, Session};
 use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
@@ -77,6 +77,7 @@ pub async fn connect_ssh(
     port: u16,
     username: &str,
     password: &str,
+    keepalive_secs: u32,
 ) -> Result<(), AppError> {
     let tab_id_owned = tab_id.to_string();
 
@@ -168,6 +169,8 @@ pub async fn connect_ssh(
         return Err(AppError::Ssh(detail));
     }
 
+    session.set_keepalive(true, keepalive_secs);
+
     // Open channel and request PTY + shell
     let mut channel = session.channel_session()
         .map_err(|e| AppError::Ssh(format!("Channel error: {}", e)))?;
@@ -196,19 +199,51 @@ pub async fn connect_ssh(
     let app_clone = app.clone();
     let tid = tab_id_owned.clone();
     let conn_reader = conn.clone();
+    let connections = manager.connections.clone();
     tokio::spawn(async move {
         let mut buf = [0u8; 4096];
-        loop {
+        let mut next_keepalive = keepalive_deadline(keepalive_secs);
+        let close_reason = loop {
             tokio::time::sleep(Duration::from_millis(20)).await;
 
             // Single lock acquisition per iteration — read stdout, stderr, check EOF
-            let (result, stderr_data, is_eof) = {
+            let (result, stderr_data, is_eof, exit_status, keepalive_error) = {
                 let mut c = conn_reader.lock().await;
+                let keepalive_error = if next_keepalive
+                    .is_some_and(|deadline| Instant::now() >= deadline)
+                {
+                    match c.session.keepalive_send() {
+                        Ok(seconds) => {
+                            next_keepalive = Some(
+                                Instant::now() + Duration::from_secs(seconds.max(1) as u64),
+                            );
+                            None
+                        }
+                        Err(error) if error.code() == ssh2::ErrorCode::Session(-37) => {
+                            next_keepalive = Some(Instant::now() + Duration::from_secs(1));
+                            None
+                        }
+                        Err(error) => Some(error.to_string()),
+                    }
+                } else {
+                    None
+                };
                 let stdout_result = c.channel.read(&mut buf);
                 let mut stderr_buf = [0u8; 4096];
                 let stderr_n = c.channel.stderr().read(&mut stderr_buf).unwrap_or(0);
                 let eof = c.channel.eof();
-                (stdout_result, if stderr_n > 0 { Some(String::from_utf8_lossy(&stderr_buf[..stderr_n]).to_string()) } else { None }, eof)
+                let exit_status = if eof { c.channel.exit_status().ok() } else { None };
+                (
+                    stdout_result,
+                    if stderr_n > 0 {
+                        Some(String::from_utf8_lossy(&stderr_buf[..stderr_n]).to_string())
+                    } else {
+                        None
+                    },
+                    eof,
+                    exit_status,
+                    keepalive_error,
+                )
             }; // Lock released here
 
             // Process stderr
@@ -216,30 +251,76 @@ pub async fn connect_ssh(
                 let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
             }
 
+            if let Some(error) = keepalive_error {
+                break format!("SSH keepalive failed: {error}");
+            }
+
             match result {
-                Ok(0) => {
-                    let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
-                    break;
+                Ok(0) if is_eof => {
+                    break remote_close_reason(exit_status);
                 }
+                Ok(0) => continue,
                 Ok(n) => {
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
                     let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     if is_eof {
-                        let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
-                        break;
+                        break remote_close_reason(exit_status);
                     }
                 }
-                Err(_) => {
-                    let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
-                    break;
+                Err(error) => {
+                    break format!("SSH transport read failed: {error}");
                 }
             }
+        };
+
+        log::warn!("SSH session {} ended: {}", tid, close_reason);
+        {
+            let mut active = connections.lock().await;
+            if active
+                .get(&tid)
+                .is_some_and(|current| Arc::ptr_eq(current, &conn_reader))
+            {
+                active.remove(&tid);
+            }
         }
+        let _ = app_clone.emit(&format!("terminal-close-detail-{}", tid), &close_reason);
+        let _ = app_clone.emit(&format!("terminal-status-{}", tid), "disconnected");
     });
 
     Ok(())
+}
+
+fn keepalive_deadline(keepalive_secs: u32) -> Option<Instant> {
+    (keepalive_secs > 0).then(|| Instant::now() + Duration::from_secs(keepalive_secs as u64))
+}
+
+fn remote_close_reason(exit_status: Option<i32>) -> String {
+    match exit_status {
+        Some(0) | None => "Remote host closed the SSH channel.".to_string(),
+        Some(status) => format!("Remote host closed the SSH channel with exit status {status}."),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{keepalive_deadline, remote_close_reason};
+
+    #[test]
+    fn keepalive_zero_disables_scheduling() {
+        assert!(keepalive_deadline(0).is_none());
+        assert!(keepalive_deadline(60).is_some());
+    }
+
+    #[test]
+    fn remote_close_reason_includes_nonzero_exit_status() {
+        assert_eq!(remote_close_reason(None), "Remote host closed the SSH channel.");
+        assert_eq!(
+            remote_close_reason(Some(255)),
+            "Remote host closed the SSH channel with exit status 255."
+        );
+    }
 }
 
 /// Write data from xterm.js to the SSH channel
@@ -256,11 +337,17 @@ pub async fn write_ssh(
     if let Some(conn) = conn {
         let mut c = conn.lock().await;
         c.session.set_blocking(true);
-        c.channel.write_all(data)
-            .map_err(|e| AppError::Ssh(format!("Write error: {}", e)))?;
-        c.channel.flush()
-            .map_err(|e| AppError::Ssh(format!("Flush error: {}", e)))?;
+        let result = c
+            .channel
+            .write_all(data)
+            .map_err(|e| AppError::Ssh(format!("Write error: {}", e)))
+            .and_then(|_| {
+                c.channel
+                    .flush()
+                    .map_err(|e| AppError::Ssh(format!("Flush error: {}", e)))
+            });
         c.session.set_blocking(false);
+        result?;
     }
     Ok(())
 }

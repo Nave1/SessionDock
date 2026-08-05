@@ -13,9 +13,10 @@ import {
   getSessions,
   resetApplicationData,
 } from "../../api/commands";
-import { createCsvExport, createSafeExport, openTextFile, parseCsvImport, parseJsonImport, saveTextFile, type SafeExportData, type SafeExportSession } from "../../utils/importExport";
+import { createCsvExport, createSafeExport, importFolderHierarchy, openTextFile, parseCsvImportData, parseJsonImport, saveTextFile, type SafeExportData, type SafeExportSession } from "../../utils/importExport";
 import { decryptBackup, encryptBackup } from "../../utils/encryptedBackup";
-import type { CreateSessionRequest, Folder, Session } from "../../types";
+import { safePersistedBmcUrl } from "../../utils/bmcUrl";
+import type { CreateSessionRequest, Session } from "../../types";
 import {
   Settings as SettingsIcon,
   Monitor,
@@ -276,7 +277,7 @@ function DataSettings() {
   };
 
   const importData = async (data: SafeExportData) => {
-    const folderIds = await importFolders(data.folders);
+    const folderIds = await importFolderHierarchy(data.folders, createFolder);
     let imported = 0;
     for (const session of data.sessions) {
       await createSession(toCreateSessionRequest(session, folderIds));
@@ -286,26 +287,6 @@ function DataSettings() {
     addToast("success", `Imported ${imported} sessions and ${folderIds.size} folders`);
   };
 
-  const importFolders = async (sourceFolders: Folder[]) => {
-    const idMap = new Map<string, string>();
-    let pending = [...sourceFolders];
-
-    while (pending.length > 0) {
-      const ready = pending.filter((folder) => !folder.parent_id || idMap.has(folder.parent_id));
-      if (ready.length === 0) throw new Error("Folder hierarchy contains an invalid parent reference");
-      for (const folder of ready) {
-        const created = await createFolder({
-          name: folder.name,
-          parent_id: folder.parent_id ? idMap.get(folder.parent_id) : undefined,
-        });
-        idMap.set(folder.id, created.id);
-      }
-      const readyIds = new Set(ready.map((folder) => folder.id));
-      pending = pending.filter((folder) => !readyIds.has(folder.id));
-    }
-    return idMap;
-  };
-
   const importJsonContent = async (content: string) => {
     const data = parseJsonImport(content);
     if (!data) throw new Error("The selected file is not a valid SessionDock export");
@@ -313,11 +294,12 @@ function DataSettings() {
   };
 
   const importCsvContent = async (content: string) => {
-    const parsed = parseCsvImport(content);
-    if (parsed.length === 0) throw new Error("The CSV file does not contain any sessions");
-    for (const session of parsed) await createSession(toCreateSessionRequest(session));
+    const parsed = parseCsvImportData(content);
+    if (parsed.sessions.length === 0) throw new Error("The CSV file does not contain any sessions");
+    const folderIds = await importFolderHierarchy(parsed.folders, createFolder);
+    for (const session of parsed.sessions) await createSession(toCreateSessionRequest(session, folderIds));
     await refreshData();
-    addToast("success", `Imported ${parsed.length} sessions`);
+    addToast("success", `Imported ${parsed.sessions.length} sessions and ${folderIds.size} folders`);
   };
 
   const actionButton = (name: string, label: string, action: () => Promise<void>, danger = false) => (
@@ -356,7 +338,7 @@ function DataSettings() {
             if (path) addToast("success", `JSON export saved to ${path}`);
           })}
           {actionButton("Export CSV", "Export all sessions (CSV)", async () => {
-            const path = await saveTextFile(createCsvExport(sessions), `sessiondock-${dateStamp}.csv`, "CSV", ["csv"]);
+            const path = await saveTextFile(createCsvExport(sessions, folders), `sessiondock-${dateStamp}.csv`, "CSV", ["csv"]);
             if (path) addToast("success", `CSV export saved to ${path}`);
           })}
           {actionButton("Encrypted backup", "Create encrypted backup", async () => {
@@ -420,7 +402,9 @@ function toCreateSessionRequest(
   session: SafeExportSession | Partial<Session>,
   folderIds = new Map<string, string>(),
 ): CreateSessionRequest {
-  const protocol = session.protocol === "telnet" || session.protocol === "serial" ? session.protocol : "ssh";
+  const protocol = session.protocol === "telnet" || session.protocol === "serial" || session.protocol === "bmc"
+    ? session.protocol
+    : "ssh";
   const authenticationMethod = session.authentication_method === "private_key"
     || session.authentication_method === "ssh_agent"
     || session.authentication_method === "manual"
@@ -445,6 +429,20 @@ function toCreateSessionRequest(
     connection_timeout: session.connection_timeout ?? 30,
     keepalive_interval: session.keepalive_interval ?? 60,
     tags: "tags" in session ? session.tags : undefined,
+    bmc_use_https: session.bmc_use_https,
+    bmc_web_path: session.bmc_web_path,
+    bmc_console_url: safePersistedBmcUrl(session.bmc_console_url),
+    bmc_viewer_mode: session.bmc_viewer_mode,
+    bmc_open_console_automatically: session.bmc_open_console_automatically,
+    bmc_open_fullscreen: session.bmc_open_fullscreen,
+    bmc_timeout_seconds: session.bmc_timeout_seconds,
+    bmc_server_hostname: session.bmc_server_hostname,
+    bmc_server_serial_number: session.bmc_server_serial_number,
+    bmc_rack: session.bmc_rack,
+    bmc_rack_unit: session.bmc_rack_unit,
+    bmc_site: session.bmc_site,
+    bmc_redfish_enabled: session.bmc_redfish_enabled,
+    bmc_cookie_persistence: session.bmc_cookie_persistence,
   };
 }
 
