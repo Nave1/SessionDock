@@ -315,7 +315,7 @@ function TreeNodeItem({
   onOpenContextMenu: (folder: Folder, x: number, y: number) => void;
   onOpenSessionContextMenu: (session: Session, x: number, y: number) => void;
 }) {
-  const [expanded, setExpanded] = useState(depth < 2);
+  const [expanded, setExpanded] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const isSelected = selectedFolderId === node.folder.id;
   const hasChildren = node.children.length > 0 || node.sessions.length > 0;

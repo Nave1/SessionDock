@@ -35,12 +35,9 @@ $cargoLock = $cargoLock -replace '(?s)(name = "sessiondock"\r?\nversion = ")\d+\
 [System.IO.File]::WriteAllText("$PWD\$cargoLockPath", $cargoLock)
 Write-Host "  Cargo.lock: $Version"
 
-# Keep documentation examples on the current release filename.
-$readmePath = "README.md"
-$readme = Get-Content $readmePath -Raw
-$readme = $readme -replace 'version-\d+\.\d+\.\d+-blue', "version-$Version-blue"
-$readme = $readme -replace 'SessionDock_\d+\.\d+\.\d+_x64-setup\.exe', "SessionDock_${Version}_x64-setup.exe"
-[System.IO.File]::WriteAllText("$PWD\$readmePath", $readme)
+# Keep documentation examples on the current release filename using explicit UTF-8 I/O.
+node -e "const fs=require('fs');const p='README.md';let s=fs.readFileSync(p,'utf8');s=s.replace(/version-\d+\.\d+\.\d+-blue/g,'version-$Version-blue').replace(/SessionDock_\d+\.\d+\.\d+_x64-setup\.exe/g,'SessionDock_${Version}_x64-setup.exe');fs.writeFileSync(p,s,'utf8')"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "  README.md: $Version"
 
 # Validate

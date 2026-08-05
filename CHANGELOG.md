@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-05
+
+### Fixed
+- Keep nested folders collapsed when a parent folder is closed and reopened
+
 ## [0.8.0] - 2026-08-05
 
 ### Added
