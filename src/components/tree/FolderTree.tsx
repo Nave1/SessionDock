@@ -558,6 +558,7 @@ function ProtocolDot({ protocol }: { protocol: string }) {
     telnet: "bg-dock-warning",
     serial: "bg-dock-accent",
     bmc: "bg-sky-400",
+    vnc: "bg-cyan-400",
   };
   return (
     <div

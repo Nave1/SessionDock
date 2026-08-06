@@ -178,7 +178,7 @@ function App() {
                 name: s.name || "Imported",
                 host: s.host || "",
                 port: s.port || 22,
-                protocol: s.protocol === "telnet" || s.protocol === "serial" || s.protocol === "bmc" ? s.protocol : "ssh",
+                protocol: s.protocol === "telnet" || s.protocol === "serial" || s.protocol === "bmc" || s.protocol === "vnc" ? s.protocol : "ssh",
                 username: s.username,
                 authentication_method: s.authentication_method === "private_key" || s.authentication_method === "ssh_agent" || s.authentication_method === "manual" ? s.authentication_method : "password",
                 favorite: s.favorite || false,
@@ -222,11 +222,11 @@ function App() {
           const folderIds = await importFolderHierarchy(imported.folders, createFolder);
           let count = 0;
           for (const importedSession of imported.sessions) {
-              const protocol = importedSession.protocol === "telnet" || importedSession.protocol === "serial" || importedSession.protocol === "bmc" ? importedSession.protocol : "ssh";
+              const protocol = importedSession.protocol === "telnet" || importedSession.protocol === "serial" || importedSession.protocol === "bmc" || importedSession.protocol === "vnc" ? importedSession.protocol : "ssh";
               await createSession({
                 name: importedSession.name || "Imported",
                 host: importedSession.host || "",
-                port: importedSession.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : 0),
+                port: importedSession.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : protocol === "bmc" ? 443 : protocol === "vnc" ? 5900 : 0),
                 protocol,
                 username: importedSession.username,
                 authentication_method: "password",

@@ -90,7 +90,7 @@ export function BmcSessionFields({ value, onChange }: BmcSessionFieldsProps) {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Select label={t("bmc.viewerMode")} value={value.bmc_viewer_mode || "web"} onChange={(bmc_viewer_mode) => onChange({ bmc_viewer_mode: bmc_viewer_mode as BmcSessionConfig["bmc_viewer_mode"] })} options={["web", "external-browser", "vnc"]} />
+        <Select label={t("bmc.viewerMode")} value={value.bmc_viewer_mode === "external-browser" ? "external-browser" : "web"} onChange={(bmc_viewer_mode) => onChange({ bmc_viewer_mode: bmc_viewer_mode as BmcSessionConfig["bmc_viewer_mode"] })} options={["web", "external-browser"]} />
         <Select label={t("bmc.cookiePersistence")} value={value.bmc_cookie_persistence || "application"} onChange={(bmc_cookie_persistence) => onChange({ bmc_cookie_persistence: bmc_cookie_persistence as BmcSessionConfig["bmc_cookie_persistence"] })} options={["tab", "application", "persistent"]} />
       </div>
 

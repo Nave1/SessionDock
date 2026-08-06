@@ -6,6 +6,7 @@ import { SessionList } from "./views/SessionList";
 import { TerminalTabs } from "./TerminalTabs";
 import { TerminalPaneLayout } from "./terminal/TerminalPaneLayout";
 import { BmcConsoleView } from "./bmc/BmcConsoleView";
+import { VncViewerView } from "./vnc/VncViewerView";
 import type { Session } from "../types";
 
 interface MainContentProps {
@@ -60,7 +61,9 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
               key={tab.id}
               className={`absolute inset-0 ${showTerminal && tab.id === activeTabId ? "z-10" : "z-0 hidden"}`}
             >
-              {tab.protocol === "bmc" ? (
+              {tab.protocol === "vnc" ? (
+                <VncViewerView tab={tab} active={showTerminal === true && tab.id === activeTabId} />
+              ) : tab.protocol === "bmc" ? (
                 <BmcConsoleView tab={tab} active={showTerminal === true && tab.id === activeTabId} />
               ) : (
                 <TerminalPaneLayout tab={tab} session={sess} />

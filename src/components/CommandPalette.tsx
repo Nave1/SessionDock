@@ -218,7 +218,7 @@ function SessionResult({ session, isSelected, query, onClick }: {
             ? "bg-amber-500/10 text-amber-400"
             : "bg-blue-500/10 text-blue-400"
       }`}>
-        {session.protocol === "ssh" ? "SSH" : session.protocol === "telnet" ? "TEL" : "SER"}
+        {session.protocol.slice(0, 3).toUpperCase()}
       </div>
 
       {/* Info */}

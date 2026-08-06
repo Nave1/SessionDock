@@ -212,7 +212,7 @@ export function parseCsvImportData(csv: string): CsvImportData {
         case "host": session.host = value; break;
         case "port": session.port = parseInt(value) || 22; break;
         case "protocol":
-          if (["ssh", "telnet", "serial", "bmc"].includes(value.toLowerCase())) {
+          if (["ssh", "telnet", "serial", "bmc", "vnc"].includes(value.toLowerCase())) {
             session.protocol = value.toLowerCase() as Session["protocol"];
           }
           break;

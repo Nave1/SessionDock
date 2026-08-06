@@ -26,15 +26,16 @@ export function BmcConsoleView({ tab, active }: { tab: TerminalTab; active: bool
   })();
   const url = urlResult.url || "";
   const external = bmc?.bmc_viewer_mode === "external-browser";
+  const legacyVnc = bmc?.bmc_viewer_mode === "vnc";
 
   useEffect(() => {
-    if (!external || !active || !url) return;
+    if (legacyVnc || !external || !active || !url) return;
     void open(url);
     updateTabStatus(tab.id, "connected");
-  }, [active, external, tab.id, updateTabStatus, url]);
+  }, [active, external, legacyVnc, tab.id, updateTabStatus, url]);
 
   useEffect(() => {
-    if (external || !url) return;
+    if (legacyVnc || external || !url) return;
     const element = hostRef.current;
     if (!element) return;
     let disposed = false;
@@ -76,14 +77,24 @@ export function BmcConsoleView({ tab, active }: { tab: TerminalTab; active: bool
       observer.disconnect();
       if (created) void closeBmcWebview(tab.id, bmc?.bmc_cookie_persistence === "tab");
     };
-  }, [bmc?.bmc_cookie_persistence, external, tab.id, updateTabStatus, url]);
+  }, [bmc?.bmc_cookie_persistence, external, legacyVnc, tab.id, updateTabStatus, url]);
 
   useEffect(() => {
-    if (!external) void setBmcWebviewVisible(tab.id, active).catch(() => undefined);
-  }, [active, external, tab.id]);
+    if (!external && !legacyVnc) void setBmcWebviewVisible(tab.id, active).catch(() => undefined);
+  }, [active, external, legacyVnc, tab.id]);
 
   if (urlResult.error) {
     return <div className="h-full flex items-center justify-center text-xs text-red-400">{urlResult.error}</div>;
+  }
+
+  if (legacyVnc) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-3 px-8 text-center text-dock-text-muted">
+        <ExternalLink size={24} />
+        <span className="text-sm font-medium text-dock-text">VNC is now a separate connection type</span>
+        <span className="max-w-md text-xs leading-5">Edit this session, select the VNC protocol, and set the VNC server port (normally 5900). BMC sessions no longer launch VNC or HTTPS for this mode.</span>
+      </div>
+    );
   }
 
   if (external) {

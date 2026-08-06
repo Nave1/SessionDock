@@ -46,7 +46,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
   };
 
   const handleProtocolChange = (protocol: Protocol) => {
-    const ports = { ssh: 22, telnet: 23, serial: 0, bmc: 443 };
+    const ports = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
     setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
     setShowTelnetWarning(false);
   };
@@ -66,7 +66,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
         <div className="p-5 space-y-4 max-h-[calc(90vh-49px)] overflow-y-auto">
           {/* Protocol */}
           <div className="flex gap-1">
-            {(["ssh", "telnet", "serial", "bmc"] as const).map((p) => (
+            {(["ssh", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
@@ -109,6 +109,12 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
             </div>
           )}
 
+          {config.protocol === "vnc" && (
+            <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-xs leading-5 text-dock-text-muted">
+              Opens the VM desktop in RealVNC Viewer. Use the VNC server port, normally 5900; Viewer will prompt for credentials.
+            </div>
+          )}
+
           {/* Host */}
           {config.protocol !== "serial" && (
             <div>
@@ -143,7 +149,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
           )}
 
           {/* Username */}
-          <div>
+          {config.protocol !== "vnc" && <div>
             <label className="block text-xs text-dock-text-muted mb-1.5">
               {t("session.username")}
             </label>
@@ -155,7 +161,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
               placeholder="(optional - SSH will prompt if needed)"
               className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
             />
-          </div>
+          </div>}
 
           {/* Password */}
           {(config.protocol === "ssh" || config.protocol === "bmc") && (

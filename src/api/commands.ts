@@ -85,6 +85,12 @@ export async function listSerialPorts(): Promise<SerialPortInfo[]> {
   return nativeInvoke("list_serial_ports");
 }
 
+// --- Graphical remote desktop ---
+
+export async function launchVncViewer(host: string, port: number): Promise<void> {
+  return nativeInvoke("launch_vnc_viewer", { host, port });
+}
+
 // --- Data maintenance ---
 
 export async function clearRecentSessions(): Promise<void> {

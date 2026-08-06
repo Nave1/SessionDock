@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-06
+
+### Added
+- Add VNC as a standalone saved and Quick Connect protocol with a default port of 5900
+- Open VNC desktops in RealVNC Viewer without placing credentials in process arguments
+
+### Changed
+- Keep VNC configuration separate from browser-based BMC / KVM sessions
+
+### Fixed
+- Prevent legacy BMC VNC settings from falling through to an HTTPS WebView
+
 ## [0.9.0] - 2026-08-06
 
 ### Added

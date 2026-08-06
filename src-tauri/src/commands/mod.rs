@@ -8,3 +8,4 @@ pub mod data;
 pub mod terminal;
 pub mod snippets;
 pub mod bmc;
+pub mod vnc;

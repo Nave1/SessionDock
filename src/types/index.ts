@@ -1,4 +1,4 @@
-export type Protocol = "ssh" | "telnet" | "serial" | "bmc";
+export type Protocol = "ssh" | "telnet" | "serial" | "bmc" | "vnc";
 export type BmcViewerMode = "web" | "external-browser" | "vnc";
 export type BmcCookiePersistence = "tab" | "application" | "persistent";
 

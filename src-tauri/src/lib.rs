@@ -88,6 +88,7 @@ pub fn run() {
             commands::bmc::reload_bmc_webview,
             commands::bmc::close_bmc_webview,
             commands::bmc::test_bmc_connection,
+            commands::vnc::launch_vnc_viewer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

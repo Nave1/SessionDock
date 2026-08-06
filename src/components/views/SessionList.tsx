@@ -214,8 +214,8 @@ function EditSessionDialog({ session, folders, onSave, onClose }: {
           <div>
             <label className="block text-[11px] text-dock-text-muted mb-1.5">{t("session.protocol")}</label>
             <div className="flex gap-1">
-              {(["ssh", "telnet", "serial", "bmc"] as const).map((p) => (
-                <button key={p} type="button" onClick={() => setForm((prev) => ({ ...prev, protocol: p }))}
+              {(["ssh", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
+                <button key={p} type="button" onClick={() => setForm((prev) => ({ ...prev, protocol: p, port: p === "ssh" ? 22 : p === "telnet" ? 23 : p === "bmc" ? 443 : p === "vnc" ? 5900 : 0 }))}
                   className={`px-3 py-1.5 rounded text-[11px] font-medium ${form.protocol === p ? "bg-dock-accent text-white" : "bg-dock-surface text-dock-text-muted"}`}
                 >{p.toUpperCase()}</button>
               ))}
@@ -223,10 +223,18 @@ function EditSessionDialog({ session, folders, onSave, onClose }: {
           </div>
 
           {/* Username */}
-          <Field label={t("session.username")} value={form.username || ""} onChange={(v) => setForm((p) => ({ ...p, username: v || undefined }))} />
+          {form.protocol !== "vnc" && (
+            <Field label={t("session.username")} value={form.username || ""} onChange={(v) => setForm((p) => ({ ...p, username: v || undefined }))} />
+          )}
 
           {form.protocol === "bmc" && (
             <BmcSessionFields value={form} onChange={(patch) => setForm((previous) => ({ ...previous, ...patch }))} />
+          )}
+
+          {form.protocol === "vnc" && (
+            <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-[11px] leading-5 text-dock-text-muted">
+              This is a standalone VNC desktop connection. RealVNC Viewer will handle authentication.
+            </div>
           )}
 
           <div>

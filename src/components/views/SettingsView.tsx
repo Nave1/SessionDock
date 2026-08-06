@@ -402,7 +402,7 @@ function toCreateSessionRequest(
   session: SafeExportSession | Partial<Session>,
   folderIds = new Map<string, string>(),
 ): CreateSessionRequest {
-  const protocol = session.protocol === "telnet" || session.protocol === "serial" || session.protocol === "bmc"
+  const protocol = session.protocol === "telnet" || session.protocol === "serial" || session.protocol === "bmc" || session.protocol === "vnc"
     ? session.protocol
     : "ssh";
   const authenticationMethod = session.authentication_method === "private_key"
@@ -414,7 +414,7 @@ function toCreateSessionRequest(
   return {
     name: session.name?.trim() || "Imported session",
     host: session.host || "",
-    port: session.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : 0),
+    port: session.port ?? (protocol === "ssh" ? 22 : protocol === "telnet" ? 23 : protocol === "bmc" ? 443 : protocol === "vnc" ? 5900 : 0),
     protocol,
     username: session.username,
     authentication_method: authenticationMethod,

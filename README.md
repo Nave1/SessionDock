@@ -2,11 +2,11 @@
 
 # SessionDock
 
-A modern desktop application for managing SSH, Telnet, Serial, and BMC remote-console sessions.
+A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remote sessions.
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.9.0-blue)
+![Version](https://img.shields.io/badge/version-0.9.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -17,8 +17,9 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Native embedded SSH** - SSH runs in-process through libssh2; SessionDock does not wrap `ssh.exe`, Command Prompt, or PowerShell.
 - **SSH authentication** - Supports password and keyboard-interactive authentication with an in-terminal credential prompt.
 - **Hostname and IP support** - Resolves DNS names, tries all resolved addresses, and reports connection errors by stage.
-- **Quick Connect** - Open an SSH, Telnet, or Serial connection without creating a saved session first.
+- **Quick Connect** - Open an SSH, Telnet, Serial, BMC, or VNC connection without creating a saved session first.
 - **BMC / KVM over IP** - Open iDRAC, iLO, XClarity, Supermicro IPMI, and other browser-based management consoles in restricted native child WebViews or the default browser.
+- **VNC remote desktop** - Save or quickly open a VM desktop as a standalone VNC connection through RealVNC Viewer, using port 5900 by default.
 - **BMC diagnostics** - Test HTTP(S) reachability, latency, authentication responses, and optional Redfish discovery before connecting.
 - **Telnet support** - Connect to legacy network equipment with a clear transport security warning.
 - **Serial support** - Detect serial ports and configure baud rate, data bits, stop bits, parity, and flow control.
@@ -95,7 +96,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.9.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.9.1_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -135,7 +136,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.9.0_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.9.1_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.

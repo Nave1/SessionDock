@@ -41,7 +41,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
   };
 
   const handleProtocolChange = (protocol: CreateSessionRequest["protocol"]) => {
-    const defaultPorts = { ssh: 22, telnet: 23, serial: 0, bmc: 443 };
+    const defaultPorts = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
     setFormData((prev) => ({ ...prev, protocol, port: defaultPorts[protocol], ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "application" } : {}) }));
   };
 
@@ -66,7 +66,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
               {t("session.protocol")}
             </label>
             <div className="flex gap-1">
-              {(["ssh", "telnet", "serial", "bmc"] as const).map((p) => (
+              {(["ssh", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
                 <button
                   key={p}
                   type="button"
@@ -96,6 +96,12 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
             <BmcSessionFields value={formData} onChange={(patch) => setFormData((previous) => ({ ...previous, ...patch }))} />
           )}
 
+          {formData.protocol === "vnc" && (
+            <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-xs leading-5 text-dock-text-muted">
+              VNC opens the VM desktop in RealVNC Viewer. Enter the VM address and its VNC port below; the usual port is 5900. RealVNC Viewer will request credentials when it opens.
+            </div>
+          )}
+
           {/* Host (not for serial) */}
           {formData.protocol !== "serial" && (
             <Field
@@ -118,12 +124,14 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
           )}
 
           {/* Username */}
-          <Field
-            label={t("session.username")}
-            value={formData.username || ""}
-            onChange={(v) => setFormData((p) => ({ ...p, username: v }))}
-            placeholder="admin"
-          />
+          {formData.protocol !== "vnc" && (
+            <Field
+              label={t("session.username")}
+              value={formData.username || ""}
+              onChange={(v) => setFormData((p) => ({ ...p, username: v }))}
+              placeholder="admin"
+            />
+          )}
 
           {/* Folder */}
           <div>

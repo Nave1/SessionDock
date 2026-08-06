@@ -125,6 +125,7 @@ pub enum Protocol {
     Telnet,
     Serial,
     Bmc,
+    Vnc,
 }
 
 impl Protocol {
@@ -134,6 +135,7 @@ impl Protocol {
             Protocol::Telnet => "telnet",
             Protocol::Serial => "serial",
             Protocol::Bmc => "bmc",
+            Protocol::Vnc => "vnc",
         }
     }
 
@@ -143,6 +145,7 @@ impl Protocol {
             "telnet" => Protocol::Telnet,
             "serial" => Protocol::Serial,
             "bmc" => Protocol::Bmc,
+            "vnc" => Protocol::Vnc,
             _ => Protocol::Ssh,
         }
     }
@@ -153,6 +156,7 @@ impl Protocol {
             Protocol::Telnet => 23,
             Protocol::Serial => 0,
             Protocol::Bmc => 443,
+            Protocol::Vnc => 5900,
         }
     }
 }
