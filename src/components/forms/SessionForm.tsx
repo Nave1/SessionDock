@@ -98,7 +98,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
 
           {formData.protocol === "vnc" && (
             <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-xs leading-5 text-dock-text-muted">
-              VNC opens the VM desktop in RealVNC Viewer. Enter the VM address and its VNC port below; the usual port is 5900. RealVNC Viewer will request credentials when it opens.
+              VNC opens the VM desktop in RealVNC Viewer. Enter the VM address and its VNC port below; the usual port is 5900. On the first connection, select Remember password in RealVNC Viewer to sign in automatically next time.
             </div>
           )}
 

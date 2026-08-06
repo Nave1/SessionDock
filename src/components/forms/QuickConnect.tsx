@@ -111,7 +111,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
 
           {config.protocol === "vnc" && (
             <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-xs leading-5 text-dock-text-muted">
-              Opens the VM desktop in RealVNC Viewer. Use the VNC server port, normally 5900; Viewer will prompt for credentials.
+              Opens the VM desktop in RealVNC Viewer. Use the VNC server port, normally 5900. Select Remember password in Viewer once to sign in automatically on future connections.
             </div>
           )}
 

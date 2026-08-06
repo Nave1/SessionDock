@@ -37,7 +37,7 @@ export function VncViewerView({ tab, active }: { tab: TerminalTab; active: boole
         <p className="mt-1 text-xs text-dock-text-muted">{tab.host}:{port}</p>
       </div>
       <p className="max-w-md text-xs leading-5 text-dock-text-muted">
-        The graphical desktop opens in RealVNC Viewer. Enter the VM&apos;s VNC credentials there when prompted.
+        The graphical desktop opens in RealVNC Viewer. The first time, enter the VM&apos;s credentials and select Remember password. Future connections to this address will sign in automatically.
       </p>
       {error && <p className="max-w-lg text-xs text-dock-error">{error}</p>}
       <button

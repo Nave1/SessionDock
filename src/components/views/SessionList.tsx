@@ -233,7 +233,7 @@ function EditSessionDialog({ session, folders, onSave, onClose }: {
 
           {form.protocol === "vnc" && (
             <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-[11px] leading-5 text-dock-text-muted">
-              This is a standalone VNC desktop connection. RealVNC Viewer will handle authentication.
+              This is a standalone VNC desktop connection. RealVNC Viewer securely remembers authentication when Remember password is selected.
             </div>
           )}
 
