@@ -5,8 +5,9 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { nativeInvoke } from "../../api/native";
 import { listen } from "@tauri-apps/api/event";
-import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown, Columns2, Rows2 } from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useAppStore } from "../../stores/appStore";
 import { findTerminalHighlights } from "../../utils/terminalHighlight";
 import "@xterm/xterm/css/xterm.css";
 
@@ -103,9 +104,7 @@ function promptInTerminal(term: XTerm, prompt: string, masked: boolean): Promise
         // Backspace
         if (input.length > 0) {
           input = input.slice(0, -1);
-          if (!masked) {
-            term.write("\b \b");
-          }
+          term.write("\b \b");
         }
       } else if (data === "\x03" || data === "\x1b") {
         // Ctrl+C or Escape — cancel
@@ -127,20 +126,45 @@ function promptInTerminal(term: XTerm, prompt: string, masked: boolean): Promise
 
 interface TerminalViewProps {
   tabId: string;
+  statusTabId?: string;
   host: string;
   port: number;
   protocol: string;
   username?: string;
   password?: string;
   keepaliveInterval?: number;
+  canSplit?: boolean;
+  canClosePane?: boolean;
+  onSplitRight?: () => void;
+  onSplitDown?: () => void;
+  onClosePane?: () => void;
+  reconnectToken?: number;
 }
 
-export function TerminalView({ tabId, host, port, protocol, username, password, keepaliveInterval = 60 }: TerminalViewProps) {
+export function TerminalView({
+  tabId,
+  statusTabId = tabId,
+  host,
+  port,
+  protocol,
+  username,
+  password,
+  keepaliveInterval = 60,
+  canSplit = true,
+  canClosePane = false,
+  onSplitRight,
+  onSplitDown,
+  onClosePane,
+  reconnectToken,
+}: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const connectedRef = useRef(false);
+  const connectionStateRef = useRef<"connecting" | "connected" | "disconnected">("connecting");
+  const lastReconnectTokenRef = useRef(reconnectToken);
+  const updateTabStatus = useAppStore((state) => state.updateTabStatus);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -148,6 +172,8 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
   const connectToHost = useCallback(async () => {
     if (connectedRef.current) return;
     connectedRef.current = true;
+    connectionStateRef.current = "connecting";
+    updateTabStatus(statusTabId, "connecting");
 
     const term = terminalRef.current;
     if (!term) return;
@@ -190,11 +216,19 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
         password: finalPassword || null,
         keepaliveSecs: keepaliveInterval,
       });
+      await nativeInvoke("resize_terminal", {
+        tabId,
+        cols: term.cols,
+        rows: term.rows,
+      });
+      term.focus();
     } catch (err) {
       term.writeln(`\x1b[38;2;248;113;113mConnection failed: ${err}\x1b[39m`);
       connectedRef.current = false;
+      connectionStateRef.current = "disconnected";
+      updateTabStatus(statusTabId, "error");
     }
-  }, [tabId, host, port, protocol, username, password, keepaliveInterval]);
+  }, [tabId, statusTabId, host, port, protocol, username, password, keepaliveInterval, updateTabStatus]);
 
   const handleReconnect = useCallback(async () => {
     const term = terminalRef.current;
@@ -209,6 +243,12 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
     await new Promise(r => setTimeout(r, 500));
     connectToHost();
   }, [tabId, protocol, connectToHost]);
+
+  useEffect(() => {
+    if (reconnectToken === undefined || reconnectToken === lastReconnectTokenRef.current) return;
+    lastReconnectTokenRef.current = reconnectToken;
+    handleReconnect();
+  }, [reconnectToken, handleReconnect]);
 
   const handleClear = useCallback(() => {
     terminalRef.current?.clear();
@@ -300,15 +340,29 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
     // Semantic highlighting must NEVER intercept, modify, delay, or parse this path.
     // No trim, no ANSI injection, no local echo, no command buffering.
     terminal.onData((data) => {
+      if (connectionStateRef.current === "disconnected" && (data === "\r" || data === "\n")) {
+        handleReconnect();
+        return;
+      }
       nativeInvoke("write_terminal", { tabId, data, protocol }).catch(() => {});
     });
 
-    // Ctrl+F to open search (intercept before terminal)
+    // Preserve Ctrl+C as SIGINT unless text is selected. Clipboard shortcuts
+    // are intercepted before xterm forwards them to the remote host.
     terminal.attachCustomKeyEventHandler((e) => {
-      if (e.ctrlKey && e.key === "f" && e.type === "keydown") {
+      if (e.type !== "keydown") return true;
+      if (e.ctrlKey && e.key.toLowerCase() === "f") {
         setSearchOpen(true);
         setTimeout(() => searchInputRef.current?.focus(), 50);
         return false; // prevent terminal from receiving it
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "c" && terminal.hasSelection()) {
+        handleCopy();
+        return false;
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "v") {
+        handlePaste();
+        return false;
       }
       return true;
     });
@@ -331,12 +385,19 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
       disconnectReason = event.payload;
     });
     const unlistenStatus = listen<string>(`terminal-status-${tabId}`, (event) => {
+      if (event.payload === "connected") {
+        connectionStateRef.current = "connected";
+        updateTabStatus(statusTabId, "connected");
+      }
       if (event.payload === "disconnected") {
         terminal.writeln("");
         const detail = disconnectReason || "The connection ended without a reason from the remote host.";
         terminal.writeln(`\x1b[38;2;251;191;36mConnection closed: ${detail}\x1b[39m`);
         disconnectReason = "";
         connectedRef.current = false;
+        connectionStateRef.current = "disconnected";
+        updateTabStatus(statusTabId, "disconnected");
+        terminal.writeln("Press Enter to reconnect.");
       }
     });
 
@@ -370,6 +431,9 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 h-8 bg-dock-sidebar border-b border-dock-border flex-shrink-0">
         <ToolbarBtn icon={RotateCw} title="Reconnect" onClick={handleReconnect} />
+        <ToolbarBtn icon={Columns2} title="Split right" onClick={() => onSplitRight?.()} disabled={!canSplit || !onSplitRight} />
+        <ToolbarBtn icon={Rows2} title="Split down" onClick={() => onSplitDown?.()} disabled={!canSplit || !onSplitDown} />
+        {canClosePane && onClosePane && <ToolbarBtn icon={X} title="Close pane" onClick={onClosePane} />}
         <ToolbarBtn icon={Search} title="Search (Ctrl+F)" onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50); }} />
         <div className="w-px h-4 bg-dock-border mx-1" />
         <ToolbarBtn icon={Copy} title="Copy" onClick={handleCopy} />
@@ -406,19 +470,26 @@ export function TerminalView({ tabId, host, port, protocol, username, password, 
         data-tab-id={tabId}
         onContextMenu={(e) => {
           e.preventDefault();
-          // TODO: context menu
+          handlePaste();
         }}
       />
     </div>
   );
 }
 
-function ToolbarBtn({ icon: Icon, title, onClick }: { icon: typeof Search; title: string; onClick: () => void }) {
+function ToolbarBtn({ icon: Icon, title, onClick, disabled = false }: {
+  icon: typeof Search;
+  title: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       onClick={onClick}
-      className="p-1.5 rounded hover:bg-dock-surface-hover text-dock-text-muted hover:text-dock-text"
+      disabled={disabled}
+      className="p-1.5 rounded text-dock-text-muted hover:bg-dock-surface-hover hover:text-dock-text disabled:opacity-30 disabled:pointer-events-none"
       title={title}
+      aria-label={title}
     >
       <Icon size={13} />
     </button>

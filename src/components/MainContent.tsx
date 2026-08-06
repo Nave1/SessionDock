@@ -4,7 +4,7 @@ import { HomeView } from "./views/HomeView";
 import { SettingsView } from "./views/SettingsView";
 import { SessionList } from "./views/SessionList";
 import { TerminalTabs } from "./TerminalTabs";
-import { TerminalView } from "./terminal/TerminalView";
+import { TerminalPaneLayout } from "./terminal/TerminalPaneLayout";
 import { BmcConsoleView } from "./bmc/BmcConsoleView";
 import type { Session } from "../types";
 
@@ -63,15 +63,7 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
               {tab.protocol === "bmc" ? (
                 <BmcConsoleView tab={tab} active={showTerminal === true && tab.id === activeTabId} />
               ) : (
-                <TerminalView
-                  tabId={tab.id}
-                  host={tab.host}
-                  port={tab.port ?? sess?.port ?? (tab.protocol === "ssh" ? 22 : 23)}
-                  protocol={tab.protocol}
-                  username={tab.username ?? sess?.username}
-                  password={tab.password}
-                  keepaliveInterval={sess?.keepalive_interval ?? 60}
-                />
+                <TerminalPaneLayout tab={tab} session={sess} />
               )}
             </div>
           );

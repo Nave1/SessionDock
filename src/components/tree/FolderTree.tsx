@@ -557,6 +557,7 @@ function ProtocolDot({ protocol }: { protocol: string }) {
     ssh: "bg-dock-success",
     telnet: "bg-dock-warning",
     serial: "bg-dock-accent",
+    bmc: "bg-sky-400",
   };
   return (
     <div

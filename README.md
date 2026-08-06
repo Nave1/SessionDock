@@ -6,7 +6,7 @@ A modern desktop application for managing SSH, Telnet, Serial, and BMC remote-co
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.8.3-blue)
+![Version](https://img.shields.io/badge/version-0.9.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -22,8 +22,8 @@ Built for network engineers, data-center technicians, system administrators, and
 - **BMC diagnostics** - Test HTTP(S) reachability, latency, authentication responses, and optional Redfish discovery before connecting.
 - **Telnet support** - Connect to legacy network equipment with a clear transport security warning.
 - **Serial support** - Detect serial ports and configure baud rate, data bits, stop bits, parity, and flow control.
-- **Tabbed terminal workspace** - Run multiple concurrent sessions with connection-state indicators and close/reconnect controls.
-- **Full terminal interaction** - Raw keyboard input, control sequences, paste, resize, links, scrolling, and remote output are handled by xterm.js.
+- **Tabbed and split terminal workspace** - Run multiple concurrent sessions, split a terminal right or down into as many as four panes, and focus or close panes independently.
+- **Full terminal interaction** - Raw keyboard input, control sequences, selection-aware copy, right-click paste, resize, links, scrolling, and remote output are handled by xterm.js.
 - **Terminal search** - Find text in the active terminal and move between matches.
 - **Semantic output colors** - Optionally highlights IP/CIDR addresses, MAC addresses, interfaces, VLANs, timestamps, status words, and ping results without changing the remote byte stream or overriding native ANSI colors.
 
@@ -95,7 +95,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.8.3_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.9.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -135,7 +135,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.8.3_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.9.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.

@@ -2,7 +2,7 @@ import { useAppStore } from "../stores/appStore";
 import { X, RotateCw } from "lucide-react";
 
 export function TerminalTabs() {
-  const { tabs, activeTabId, setActiveTab, removeTab, setCurrentView } = useAppStore();
+  const { tabs, activeTabId, setActiveTab, removeTab, setCurrentView, requestTabReconnect } = useAppStore();
 
   return (
     <div className="flex items-center h-[38px] bg-dock-sidebar border-b border-dock-border overflow-x-auto flex-shrink-0">
@@ -39,9 +39,10 @@ export function TerminalTabs() {
             {/* Reconnect (on hover, if disconnected) */}
             {tab.status === "disconnected" && (
               <button
-                onClick={(e) => { e.stopPropagation(); }}
+                onClick={(e) => { e.stopPropagation(); requestTabReconnect(tab.id); }}
                 className="opacity-0 group-hover:opacity-100 text-dock-text-muted hover:text-dock-accent"
                 title="Reconnect"
+                aria-label={`Reconnect ${tab.sessionName}`}
               >
                 <RotateCw size={10} />
               </button>

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-06
+
+### Added
+- Split SSH and Telnet terminals right or down into mixed layouts of up to four independent panes
+- Copy selected terminal text with Ctrl+C and paste clipboard text with Ctrl+V or right-click
+
+### Changed
+- Show BMC sessions with a sky-blue protocol indicator in the sidebar
+
+### Fixed
+- Erase masked password characters correctly with Backspace
+- Retry short-lived SSH `transport read` failures instead of disconnecting immediately
+- Reconnect a closed terminal by pressing Enter and make the tab-bar reconnect control functional
+- Resize the remote PTY after connecting so wide switch output uses the actual terminal width instead of wrapping at 80 columns
+- Keep bare Ctrl+C available as the remote interrupt signal when no terminal text is selected
+
 ## [0.8.3] - 2026-08-05
 
 ### Changed
