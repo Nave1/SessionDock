@@ -76,3 +76,4 @@ crash-reports/
 !release/
 release/*
 !release/*.exe
+!release/*.exe.sig

@@ -63,3 +63,19 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Retain current and previous releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin master
+          git checkout -B master origin/master
+          ./scripts/retain-releases.ps1 -Repository ${{ github.repository }}
+          git add --all --force release
+          if (-not (git diff --cached --quiet)) {
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Retain release backups for ${{ github.ref_name }}"
+            git push origin master
+          }
