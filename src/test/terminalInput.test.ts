@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { getTerminalContextMenuAction, getTerminalShortcutAction } from "../utils/terminalInteraction";
 
 /**
  * Terminal Input Safety Regression Tests
@@ -132,5 +133,24 @@ describe("Terminal Input Safety", () => {
     it("spaces and special chars preserved", () => {
       verifyUnchanged("echo 'hello world' | grep test\r");
     });
+  });
+});
+
+describe("Terminal local interactions", () => {
+  const keydown = (key: string, ctrlKey = true) => ({ type: "keydown", key, ctrlKey });
+
+  it("keeps bare Ctrl+C available for remote SIGINT", () => {
+    expect(getTerminalShortcutAction(keydown("c"), false)).toBeNull();
+    expect(getTerminalShortcutAction(keydown("c"), true)).toBe("copy");
+  });
+
+  it("uses Ctrl+Q only for an explicit disconnect", () => {
+    expect(getTerminalShortcutAction(keydown("q"), false)).toBe("disconnect");
+    expect(getTerminalShortcutAction(keydown("q", false), false)).toBeNull();
+  });
+
+  it("right-click copies a selection and otherwise pastes", () => {
+    expect(getTerminalContextMenuAction(true)).toBe("copy");
+    expect(getTerminalContextMenuAction(false)).toBe("paste");
   });
 });

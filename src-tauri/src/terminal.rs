@@ -13,8 +13,6 @@ use tauri::{AppHandle, Emitter};
 
 use crate::error::AppError;
 
-const MAX_TRANSIENT_READ_ERRORS: u8 = 50;
-
 struct SshConnection {
     session: Session,
     channel: Channel,
@@ -205,7 +203,6 @@ pub async fn connect_ssh(
     tokio::spawn(async move {
         let mut buf = [0u8; 4096];
         let mut next_keepalive = keepalive_deadline(keepalive_secs);
-        let mut transient_read_errors = 0u8;
         let close_reason = loop {
             tokio::time::sleep(Duration::from_millis(20)).await;
 
@@ -264,24 +261,12 @@ pub async fn connect_ssh(
                 }
                 Ok(0) => continue,
                 Ok(n) => {
-                    transient_read_errors = 0;
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
                     let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
                 }
-                Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                Err(ref error) if is_nonfatal_read_error(error) => {
                     if is_eof {
                         break remote_close_reason(exit_status);
-                    }
-                }
-                Err(ref error) if is_transient_read_error(error) => {
-                    if is_eof {
-                        break remote_close_reason(exit_status);
-                    }
-                    transient_read_errors = transient_read_errors.saturating_add(1);
-                    if transient_read_errors >= MAX_TRANSIENT_READ_ERRORS {
-                        break format!(
-                            "SSH transport read failed after retries: {error}"
-                        );
                     }
                 }
                 Err(error) => {
@@ -318,16 +303,18 @@ fn remote_close_reason(exit_status: Option<i32>) -> String {
     }
 }
 
-fn is_transient_read_error(error: &std::io::Error) -> bool {
+fn is_nonfatal_read_error(error: &std::io::Error) -> bool {
     matches!(
         error.kind(),
-        std::io::ErrorKind::Interrupted | std::io::ErrorKind::TimedOut
+        std::io::ErrorKind::WouldBlock
+            | std::io::ErrorKind::Interrupted
+            | std::io::ErrorKind::TimedOut
     ) || error.to_string().eq_ignore_ascii_case("transport read")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{is_transient_read_error, keepalive_deadline, remote_close_reason};
+    use super::{is_nonfatal_read_error, keepalive_deadline, remote_close_reason};
 
     #[test]
     fn keepalive_zero_disables_scheduling() {
@@ -345,15 +332,15 @@ mod tests {
     }
 
     #[test]
-    fn retries_known_transient_transport_read_errors() {
-        assert!(!is_transient_read_error(&std::io::Error::from(
+    fn keeps_polling_after_nonfatal_transport_read_errors() {
+        assert!(is_nonfatal_read_error(&std::io::Error::from(
             std::io::ErrorKind::WouldBlock,
         )));
-        assert!(is_transient_read_error(&std::io::Error::from(
+        assert!(is_nonfatal_read_error(&std::io::Error::from(
             std::io::ErrorKind::Interrupted,
         )));
-        assert!(is_transient_read_error(&std::io::Error::other("transport read")));
-        assert!(!is_transient_read_error(&std::io::Error::other("connection reset")));
+        assert!(is_nonfatal_read_error(&std::io::Error::other("transport read")));
+        assert!(!is_nonfatal_read_error(&std::io::Error::other("connection reset")));
     }
 }
 

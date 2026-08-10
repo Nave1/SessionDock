@@ -5,10 +5,12 @@ import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { nativeInvoke } from "../../api/native";
 import { listen } from "@tauri-apps/api/event";
+import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown, Columns2, Rows2 } from "lucide-react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useAppStore } from "../../stores/appStore";
 import { findTerminalHighlights } from "../../utils/terminalHighlight";
+import { getTerminalContextMenuAction, getTerminalShortcutAction } from "../../utils/terminalInteraction";
 import "@xterm/xterm/css/xterm.css";
 
 interface SemanticDecorationLine {
@@ -256,12 +258,17 @@ export function TerminalView({
 
   const handleCopy = useCallback(() => {
     const sel = terminalRef.current?.getSelection();
-    if (sel) navigator.clipboard.writeText(sel);
+    if (sel) writeText(sel).catch(() => {});
   }, []);
 
   const handlePaste = useCallback(async () => {
-    const text = await navigator.clipboard.readText();
+    const text = await readText().catch(() => null);
     if (text) nativeInvoke("write_terminal", { tabId, data: text, protocol }).catch(() => {});
+  }, [tabId, protocol]);
+
+  const handleDisconnect = useCallback(async () => {
+    if (connectionStateRef.current === "disconnected") return;
+    await nativeInvoke("close_terminal", { tabId, protocol }).catch(() => {});
   }, [tabId, protocol]);
 
   // Search functions
@@ -347,24 +354,27 @@ export function TerminalView({
       nativeInvoke("write_terminal", { tabId, data, protocol }).catch(() => {});
     });
 
-    // Preserve Ctrl+C as SIGINT unless text is selected. Clipboard shortcuts
-    // are intercepted before xterm forwards them to the remote host.
+    // Preserve Ctrl+C as SIGINT unless text is selected. Local shortcuts are
+    // intercepted before xterm forwards them to the remote host.
     terminal.attachCustomKeyEventHandler((e) => {
-      if (e.type !== "keydown") return true;
-      if (e.ctrlKey && e.key.toLowerCase() === "f") {
-        setSearchOpen(true);
-        setTimeout(() => searchInputRef.current?.focus(), 50);
-        return false; // prevent terminal from receiving it
+      const action = getTerminalShortcutAction(e, terminal.hasSelection());
+      switch (action) {
+        case "search":
+          setSearchOpen(true);
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+          return false;
+        case "copy":
+          handleCopy();
+          return false;
+        case "paste":
+          handlePaste();
+          return false;
+        case "disconnect":
+          handleDisconnect();
+          return false;
+        default:
+          return true;
       }
-      if (e.ctrlKey && e.key.toLowerCase() === "c" && terminal.hasSelection()) {
-        handleCopy();
-        return false;
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === "v") {
-        handlePaste();
-        return false;
-      }
-      return true;
     });
 
     // Always parse the exact remote payload first. Semantic colors are visual
@@ -470,7 +480,11 @@ export function TerminalView({
         data-tab-id={tabId}
         onContextMenu={(e) => {
           e.preventDefault();
-          handlePaste();
+          if (getTerminalContextMenuAction(terminalRef.current?.hasSelection() ?? false) === "copy") {
+            handleCopy();
+          } else {
+            handlePaste();
+          }
         }}
       />
     </div>

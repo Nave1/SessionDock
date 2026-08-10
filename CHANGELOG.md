@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-08-10
+
+### Added
+- Disconnect the active terminal connection explicitly with Ctrl+Q while keeping its tab available for reconnection
+
+### Fixed
+- Keep SSH sessions connected when libssh2 reports a nonblocking `transport read` polling condition
+- Copy selected terminal text to the native OS clipboard so it can be pasted into other applications
+- Make terminal right-click copy selected text and paste only when no text is selected
+
 ## [0.9.2] - 2026-08-06
 
 ### Changed

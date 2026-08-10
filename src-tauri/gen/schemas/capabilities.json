@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"Default capabilities for SessionDock","local":true,"webviews":["main"],"permissions":["core:default","shell:allow-open","updater:default","process:allow-restart","dialog:default","fs:default"]}}
+{"default":{"identifier":"default","description":"Default capabilities for SessionDock","local":true,"webviews":["main"],"permissions":["core:default","clipboard-manager:allow-read-text","clipboard-manager:allow-write-text","shell:allow-open","updater:default","process:allow-restart","dialog:default","fs:default"]}}
