@@ -236,13 +236,14 @@ export function TerminalView({
     const term = terminalRef.current;
     if (!term) return;
     connectedRef.current = false;
-    term.writeln("");
-    term.writeln("\x1b[38;2;251;191;36m--- Reconnecting ---\x1b[39m");
+    connectionStateRef.current = "connecting";
     try {
       await nativeInvoke("close_terminal", { tabId, protocol });
     } catch { /* ignore close errors */ }
     // Wait for connection to fully close before reconnecting
     await new Promise(r => setTimeout(r, 500));
+    term.reset();
+    term.clear();
     connectToHost();
   }, [tabId, protocol, connectToHost]);
 

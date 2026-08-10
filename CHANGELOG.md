@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-08-10
+
+### Fixed
+- Keep SSH sessions active when an optional keepalive message cannot be sent, while continuing to detect real channel and socket closure
+- Reset terminal modes, viewport, and scrollback after the old connection closes so reconnect starts with a fresh terminal
+
 ## [0.9.3] - 2026-08-10
 
 ### Added

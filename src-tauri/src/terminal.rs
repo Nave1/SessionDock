@@ -207,27 +207,25 @@ pub async fn connect_ssh(
             tokio::time::sleep(Duration::from_millis(20)).await;
 
             // Single lock acquisition per iteration — read stdout, stderr, check EOF
-            let (result, stderr_data, is_eof, exit_status, keepalive_error) = {
+            let (result, stderr_data, is_eof, exit_status) = {
                 let mut c = conn_reader.lock().await;
-                let keepalive_error = if next_keepalive
-                    .is_some_and(|deadline| Instant::now() >= deadline)
-                {
+                if next_keepalive.is_some_and(|deadline| Instant::now() >= deadline) {
                     match c.session.keepalive_send() {
                         Ok(seconds) => {
-                            next_keepalive = Some(
-                                Instant::now() + Duration::from_secs(seconds.max(1) as u64),
-                            );
-                            None
+                            next_keepalive =
+                                Some(Instant::now() + Duration::from_secs(seconds.max(1) as u64));
                         }
                         Err(error) if error.code() == ssh2::ErrorCode::Session(-37) => {
                             next_keepalive = Some(Instant::now() + Duration::from_secs(1));
-                            None
                         }
-                        Err(error) => Some(error.to_string()),
+                        Err(error) => {
+                            log::warn!(
+                                "SSH keepalive send failed; connection remains active: {error}"
+                            );
+                            next_keepalive = keepalive_retry_deadline(keepalive_secs);
+                        }
                     }
-                } else {
-                    None
-                };
+                }
                 let stdout_result = c.channel.read(&mut buf);
                 let mut stderr_buf = [0u8; 4096];
                 let stderr_n = c.channel.stderr().read(&mut stderr_buf).unwrap_or(0);
@@ -242,17 +240,12 @@ pub async fn connect_ssh(
                     },
                     eof,
                     exit_status,
-                    keepalive_error,
                 )
             }; // Lock released here
 
             // Process stderr
             if let Some(data) = stderr_data {
                 let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
-            }
-
-            if let Some(error) = keepalive_error {
-                break format!("SSH keepalive failed: {error}");
             }
 
             match result {
@@ -296,6 +289,10 @@ fn keepalive_deadline(keepalive_secs: u32) -> Option<Instant> {
     (keepalive_secs > 0).then(|| Instant::now() + Duration::from_secs(keepalive_secs as u64))
 }
 
+fn keepalive_retry_deadline(keepalive_secs: u32) -> Option<Instant> {
+    (keepalive_secs > 0).then(|| Instant::now() + Duration::from_secs(keepalive_secs.max(5) as u64))
+}
+
 fn remote_close_reason(exit_status: Option<i32>) -> String {
     match exit_status {
         Some(0) | None => "Remote host closed the SSH channel.".to_string(),
@@ -314,12 +311,16 @@ fn is_nonfatal_read_error(error: &std::io::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_nonfatal_read_error, keepalive_deadline, remote_close_reason};
+    use super::{
+        is_nonfatal_read_error, keepalive_deadline, keepalive_retry_deadline, remote_close_reason,
+    };
 
     #[test]
     fn keepalive_zero_disables_scheduling() {
         assert!(keepalive_deadline(0).is_none());
         assert!(keepalive_deadline(60).is_some());
+        assert!(keepalive_retry_deadline(0).is_none());
+        assert!(keepalive_retry_deadline(60).is_some());
     }
 
     #[test]
