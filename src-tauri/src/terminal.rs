@@ -387,20 +387,6 @@ pub async fn write_ssh(
                 Err(error) => return Err(AppError::Ssh(format!("Write error: {error}"))),
             }
         }
-
-        loop {
-            let result = {
-                let mut transport = conn.transport.lock().await;
-                transport.channel.flush()
-            };
-            match result {
-                Ok(()) => break,
-                Err(ref error) if is_nonfatal_io_error(error) && Instant::now() < deadline => {
-                    tokio::time::sleep(Duration::from_millis(5)).await;
-                }
-                Err(error) => return Err(AppError::Ssh(format!("Flush error: {error}"))),
-            }
-        }
     }
     Ok(())
 }
