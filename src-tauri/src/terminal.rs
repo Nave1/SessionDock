@@ -18,13 +18,18 @@ struct SshConnection {
     channel: Channel,
 }
 
+struct ManagedSshConnection {
+    transport: Mutex<SshConnection>,
+    operation_lock: Mutex<()>,
+}
+
 // Safety: ssh2::Session and Channel are not Send/Sync by default,
 // but we wrap them in a Mutex and only access from one task at a time.
 unsafe impl Send for SshConnection {}
 unsafe impl Sync for SshConnection {}
 
 pub struct NativeSshManager {
-    connections: Arc<Mutex<HashMap<String, Arc<Mutex<SshConnection>>>>>,
+    connections: Arc<Mutex<HashMap<String, Arc<ManagedSshConnection>>>>,
 }
 
 impl NativeSshManager {
@@ -184,7 +189,10 @@ pub async fn connect_ssh(
     // Set channel to non-blocking for reading
     session.set_blocking(false);
 
-    let conn = Arc::new(Mutex::new(SshConnection { session, channel }));
+    let conn = Arc::new(ManagedSshConnection {
+        transport: Mutex::new(SshConnection { session, channel }),
+        operation_lock: Mutex::new(()),
+    });
 
     // Store connection
     {
@@ -208,7 +216,7 @@ pub async fn connect_ssh(
 
             // Single lock acquisition per iteration — read stdout, stderr, check EOF
             let (result, stderr_data, is_eof, exit_status) = {
-                let mut c = conn_reader.lock().await;
+                let mut c = conn_reader.transport.lock().await;
                 if next_keepalive.is_some_and(|deadline| Instant::now() >= deadline) {
                     match c.session.keepalive_send() {
                         Ok(seconds) => {
@@ -257,7 +265,7 @@ pub async fn connect_ssh(
                     let data = String::from_utf8_lossy(&buf[..n]).to_string();
                     let _ = app_clone.emit(&format!("terminal-data-{}", tid), &data);
                 }
-                Err(ref error) if is_nonfatal_read_error(error) => {
+                Err(ref error) if is_nonfatal_io_error(error) => {
                     if is_eof {
                         break remote_close_reason(exit_status);
                     }
@@ -300,7 +308,7 @@ fn remote_close_reason(exit_status: Option<i32>) -> String {
     }
 }
 
-fn is_nonfatal_read_error(error: &std::io::Error) -> bool {
+fn is_nonfatal_io_error(error: &std::io::Error) -> bool {
     matches!(
         error.kind(),
         std::io::ErrorKind::WouldBlock
@@ -312,7 +320,7 @@ fn is_nonfatal_read_error(error: &std::io::Error) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_nonfatal_read_error, keepalive_deadline, keepalive_retry_deadline, remote_close_reason,
+        is_nonfatal_io_error, keepalive_deadline, keepalive_retry_deadline, remote_close_reason,
     };
 
     #[test]
@@ -334,14 +342,14 @@ mod tests {
 
     #[test]
     fn keeps_polling_after_nonfatal_transport_read_errors() {
-        assert!(is_nonfatal_read_error(&std::io::Error::from(
+        assert!(is_nonfatal_io_error(&std::io::Error::from(
             std::io::ErrorKind::WouldBlock,
         )));
-        assert!(is_nonfatal_read_error(&std::io::Error::from(
+        assert!(is_nonfatal_io_error(&std::io::Error::from(
             std::io::ErrorKind::Interrupted,
         )));
-        assert!(is_nonfatal_read_error(&std::io::Error::other("transport read")));
-        assert!(!is_nonfatal_read_error(&std::io::Error::other("connection reset")));
+        assert!(is_nonfatal_io_error(&std::io::Error::other("transport read")));
+        assert!(!is_nonfatal_io_error(&std::io::Error::other("connection reset")));
     }
 }
 
@@ -357,19 +365,42 @@ pub async fn write_ssh(
         conns.get(tab_id).cloned()
     };
     if let Some(conn) = conn {
-        let mut c = conn.lock().await;
-        c.session.set_blocking(true);
-        let result = c
-            .channel
-            .write_all(data)
-            .map_err(|e| AppError::Ssh(format!("Write error: {}", e)))
-            .and_then(|_| {
-                c.channel
-                    .flush()
-                    .map_err(|e| AppError::Ssh(format!("Flush error: {}", e)))
-            });
-        c.session.set_blocking(false);
-        result?;
+        let _operation_guard = conn.operation_lock.lock().await;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let mut written = 0;
+
+        while written < data.len() {
+            let result = {
+                let mut transport = conn.transport.lock().await;
+                transport.channel.write(&data[written..])
+            };
+
+            match result {
+                Ok(0) if Instant::now() < deadline => {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                Ok(0) => return Err(AppError::Ssh("SSH write timed out".to_string())),
+                Ok(count) => written += count,
+                Err(ref error) if is_nonfatal_io_error(error) && Instant::now() < deadline => {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                Err(error) => return Err(AppError::Ssh(format!("Write error: {error}"))),
+            }
+        }
+
+        loop {
+            let result = {
+                let mut transport = conn.transport.lock().await;
+                transport.channel.flush()
+            };
+            match result {
+                Ok(()) => break,
+                Err(ref error) if is_nonfatal_io_error(error) && Instant::now() < deadline => {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                Err(error) => return Err(AppError::Ssh(format!("Flush error: {error}"))),
+            }
+        }
     }
     Ok(())
 }
@@ -381,12 +412,29 @@ pub async fn resize_ssh(
     cols: u32,
     rows: u32,
 ) -> Result<(), AppError> {
-    let conns = manager.connections.lock().await;
-    if let Some(conn) = conns.get(tab_id) {
-        let mut c = conn.lock().await;
-        c.session.set_blocking(true);
-        let _ = c.channel.request_pty_size(cols, rows, None, None);
-        c.session.set_blocking(false);
+    let conn = {
+        let conns = manager.connections.lock().await;
+        conns.get(tab_id).cloned()
+    };
+    if let Some(conn) = conn {
+        let _operation_guard = conn.operation_lock.lock().await;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let result = {
+                let mut transport = conn.transport.lock().await;
+                transport.channel.request_pty_size(cols, rows, None, None)
+            };
+            match result {
+                Ok(()) => break,
+                Err(ref error)
+                    if error.code() == ssh2::ErrorCode::Session(-37)
+                        && Instant::now() < deadline =>
+                {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                Err(error) => return Err(AppError::Ssh(format!("Resize error: {error}"))),
+            }
+        }
     }
     Ok(())
 }
@@ -396,13 +444,32 @@ pub async fn close_ssh(
     manager: &NativeSshManager,
     tab_id: &str,
 ) -> Result<(), AppError> {
-    let mut conns = manager.connections.lock().await;
-    if let Some(conn) = conns.remove(tab_id) {
-        let mut c = conn.lock().await;
-        c.session.set_blocking(true);
-        let _ = c.channel.send_eof();
-        let _ = c.channel.close();
-        let _ = c.channel.wait_close();
+    let conn = {
+        let mut conns = manager.connections.lock().await;
+        conns.remove(tab_id)
+    };
+    if let Some(conn) = conn {
+        let _operation_guard = conn.operation_lock.lock().await;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            let result = {
+                let mut transport = conn.transport.lock().await;
+                transport.channel.close()
+            };
+            match result {
+                Ok(()) => break,
+                Err(ref error)
+                    if error.code() == ssh2::ErrorCode::Session(-37)
+                        && Instant::now() < deadline =>
+                {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+                Err(error) => {
+                    log::warn!("SSH channel close failed for {tab_id}: {error}");
+                    break;
+                }
+            }
+        }
     }
     Ok(())
 }
