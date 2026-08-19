@@ -96,7 +96,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.9.1_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.9.6_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
