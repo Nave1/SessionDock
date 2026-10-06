@@ -86,7 +86,7 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
   return (
     <aside
       className="relative flex flex-col h-full bg-dock-sidebar border-r border-dock-border"
-      style={{ width: `${width}px`, minWidth: `${width}px` }}
+      style={{ width: `min(${width}px, 42vw)`, minWidth: `min(${width}px, 42vw)` }}
     >
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 h-12 border-b border-dock-border flex-shrink-0">

@@ -18,8 +18,8 @@ pub fn create_session(
     }
 
     conn.execute(
-        "INSERT INTO sessions (id, name, host, port, protocol, username, credential_profile_id, authentication_method, private_key_reference, folder_id, device_type, vendor, model, description, notes, favorite, startup_command, connection_timeout, keepalive_interval, terminal_profile_id, created_at, updated_at, bmc_use_https, bmc_web_path, bmc_console_url, bmc_viewer_mode, bmc_ignore_tls_errors, bmc_open_console_automatically, bmc_open_fullscreen, bmc_timeout_seconds, bmc_server_hostname, bmc_server_serial_number, bmc_rack, bmc_rack_unit, bmc_site, bmc_redfish_enabled, bmc_cookie_persistence)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37)",
+        "INSERT INTO sessions (id, name, host, port, protocol, username, credential_profile_id, authentication_method, private_key_reference, folder_id, device_type, vendor, model, description, notes, favorite, startup_command, connection_timeout, keepalive_interval, terminal_profile_id, created_at, updated_at, bmc_use_https, bmc_web_path, bmc_console_url, bmc_viewer_mode, bmc_ignore_tls_errors, bmc_open_console_automatically, bmc_open_fullscreen, bmc_timeout_seconds, bmc_server_hostname, bmc_server_serial_number, bmc_rack, bmc_rack_unit, bmc_site, bmc_redfish_enabled, bmc_cookie_persistence, serial_baud_rate)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)",
         rusqlite::params![
             id,
             request.name.trim(),
@@ -58,6 +58,7 @@ pub fn create_session(
             request.bmc_site,
             request.bmc_redfish_enabled.unwrap_or(true) as i32,
             request.bmc_cookie_persistence.unwrap_or(BmcCookiePersistence::Application).as_str(),
+            request.serial_baud_rate.unwrap_or(9600),
         ],
     )?;
 
@@ -121,7 +122,7 @@ pub fn update_session(
     };
 
     conn.execute(
-        "UPDATE sessions SET name=?1, host=?2, port=?3, protocol=?4, favorite=?5, username=?6, authentication_method=?7, device_type=?8, vendor=?9, model=?10, description=?11, notes=?12, folder_id=?13, updated_at=?14, bmc_use_https=?15, bmc_web_path=?16, bmc_console_url=?17, bmc_viewer_mode=?18, bmc_ignore_tls_errors=?19, bmc_open_console_automatically=?20, bmc_open_fullscreen=?21, bmc_timeout_seconds=?22, bmc_server_hostname=?23, bmc_server_serial_number=?24, bmc_rack=?25, bmc_rack_unit=?26, bmc_site=?27, bmc_redfish_enabled=?28, bmc_cookie_persistence=?29 WHERE id=?30",
+        "UPDATE sessions SET name=?1, host=?2, port=?3, protocol=?4, favorite=?5, username=?6, authentication_method=?7, device_type=?8, vendor=?9, model=?10, description=?11, notes=?12, folder_id=?13, updated_at=?14, bmc_use_https=?15, bmc_web_path=?16, bmc_console_url=?17, bmc_viewer_mode=?18, bmc_ignore_tls_errors=?19, bmc_open_console_automatically=?20, bmc_open_fullscreen=?21, bmc_timeout_seconds=?22, bmc_server_hostname=?23, bmc_server_serial_number=?24, bmc_rack=?25, bmc_rack_unit=?26, bmc_site=?27, bmc_redfish_enabled=?28, bmc_cookie_persistence=?29, serial_baud_rate=?30 WHERE id=?31",
         rusqlite::params![
             name,
             host,
@@ -152,6 +153,7 @@ pub fn update_session(
             request.bmc_site.or(existing.bmc_site),
             request.bmc_redfish_enabled.unwrap_or(existing.bmc_redfish_enabled) as i32,
             request.bmc_cookie_persistence.unwrap_or(existing.bmc_cookie_persistence).as_str(),
+            request.serial_baud_rate.unwrap_or(existing.serial_baud_rate),
             request.id,
         ],
     )?;
@@ -205,7 +207,7 @@ pub fn search_sessions(
     )?;
 
     let results = stmt.query_map(rusqlite::params![search_term], |row| {
-        Ok((row_to_session(row)?, row.get::<_, f64>(39)?))
+        Ok((row_to_session(row)?, row.get::<_, f64>(40)?))
     })?;
 
     let mut search_results = Vec::new();
@@ -312,6 +314,7 @@ fn row_to_session(row: &rusqlite::Row<'_>) -> rusqlite::Result<Session> {
         bmc_site: row.get(36)?,
         bmc_redfish_enabled: row.get::<_, i32>(37)? != 0,
         bmc_cookie_persistence: BmcCookiePersistence::from_str(&row.get::<_, String>(38)?),
+        serial_baud_rate: row.get(39)?,
     })
 }
 

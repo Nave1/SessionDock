@@ -41,6 +41,7 @@ pub struct Session {
     pub bmc_site: Option<String>,
     pub bmc_redfish_enabled: bool,
     pub bmc_cookie_persistence: BmcCookiePersistence,
+    pub serial_baud_rate: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +81,7 @@ pub struct CreateSessionRequest {
     pub bmc_site: Option<String>,
     pub bmc_redfish_enabled: Option<bool>,
     pub bmc_cookie_persistence: Option<BmcCookiePersistence>,
+    pub serial_baud_rate: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +118,7 @@ pub struct UpdateSessionRequest {
     pub bmc_site: Option<String>,
     pub bmc_redfish_enabled: Option<bool>,
     pub bmc_cookie_persistence: Option<BmcCookiePersistence>,
+    pub serial_baud_rate: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

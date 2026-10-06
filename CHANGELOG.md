@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-10-06
+
+### Added
+- Add detected COM port and serial speed selection to saved sessions and Quick Connect
+
+### Fixed
+- Connect serial tabs through the native in-process serial backend with persistent baud-rate settings
+- Keep forms, home actions, terminal controls, and the sidebar usable in narrow application windows
+
 ## [0.9.6] - 2026-08-18
 
 ### Fixed

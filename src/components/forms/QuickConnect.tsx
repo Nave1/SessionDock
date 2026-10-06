@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X, AlertTriangle } from "lucide-react";
 import type { BmcSessionConfig, Protocol } from "../../types";
 import { BmcSessionFields } from "./BmcSessionFields";
+import { SerialConnectionFields } from "./SerialConnectionFields";
 
 interface QuickConnectProps {
   onConnect: (config: QuickConnectConfig) => void;
@@ -16,6 +17,7 @@ export interface QuickConnectConfig extends Partial<BmcSessionConfig> {
   username: string;
   password: string;
   saveAsSession: boolean;
+  serial_baud_rate: number;
 }
 
 export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
@@ -27,6 +29,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
     username: "",
     password: "",
     saveAsSession: false,
+    serial_baud_rate: 9600,
   });
   const [showTelnetWarning, setShowTelnetWarning] = useState(false);
 
@@ -47,13 +50,13 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
 
   const handleProtocolChange = (protocol: Protocol) => {
     const ports = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
-    setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
+    setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], ...(protocol === "serial" ? { serial_baud_rate: prev.serial_baud_rate || 9600 } : {}), ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
     setShowTelnetWarning(false);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md max-h-[90vh] bg-dock-sidebar border border-dock-border rounded-lg shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+      <div className="w-full max-w-md max-h-[calc(100vh-1rem)] sm:max-h-[90vh] bg-dock-sidebar border border-dock-border rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b border-dock-border">
           <h2 className="text-sm font-semibold text-dock-text">
             {t("home.quickConnect")}
@@ -65,7 +68,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
 
         <div className="p-5 space-y-4 max-h-[calc(90vh-49px)] overflow-y-auto">
           {/* Protocol */}
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {(["ssh", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
               <button
                 key={p}
@@ -113,6 +116,15 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
             <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-xs leading-5 text-dock-text-muted">
               Opens the VM desktop in RealVNC Viewer. Use the VNC server port, normally 5900. Select Remember password in Viewer once to sign in automatically on future connections.
             </div>
+          )}
+
+          {config.protocol === "serial" && (
+            <SerialConnectionFields
+              portName={config.host}
+              baudRate={config.serial_baud_rate}
+              onPortNameChange={(host) => setConfig((previous) => ({ ...previous, host }))}
+              onBaudRateChange={(serial_baud_rate) => setConfig((previous) => ({ ...previous, serial_baud_rate }))}
+            />
           )}
 
           {/* Host */}
@@ -205,7 +217,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
             </button>
             <button
               onClick={handleConnect}
-              disabled={config.protocol !== "serial" && !config.host.trim()}
+              disabled={!config.host.trim()}
               className="px-4 py-2 rounded text-xs text-white bg-dock-accent hover:bg-dock-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t("session.connect")}

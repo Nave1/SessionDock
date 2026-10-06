@@ -45,7 +45,7 @@ export function HomeView({ onNewSession, onNewFolder, onQuickConnect, onImport }
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto px-10 py-8">
+      <div className="max-w-4xl mx-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-8">
 
         {/* Search — the hero element */}
         <div className="mb-10">
@@ -65,7 +65,7 @@ export function HomeView({ onNewSession, onNewFolder, onQuickConnect, onImport }
         </div>
 
         {/* Quick actions row */}
-        <div className="flex gap-2 mb-10">
+        <div className="flex flex-wrap gap-2 mb-8 sm:mb-10">
           <QuickAction icon={Zap} label="Quick Connect" onClick={onQuickConnect} primary />
           <QuickAction icon={Monitor} label="New Session" onClick={onNewSession} />
           <QuickAction icon={FolderOpen} label="New Folder" onClick={onNewFolder} />
@@ -73,7 +73,7 @@ export function HomeView({ onNewSession, onNewFolder, onQuickConnect, onImport }
         </div>
 
         {/* Stats strip */}
-        <div className="flex items-center gap-6 mb-10 px-1">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-8 px-1 sm:mb-10">
           <Stat value={sessions.length} label="Sessions" />
           <div className="w-px h-4 bg-dock-border" />
           <Stat value={folders.length} label="Folders" />

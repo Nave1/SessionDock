@@ -44,6 +44,7 @@ export interface SafeExportSession {
   bmc_site?: string;
   bmc_redfish_enabled?: boolean;
   bmc_cookie_persistence?: Session["bmc_cookie_persistence"];
+  serial_baud_rate?: number;
 }
 
 export type ImportFolder = Pick<Folder, "id" | "name" | "parent_id" | "sort_order">;
@@ -101,6 +102,7 @@ export function createSafeExport(
       bmc_site: s.protocol === "bmc" ? s.bmc_site : undefined,
       bmc_redfish_enabled: s.protocol === "bmc" ? s.bmc_redfish_enabled : undefined,
       bmc_cookie_persistence: s.protocol === "bmc" ? s.bmc_cookie_persistence : undefined,
+      serial_baud_rate: s.protocol === "serial" ? s.serial_baud_rate ?? 9600 : undefined,
     })),
     folders,
     tags: Array.from(allTags),
@@ -116,7 +118,7 @@ export function createCsvExport(sessions: Session[], folders: Folder[] = []): st
     "Name", "Host", "Port", "Protocol", "Username",
     "Device Type", "Vendor", "Model", "Description", "Favorite",
     "BMC HTTPS", "BMC Web Path", "BMC Console URL", "BMC Viewer Mode",
-    "BMC Server Hostname", "BMC Serial Number", "BMC Site", "BMC Rack", "BMC Rack Unit",
+    "BMC Server Hostname", "BMC Serial Number", "BMC Site", "BMC Rack", "BMC Rack Unit", "Serial Speed (bps)",
   ];
 
   const folderRows = folders.map((folder) => [
@@ -153,6 +155,7 @@ export function createCsvExport(sessions: Session[], folders: Folder[] = []): st
     escapeCsv(s.protocol === "bmc" ? s.bmc_site || "" : ""),
     escapeCsv(s.protocol === "bmc" ? s.bmc_rack || "" : ""),
     escapeCsv(s.protocol === "bmc" ? s.bmc_rack_unit || "" : ""),
+    s.protocol === "serial" ? String(s.serial_baud_rate ?? 9600) : "",
   ]);
 
   return [headers.join(","), ...folderRows.map((r) => r.join(",")), ...sessionRows.map((r) => r.join(","))].join("\n");
@@ -236,6 +239,13 @@ export function parseCsvImportData(csv: string): CsvImportData {
         case "bmc site": session.bmc_site = value; break;
         case "bmc rack": session.bmc_rack = value; break;
         case "bmc rack unit": session.bmc_rack_unit = value; break;
+        case "serial speed (bps)": {
+          const baudRate = Number.parseInt(value, 10);
+          if (Number.isFinite(baudRate) && baudRate >= 300 && baudRate <= 4_000_000) {
+            session.serial_baud_rate = baudRate;
+          }
+          break;
+        }
       }
     });
 

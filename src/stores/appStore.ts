@@ -85,6 +85,7 @@ export interface TerminalTab {
   protocol: Protocol;
   username?: string;
   password?: string;
+  serialBaudRate?: number;
   status: ConnectionStatus;
   pinned: boolean;
   bmc?: Partial<BmcSessionConfig>;

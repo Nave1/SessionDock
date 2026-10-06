@@ -45,6 +45,7 @@ export interface Session extends BmcSessionConfig {
   updated_at: string;
   last_connected_at?: string;
   connection_count: number;
+  serial_baud_rate?: number;
 }
 
 export interface CreateSessionRequest extends Partial<BmcSessionConfig> {
@@ -68,6 +69,7 @@ export interface CreateSessionRequest extends Partial<BmcSessionConfig> {
   keepalive_interval?: number;
   terminal_profile_id?: string;
   tags?: string[];
+  serial_baud_rate?: number;
 }
 
 export interface Folder {

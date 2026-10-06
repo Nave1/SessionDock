@@ -134,6 +134,7 @@ interface TerminalViewProps {
   protocol: string;
   username?: string;
   password?: string;
+  serialBaudRate?: number;
   keepaliveInterval?: number;
   canSplit?: boolean;
   canClosePane?: boolean;
@@ -151,6 +152,7 @@ export function TerminalView({
   protocol,
   username,
   password,
+  serialBaudRate = 9600,
   keepaliveInterval = 60,
   canSplit = true,
   canClosePane = false,
@@ -180,7 +182,8 @@ export function TerminalView({
     const term = terminalRef.current;
     if (!term) return;
 
-    term.writeln(`\x1b[38;2;251;191;36mConnecting\x1b[39m to \x1b[38;2;209;109;255m${host}:${port}\x1b[39m via ${protocol.toUpperCase()}...`);
+    const endpoint = protocol === "serial" ? `${host} at ${serialBaudRate.toLocaleString()} bps` : `${host}:${port}`;
+    term.writeln(`\x1b[38;2;251;191;36mConnecting\x1b[39m to \x1b[38;2;209;109;255m${endpoint}\x1b[39m via ${protocol.toUpperCase()}...`);
     term.writeln("");
 
     let finalUsername = username || "";
@@ -217,12 +220,15 @@ export function TerminalView({
         username: finalUsername || null,
         password: finalPassword || null,
         keepaliveSecs: keepaliveInterval,
+        serialBaudRate,
       });
-      await nativeInvoke("resize_terminal", {
-        tabId,
-        cols: term.cols,
-        rows: term.rows,
-      });
+      if (protocol === "ssh") {
+        await nativeInvoke("resize_terminal", {
+          tabId,
+          cols: term.cols,
+          rows: term.rows,
+        });
+      }
       term.focus();
     } catch (err) {
       term.writeln(`\x1b[38;2;248;113;113mConnection failed: ${err}\x1b[39m`);
@@ -230,7 +236,7 @@ export function TerminalView({
       connectionStateRef.current = "disconnected";
       updateTabStatus(statusTabId, "error");
     }
-  }, [tabId, statusTabId, host, port, protocol, username, password, keepaliveInterval, updateTabStatus]);
+  }, [tabId, statusTabId, host, port, protocol, username, password, serialBaudRate, keepaliveInterval, updateTabStatus]);
 
   const handleReconnect = useCallback(async () => {
     const term = terminalRef.current;
@@ -417,7 +423,7 @@ export function TerminalView({
     resizeObserver.observe(containerRef.current);
 
     terminal.onResize(({ cols, rows }) => {
-      nativeInvoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
+      if (protocol === "ssh") nativeInvoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
     });
 
     // Deferring startup lets React Strict Mode cancel its development-only
@@ -440,7 +446,7 @@ export function TerminalView({
   return (
     <div className="flex flex-col w-full h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-1 px-2 h-8 bg-dock-sidebar border-b border-dock-border flex-shrink-0">
+      <div className="flex items-center gap-1 px-2 h-8 overflow-x-auto bg-dock-sidebar border-b border-dock-border flex-shrink-0">
         <ToolbarBtn icon={RotateCw} title="Reconnect" onClick={handleReconnect} />
         <ToolbarBtn icon={Columns2} title="Split right" onClick={() => onSplitRight?.()} disabled={!canSplit || !onSplitRight} />
         <ToolbarBtn icon={Rows2} title="Split down" onClick={() => onSplitDown?.()} disabled={!canSplit || !onSplitDown} />

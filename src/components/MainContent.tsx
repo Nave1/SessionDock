@@ -49,7 +49,7 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
   const showTerminal = activeTab && !isNavView;
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden">
+    <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
       {tabs.length > 0 && <TerminalTabs />}
 
       <div className="flex-1 overflow-hidden relative">

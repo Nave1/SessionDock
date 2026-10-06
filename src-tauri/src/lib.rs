@@ -12,7 +12,7 @@ mod updater_proxy;
 use commands::connections::ConnectionManager;
 pub use db::Database;
 pub use error::AppError;
-use terminal::{NativeSshManager, TelnetManager};
+use terminal::{NativeSshManager, SerialManager, TelnetManager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -40,6 +40,7 @@ pub fn run() {
             app.manage(ConnectionManager::new());
             app.manage(NativeSshManager::new());
             app.manage(TelnetManager::new());
+            app.manage(SerialManager::new());
 
             log::info!("SessionDock initialized. DB: {:?}", db_path);
             Ok(())

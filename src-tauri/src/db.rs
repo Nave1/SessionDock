@@ -70,10 +70,32 @@ impl Database {
             )?;
         }
 
+        if current_version < 4 {
+            add_serial_columns(&conn)?;
+            conn.execute(
+                "INSERT INTO schema_version (version) VALUES (?1)",
+                params![4],
+            )?;
+        }
+
         log::info!("Database migrations complete. Version: {}", 
-            std::cmp::max(current_version, 3));
+            std::cmp::max(current_version, 4));
         Ok(())
     }
+}
+
+fn add_serial_columns(conn: &Connection) -> Result<(), AppError> {
+    let exists = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM pragma_table_info('sessions') WHERE name = 'serial_baud_rate')",
+        [],
+        |row| row.get::<_, bool>(0),
+    )?;
+    if !exists {
+        conn.execute_batch(
+            "ALTER TABLE sessions ADD COLUMN serial_baud_rate INTEGER NOT NULL DEFAULT 9600;",
+        )?;
+    }
+    Ok(())
 }
 
 fn add_bmc_columns(conn: &Connection) -> Result<(), AppError> {
@@ -138,7 +160,12 @@ mod tests {
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
         ).unwrap();
         assert_eq!(row, ("Legacy SSH".into(), "ssh".into(), 1, "web".into()));
-        assert_eq!(conn.query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get::<_, i64>(0)).unwrap(), 3);
+        assert_eq!(conn.query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get::<_, i64>(0)).unwrap(), 4);
+        assert_eq!(conn.query_row(
+            "SELECT serial_baud_rate FROM sessions WHERE id = 'legacy-session'",
+            [],
+            |row| row.get::<_, i64>(0),
+        ).unwrap(), 9600);
         conn.execute(
             "UPDATE sessions SET protocol = 'bmc', bmc_site = 'North Campus', bmc_server_serial_number = 'SN-700' WHERE id = 'legacy-session'",
             [],

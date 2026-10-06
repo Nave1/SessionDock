@@ -116,6 +116,7 @@ function App() {
       protocol: config.protocol,
       username: config.username || undefined,
       password: config.password || undefined,
+      serialBaudRate: config.protocol === "serial" ? config.serial_baud_rate : undefined,
       status: "connecting",
       pinned: false,
       bmc: config.protocol === "bmc" ? config : undefined,
@@ -135,6 +136,7 @@ function App() {
         favorite: false,
         connection_timeout: 30,
         keepalive_interval: 60,
+        serial_baud_rate: config.serial_baud_rate,
         bmc_use_https: config.bmc_use_https,
         bmc_web_path: config.bmc_web_path,
         bmc_console_url: safePersistedBmcUrl(config.bmc_console_url),
@@ -206,6 +208,7 @@ function App() {
                 bmc_site: s.bmc_site,
                 bmc_redfish_enabled: s.bmc_redfish_enabled,
                 bmc_cookie_persistence: s.bmc_cookie_persistence,
+                serial_baud_rate: s.serial_baud_rate,
               });
               count++;
             }
@@ -247,6 +250,7 @@ function App() {
                 bmc_site: importedSession.bmc_site,
                 bmc_rack: importedSession.bmc_rack,
                 bmc_rack_unit: importedSession.bmc_rack_unit,
+                serial_baud_rate: importedSession.serial_baud_rate,
               });
               count++;
           }

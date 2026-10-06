@@ -6,12 +6,15 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex as StdMutex;
 use std::time::{Duration, Instant};
 use ssh2::{Channel, Session};
 use tokio::sync::Mutex;
 use tauri::{AppHandle, Emitter};
 
 use crate::error::AppError;
+use crate::protocols::serial::{SerialConfig, SerialSession};
 
 struct SshConnection {
     session: Session,
@@ -458,6 +461,148 @@ pub async fn close_ssh(
         }
     }
     Ok(())
+}
+
+struct ManagedSerialConnection {
+    session: StdMutex<SerialSession>,
+    closed: AtomicBool,
+}
+
+pub struct SerialManager {
+    connections: Arc<Mutex<HashMap<String, Arc<ManagedSerialConnection>>>>,
+}
+
+impl SerialManager {
+    pub fn new() -> Self {
+        Self {
+            connections: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+}
+
+fn validate_serial_config(port_name: &str, baud_rate: u32) -> Result<(), AppError> {
+    if port_name.trim().is_empty() || port_name.len() > 256 || port_name.contains('\0') {
+        return Err(AppError::Validation("A valid serial port name is required".into()));
+    }
+    if !(300..=4_000_000).contains(&baud_rate) {
+        return Err(AppError::Validation(
+            "Serial speed must be between 300 and 4000000 bps".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub async fn connect_serial(
+    app: &AppHandle,
+    manager: &SerialManager,
+    tab_id: &str,
+    port_name: &str,
+    baud_rate: u32,
+) -> Result<(), AppError> {
+    validate_serial_config(port_name, baud_rate)?;
+
+    let mut session = SerialSession::new(SerialConfig {
+        port_name: port_name.trim().to_string(),
+        baud_rate,
+        data_bits: 8,
+        stop_bits: 1,
+        parity: "none".into(),
+        flow_control: "none".into(),
+    });
+    let session = tokio::task::spawn_blocking(move || {
+        session.connect()?;
+        Ok::<_, AppError>(session)
+    })
+    .await
+    .map_err(|error| AppError::Serial(format!("Serial connection task failed: {error}")))??;
+
+    let connection = Arc::new(ManagedSerialConnection {
+        session: StdMutex::new(session),
+        closed: AtomicBool::new(false),
+    });
+    manager.connections.lock().await.insert(tab_id.to_string(), connection.clone());
+
+    let _ = app.emit(&format!("terminal-status-{tab_id}"), "connected");
+    let app_clone = app.clone();
+    let tab_id_owned = tab_id.to_string();
+    tokio::task::spawn_blocking(move || {
+        let mut buffer = [0_u8; 4096];
+        while !connection.closed.load(Ordering::Acquire) {
+            let result = connection
+                .session
+                .lock()
+                .map_err(|_| AppError::Serial("Serial connection lock was poisoned".into()))
+                .and_then(|mut active| active.read(&mut buffer));
+            match result {
+                Ok(0) => continue,
+                Ok(count) => {
+                    let data = String::from_utf8_lossy(&buffer[..count]).to_string();
+                    let _ = app_clone.emit(&format!("terminal-data-{tab_id_owned}"), data);
+                }
+                Err(error) => {
+                    let reason = error.to_string();
+                    let _ = app_clone.emit(
+                        &format!("terminal-close-detail-{tab_id_owned}"),
+                        &reason,
+                    );
+                    break;
+                }
+            }
+        }
+        let _ = app_clone.emit(&format!("terminal-status-{tab_id_owned}"), "disconnected");
+    });
+    Ok(())
+}
+
+pub async fn write_serial(
+    manager: &SerialManager,
+    tab_id: &str,
+    data: &[u8],
+) -> Result<(), AppError> {
+    let connection = manager.connections.lock().await.get(tab_id).cloned();
+    if let Some(connection) = connection {
+        let data = data.to_vec();
+        tokio::task::spawn_blocking(move || {
+            connection
+                .session
+                .lock()
+                .map_err(|_| AppError::Serial("Serial connection lock was poisoned".into()))?
+                .write(&data)
+        })
+        .await
+        .map_err(|error| AppError::Serial(format!("Serial write task failed: {error}")))??;
+    }
+    Ok(())
+}
+
+pub async fn close_serial(manager: &SerialManager, tab_id: &str) -> Result<(), AppError> {
+    let connection = manager.connections.lock().await.remove(tab_id);
+    if let Some(connection) = connection {
+        connection.closed.store(true, Ordering::Release);
+        tokio::task::spawn_blocking(move || {
+            connection
+                .session
+                .lock()
+                .map_err(|_| AppError::Serial("Serial connection lock was poisoned".into()))?
+                .disconnect()
+        })
+        .await
+        .map_err(|error| AppError::Serial(format!("Serial close task failed: {error}")))??;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod serial_tests {
+    use super::validate_serial_config;
+
+    #[test]
+    fn validates_serial_port_and_speed() {
+        assert!(validate_serial_config("COM3", 115_200).is_ok());
+        assert!(validate_serial_config("", 9_600).is_err());
+        assert!(validate_serial_config("COM3", 0).is_err());
+        assert!(validate_serial_config("COM3", 4_000_001).is_err());
+    }
 }
 
 // --- Telnet process-based backend (kept as-is, separate from SSH) ---

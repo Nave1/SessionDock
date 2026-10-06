@@ -1,7 +1,7 @@
 use tauri::{AppHandle, State};
 
 use crate::error::AppError;
-use crate::terminal::{NativeSshManager, TelnetManager};
+use crate::terminal::{NativeSshManager, SerialManager, TelnetManager};
 
 /// Connect to SSH using native in-process SSH (no external ssh.exe)
 #[tauri::command]
@@ -9,6 +9,7 @@ pub async fn spawn_terminal(
     app: AppHandle,
     ssh_manager: State<'_, NativeSshManager>,
     telnet_manager: State<'_, TelnetManager>,
+    serial_manager: State<'_, SerialManager>,
     tab_id: String,
     host: String,
     port: u16,
@@ -16,6 +17,7 @@ pub async fn spawn_terminal(
     username: Option<String>,
     password: Option<String>,
     keepalive_secs: Option<u32>,
+    serial_baud_rate: Option<u32>,
 ) -> Result<(), AppError> {
     match protocol.as_str() {
         "ssh" => {
@@ -50,6 +52,16 @@ pub async fn spawn_terminal(
                 port,
             ).await?;
         }
+        "serial" => {
+            crate::terminal::connect_serial(
+                &app,
+                &serial_manager,
+                &tab_id,
+                &host,
+                serial_baud_rate.unwrap_or(9600),
+            )
+            .await?;
+        }
         _ => {
             return Err(AppError::Generic(format!("Unsupported protocol: {}", protocol)));
         }
@@ -62,6 +74,7 @@ pub async fn spawn_terminal(
 pub async fn write_terminal(
     ssh_manager: State<'_, NativeSshManager>,
     telnet_manager: State<'_, TelnetManager>,
+    serial_manager: State<'_, SerialManager>,
     tab_id: String,
     data: String,
     protocol: Option<String>,
@@ -70,6 +83,9 @@ pub async fn write_terminal(
     match proto {
         "telnet" => {
             crate::terminal::write_telnet(&telnet_manager, &tab_id, data.as_bytes()).await
+        }
+        "serial" => {
+            crate::terminal::write_serial(&serial_manager, &tab_id, data.as_bytes()).await
         }
         _ => {
             crate::terminal::write_ssh(&ssh_manager, &tab_id, data.as_bytes()).await
@@ -93,12 +109,14 @@ pub async fn resize_terminal(
 pub async fn close_terminal(
     ssh_manager: State<'_, NativeSshManager>,
     telnet_manager: State<'_, TelnetManager>,
+    serial_manager: State<'_, SerialManager>,
     tab_id: String,
     protocol: Option<String>,
 ) -> Result<(), AppError> {
     let proto = protocol.as_deref().unwrap_or("ssh");
     match proto {
         "telnet" => crate::terminal::close_telnet(&telnet_manager, &tab_id).await,
+        "serial" => crate::terminal::close_serial(&serial_manager, &tab_id).await,
         _ => crate::terminal::close_ssh(&ssh_manager, &tab_id).await,
     }
 }

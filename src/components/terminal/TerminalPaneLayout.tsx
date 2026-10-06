@@ -37,6 +37,7 @@ export function TerminalPaneLayout({ tab, session }: TerminalPaneLayoutProps) {
               protocol={tab.protocol}
               username={tab.username ?? session?.username}
               password={tab.password}
+              serialBaudRate={tab.serialBaudRate ?? session?.serial_baud_rate ?? 9600}
               keepaliveInterval={session?.keepalive_interval ?? 60}
               canSplit={paneCount < 4}
               canClosePane={paneCount > 1}

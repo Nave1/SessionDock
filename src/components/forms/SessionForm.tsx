@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import type { CreateSessionRequest, Session } from "../../types";
 import { BmcSessionFields } from "./BmcSessionFields";
+import { SerialConnectionFields } from "./SerialConnectionFields";
 import { safePersistedBmcUrl } from "../../utils/bmcUrl";
 
 interface SessionFormProps {
@@ -24,12 +25,13 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
         protocol: "ssh",
         authentication_method: "password",
         favorite: false,
+        serial_baud_rate: 9600,
         folder_id: initialFolderId,
       });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || (!formData.host.trim() && formData.protocol !== "serial")) return;
+    if (!formData.name.trim() || !formData.host.trim()) return;
     try {
       onSubmit({
         ...formData,
@@ -42,12 +44,12 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
 
   const handleProtocolChange = (protocol: CreateSessionRequest["protocol"]) => {
     const defaultPorts = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
-    setFormData((prev) => ({ ...prev, protocol, port: defaultPorts[protocol], ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "application" } : {}) }));
+    setFormData((prev) => ({ ...prev, protocol, port: defaultPorts[protocol], ...(protocol === "serial" ? { serial_baud_rate: prev.serial_baud_rate || 9600 } : {}), ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "application" } : {}) }));
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-xl bg-dock-sidebar border border-dock-border rounded-lg shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+      <div className="w-full max-w-xl max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)] bg-dock-sidebar border border-dock-border rounded-lg shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-dock-border">
           <h2 className="text-sm font-semibold text-dock-text">
@@ -65,7 +67,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
             <label className="block text-xs text-dock-text-muted mb-1.5">
               {t("session.protocol")}
             </label>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap gap-1">
               {(["ssh", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
                 <button
                   key={p}
@@ -100,6 +102,15 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
             <div className="rounded border border-cyan-400/30 bg-cyan-400/10 p-3 text-xs leading-5 text-dock-text-muted">
               VNC opens the VM desktop in RealVNC Viewer. Enter the VM address and its VNC port below; the usual port is 5900. On the first connection, select Remember password in RealVNC Viewer to sign in automatically next time.
             </div>
+          )}
+
+          {formData.protocol === "serial" && (
+            <SerialConnectionFields
+              portName={formData.host}
+              baudRate={formData.serial_baud_rate || 9600}
+              onPortNameChange={(host) => setFormData((previous) => ({ ...previous, host }))}
+              onBaudRateChange={(serial_baud_rate) => setFormData((previous) => ({ ...previous, serial_baud_rate }))}
+            />
           )}
 
           {/* Host (not for serial) */}
@@ -151,7 +162,7 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
           </div>
 
           {/* Device info */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Field
               label={t("session.deviceType")}
               value={formData.device_type || ""}
