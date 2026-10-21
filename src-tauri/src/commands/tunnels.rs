@@ -35,6 +35,7 @@ impl Drop for TunnelConnectionPermit {
     }
 }
 
+#[allow(deprecated)]
 fn acquire_connection(active: &Arc<AtomicUsize>) -> Option<TunnelConnectionPermit> {
     active
         .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
