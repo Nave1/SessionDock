@@ -16,10 +16,12 @@ pub fn create_session(
     if request.name.trim().is_empty() {
         return Err(AppError::Validation("Session name is required".into()));
     }
+    let jump_host_ids = request.jump_host_ids.as_deref().unwrap_or(&[]);
+    validate_jump_host_chain(&conn, None, jump_host_ids)?;
 
     conn.execute(
-        "INSERT INTO sessions (id, name, host, port, protocol, username, credential_profile_id, authentication_method, private_key_reference, folder_id, device_type, vendor, model, description, notes, favorite, startup_command, connection_timeout, keepalive_interval, terminal_profile_id, created_at, updated_at, bmc_use_https, bmc_web_path, bmc_console_url, bmc_viewer_mode, bmc_ignore_tls_errors, bmc_open_console_automatically, bmc_open_fullscreen, bmc_timeout_seconds, bmc_server_hostname, bmc_server_serial_number, bmc_rack, bmc_rack_unit, bmc_site, bmc_redfish_enabled, bmc_cookie_persistence, serial_baud_rate)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38)",
+        "INSERT INTO sessions (id, name, host, port, protocol, username, credential_profile_id, authentication_method, private_key_reference, folder_id, device_type, vendor, model, description, notes, favorite, startup_command, connection_timeout, keepalive_interval, terminal_profile_id, created_at, updated_at, bmc_use_https, bmc_web_path, bmc_console_url, bmc_viewer_mode, bmc_ignore_tls_errors, bmc_open_console_automatically, bmc_open_fullscreen, bmc_timeout_seconds, bmc_server_hostname, bmc_server_serial_number, bmc_rack, bmc_rack_unit, bmc_site, bmc_redfish_enabled, bmc_cookie_persistence, serial_baud_rate, reconnect_mode)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36, ?37, ?38, ?39)",
         rusqlite::params![
             id,
             request.name.trim(),
@@ -59,8 +61,11 @@ pub fn create_session(
             request.bmc_redfish_enabled.unwrap_or(true) as i32,
             request.bmc_cookie_persistence.unwrap_or(BmcCookiePersistence::Application).as_str(),
             request.serial_baud_rate.unwrap_or(9600),
+            request.reconnect_mode.unwrap_or(ReconnectMode::Disabled).as_str(),
         ],
     )?;
+
+    replace_jump_host_chain(&conn, &id, jump_host_ids)?;
 
     // Handle tags
     if let Some(tags) = &request.tags {
@@ -85,12 +90,12 @@ pub fn get_sessions(
     let mut stmt = if let Some(fid) = &folder_id {
         let mut s = conn
             .prepare("SELECT * FROM sessions WHERE folder_id = ?1 ORDER BY name COLLATE NOCASE")?;
-        let sessions = query_sessions(&mut s, rusqlite::params![fid])?;
+        let sessions = query_sessions(&conn, &mut s, rusqlite::params![fid])?;
         return Ok(sessions);
     } else {
         conn.prepare("SELECT * FROM sessions ORDER BY name COLLATE NOCASE")?
     };
-    query_sessions(&mut stmt, [])
+    query_sessions(&conn, &mut stmt, [])
 }
 
 #[tauri::command]
@@ -109,6 +114,11 @@ pub fn update_session(
 
     // Build dynamic update
     let existing = get_session_by_id(&conn, &request.id)?;
+    let jump_host_ids = request
+        .jump_host_ids
+        .as_deref()
+        .unwrap_or(&existing.jump_host_ids);
+    validate_jump_host_chain(&conn, Some(&request.id), jump_host_ids)?;
 
     let name = request.name.unwrap_or(existing.name);
     let host = request.host.unwrap_or(existing.host);
@@ -122,7 +132,7 @@ pub fn update_session(
     };
 
     conn.execute(
-        "UPDATE sessions SET name=?1, host=?2, port=?3, protocol=?4, favorite=?5, username=?6, authentication_method=?7, device_type=?8, vendor=?9, model=?10, description=?11, notes=?12, folder_id=?13, updated_at=?14, bmc_use_https=?15, bmc_web_path=?16, bmc_console_url=?17, bmc_viewer_mode=?18, bmc_ignore_tls_errors=?19, bmc_open_console_automatically=?20, bmc_open_fullscreen=?21, bmc_timeout_seconds=?22, bmc_server_hostname=?23, bmc_server_serial_number=?24, bmc_rack=?25, bmc_rack_unit=?26, bmc_site=?27, bmc_redfish_enabled=?28, bmc_cookie_persistence=?29, serial_baud_rate=?30 WHERE id=?31",
+        "UPDATE sessions SET name=?1, host=?2, port=?3, protocol=?4, favorite=?5, username=?6, credential_profile_id=?7, authentication_method=?8, private_key_reference=?9, device_type=?10, vendor=?11, model=?12, description=?13, notes=?14, folder_id=?15, updated_at=?16, bmc_use_https=?17, bmc_web_path=?18, bmc_console_url=?19, bmc_viewer_mode=?20, bmc_ignore_tls_errors=?21, bmc_open_console_automatically=?22, bmc_open_fullscreen=?23, bmc_timeout_seconds=?24, bmc_server_hostname=?25, bmc_server_serial_number=?26, bmc_rack=?27, bmc_rack_unit=?28, bmc_site=?29, bmc_redfish_enabled=?30, bmc_cookie_persistence=?31, serial_baud_rate=?32, reconnect_mode=?33 WHERE id=?34",
         rusqlite::params![
             name,
             host,
@@ -130,7 +140,9 @@ pub fn update_session(
             protocol.as_str(),
             favorite as i32,
             request.username.or(existing.username),
+            request.credential_profile_id.or(existing.credential_profile_id),
             request.authentication_method.unwrap_or(existing.authentication_method).as_str(),
+            request.private_key_reference.or(existing.private_key_reference),
             request.device_type.or(existing.device_type),
             request.vendor.or(existing.vendor),
             request.model.or(existing.model),
@@ -154,9 +166,14 @@ pub fn update_session(
             request.bmc_redfish_enabled.unwrap_or(existing.bmc_redfish_enabled) as i32,
             request.bmc_cookie_persistence.unwrap_or(existing.bmc_cookie_persistence).as_str(),
             request.serial_baud_rate.unwrap_or(existing.serial_baud_rate),
+            request.reconnect_mode.unwrap_or(existing.reconnect_mode).as_str(),
             request.id,
         ],
     )?;
+
+    if request.jump_host_ids.is_some() {
+        replace_jump_host_chain(&conn, &request.id, jump_host_ids)?;
+    }
 
     // Update tags if provided
     if let Some(tags) = &request.tags {
@@ -179,6 +196,17 @@ pub fn update_session(
 #[tauri::command]
 pub fn delete_session(db: State<'_, Database>, id: String) -> Result<(), AppError> {
     let conn = db.conn();
+    let dependent_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM session_jump_hosts WHERE jump_session_id = ?1",
+        rusqlite::params![id],
+        |row| row.get(0),
+    )?;
+    if dependent_count > 0 {
+        return Err(AppError::Validation(
+            "This session is used as a jump host. Remove it from dependent SSH routes before deleting it."
+                .into(),
+        ));
+    }
     conn.execute("DELETE FROM sessions WHERE id = ?1", rusqlite::params![id])?;
     Ok(())
 }
@@ -207,7 +235,7 @@ pub fn search_sessions(
     )?;
 
     let results = stmt.query_map(rusqlite::params![search_term], |row| {
-        Ok((row_to_session(row)?, row.get::<_, f64>(40)?))
+        Ok((row_to_session(row)?, row.get::<_, f64>(41)?))
     })?;
 
     let mut search_results = Vec::new();
@@ -235,7 +263,7 @@ pub fn search_sessions(
         let mut ip_stmt =
             conn.prepare("SELECT * FROM sessions WHERE host LIKE ?1 ORDER BY name LIMIT 10")?;
         let like_term = format!("%{}%", query.trim());
-        let ip_results = query_sessions(&mut ip_stmt, rusqlite::params![like_term])?;
+        let ip_results = query_sessions(&conn, &mut ip_stmt, rusqlite::params![like_term])?;
         for session in ip_results {
             if !search_results.iter().any(|r| r.session.id == session.id) {
                 let tags = get_session_tags(&conn, &session.id)?;
@@ -260,17 +288,20 @@ pub fn search_sessions(
 // --- Helper functions ---
 
 fn get_session_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Session, AppError> {
-    conn.query_row(
-        "SELECT * FROM sessions WHERE id = ?1",
-        rusqlite::params![id],
-        |row| row_to_session(row),
-    )
-    .map_err(|e| match e {
-        rusqlite::Error::QueryReturnedNoRows => {
-            AppError::NotFound(format!("Session not found: {}", id))
-        }
-        other => AppError::Database(other),
-    })
+    let mut session = conn
+        .query_row(
+            "SELECT * FROM sessions WHERE id = ?1",
+            rusqlite::params![id],
+            row_to_session,
+        )
+        .map_err(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => {
+                AppError::NotFound(format!("Session not found: {}", id))
+            }
+            other => AppError::Database(other),
+        })?;
+    session.jump_host_ids = get_jump_host_ids(conn, id)?;
+    Ok(session)
 }
 
 fn row_to_session(row: &rusqlite::Row<'_>) -> rusqlite::Result<Session> {
@@ -284,6 +315,7 @@ fn row_to_session(row: &rusqlite::Row<'_>) -> rusqlite::Result<Session> {
         credential_profile_id: row.get(6)?,
         authentication_method: AuthMethod::from_str(&row.get::<_, String>(7)?),
         private_key_reference: row.get(8)?,
+        jump_host_ids: Vec::new(),
         folder_id: row.get(9)?,
         device_type: row.get(10)?,
         vendor: row.get(11)?,
@@ -315,19 +347,100 @@ fn row_to_session(row: &rusqlite::Row<'_>) -> rusqlite::Result<Session> {
         bmc_redfish_enabled: row.get::<_, i32>(37)? != 0,
         bmc_cookie_persistence: BmcCookiePersistence::from_str(&row.get::<_, String>(38)?),
         serial_baud_rate: row.get(39)?,
+        reconnect_mode: ReconnectMode::from_str(&row.get::<_, String>(40)?),
     })
 }
 
 fn query_sessions<P: rusqlite::Params>(
+    conn: &rusqlite::Connection,
     stmt: &mut rusqlite::Statement<'_>,
     params: P,
 ) -> Result<Vec<Session>, AppError> {
-    let rows = stmt.query_map(params, |row| row_to_session(row))?;
+    let rows = stmt.query_map(params, row_to_session)?;
     let mut sessions = Vec::new();
     for row in rows {
-        sessions.push(row?);
+        let mut session = row?;
+        session.jump_host_ids =
+            get_jump_host_ids(conn, &session.id).map_err(|error| match error {
+                AppError::Database(database_error) => database_error,
+                _ => rusqlite::Error::InvalidQuery,
+            })?;
+        sessions.push(session);
     }
     Ok(sessions)
+}
+
+const MAX_JUMP_HOSTS: usize = 5;
+
+fn validate_jump_host_chain(
+    conn: &rusqlite::Connection,
+    session_id: Option<&str>,
+    jump_host_ids: &[String],
+) -> Result<(), AppError> {
+    if jump_host_ids.len() > MAX_JUMP_HOSTS {
+        return Err(AppError::Validation(format!(
+            "SSH jump-host chains are limited to {MAX_JUMP_HOSTS} hops"
+        )));
+    }
+
+    let mut unique = std::collections::HashSet::new();
+    for jump_host_id in jump_host_ids {
+        if jump_host_id.is_empty()
+            || jump_host_id.len() > 128
+            || jump_host_id.contains('\0')
+            || !unique.insert(jump_host_id)
+            || session_id == Some(jump_host_id.as_str())
+        {
+            return Err(AppError::Validation(
+                "Jump-host chain contains an invalid, duplicate, or self-referencing session"
+                    .into(),
+            ));
+        }
+
+        let protocol: String = conn
+            .query_row(
+                "SELECT protocol FROM sessions WHERE id = ?1",
+                rusqlite::params![jump_host_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| AppError::NotFound("Jump-host session not found".into()))?;
+        if protocol != "ssh" {
+            return Err(AppError::Validation(
+                "Every jump host must reference a saved SSH session".into(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn replace_jump_host_chain(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+    jump_host_ids: &[String],
+) -> Result<(), AppError> {
+    conn.execute(
+        "DELETE FROM session_jump_hosts WHERE session_id = ?1",
+        rusqlite::params![session_id],
+    )?;
+    for (position, jump_host_id) in jump_host_ids.iter().enumerate() {
+        conn.execute(
+            "INSERT INTO session_jump_hosts (session_id, jump_session_id, position) VALUES (?1, ?2, ?3)",
+            rusqlite::params![session_id, jump_host_id, position],
+        )?;
+    }
+    Ok(())
+}
+
+fn get_jump_host_ids(
+    conn: &rusqlite::Connection,
+    session_id: &str,
+) -> Result<Vec<String>, AppError> {
+    let mut statement = conn.prepare(
+        "SELECT jump_session_id FROM session_jump_hosts WHERE session_id = ?1 ORDER BY position",
+    )?;
+    let rows = statement.query_map(rusqlite::params![session_id], |row| row.get(0))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(AppError::Database)
 }
 
 fn ensure_tag(conn: &rusqlite::Connection, name: &str) -> Result<String, AppError> {
@@ -386,4 +499,66 @@ fn get_folder_path(conn: &rusqlite::Connection, folder_id: &str) -> Result<Strin
 
     path_parts.reverse();
     Ok(path_parts.join(" / "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{get_jump_host_ids, replace_jump_host_chain, validate_jump_host_chain};
+    use crate::db::Database;
+
+    #[test]
+    fn validates_and_preserves_ordered_jump_host_chains() {
+        let path = std::env::temp_dir().join(format!(
+            "sessiondock-jump-hosts-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        let db = Database::new(&path).unwrap();
+        let conn = db.conn();
+        for (id, protocol) in [
+            ("target", "ssh"),
+            ("jump-a", "ssh"),
+            ("jump-b", "ssh"),
+            ("not-ssh", "telnet"),
+        ] {
+            conn.execute(
+                "INSERT INTO sessions (id, name, host, port, protocol, authentication_method) VALUES (?1, ?1, ?1, 22, ?2, 'ssh_agent')",
+                rusqlite::params![id, protocol],
+            )
+            .unwrap();
+        }
+
+        let valid = vec!["jump-b".to_string(), "jump-a".to_string()];
+        validate_jump_host_chain(&conn, Some("target"), &valid).unwrap();
+        replace_jump_host_chain(&conn, "target", &valid).unwrap();
+        assert_eq!(get_jump_host_ids(&conn, "target").unwrap(), valid);
+
+        assert!(validate_jump_host_chain(
+            &conn,
+            Some("target"),
+            &["jump-a".into(), "jump-a".into()]
+        )
+        .is_err());
+        assert!(validate_jump_host_chain(&conn, Some("target"), &["target".into()]).is_err());
+        assert!(validate_jump_host_chain(&conn, Some("target"), &["not-ssh".into()]).is_err());
+        assert!(validate_jump_host_chain(
+            &conn,
+            Some("target"),
+            &[
+                "jump-a".into(),
+                "jump-b".into(),
+                "third".into(),
+                "fourth".into(),
+                "fifth".into(),
+                "sixth".into(),
+            ]
+        )
+        .is_err());
+
+        assert!(conn
+            .execute("DELETE FROM sessions WHERE id = 'jump-a'", [])
+            .is_err());
+        drop(conn);
+        drop(db);
+        std::fs::remove_file(path).unwrap();
+    }
 }

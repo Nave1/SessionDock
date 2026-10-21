@@ -43,12 +43,11 @@ mod windows {
         um::{
             winbase::GlobalFree,
             winhttp::{
-                WinHttpCloseHandle, WinHttpGetIEProxyConfigForCurrentUser,
-                WinHttpGetProxyForUrl, WinHttpOpen, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
-                WINHTTP_AUTOPROXY_AUTO_DETECT, WINHTTP_AUTOPROXY_CONFIG_URL,
-                WINHTTP_AUTOPROXY_OPTIONS, WINHTTP_AUTO_DETECT_TYPE_DHCP,
-                WINHTTP_AUTO_DETECT_TYPE_DNS_A, WINHTTP_CURRENT_USER_IE_PROXY_CONFIG,
-                WINHTTP_PROXY_INFO,
+                WinHttpCloseHandle, WinHttpGetIEProxyConfigForCurrentUser, WinHttpGetProxyForUrl,
+                WinHttpOpen, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_AUTOPROXY_AUTO_DETECT,
+                WINHTTP_AUTOPROXY_CONFIG_URL, WINHTTP_AUTOPROXY_OPTIONS,
+                WINHTTP_AUTO_DETECT_TYPE_DHCP, WINHTTP_AUTO_DETECT_TYPE_DNS_A,
+                WINHTTP_CURRENT_USER_IE_PROXY_CONFIG, WINHTTP_PROXY_INFO,
             },
         },
     };
@@ -106,12 +105,8 @@ mod windows {
 
         let mut proxy_info: WINHTTP_PROXY_INFO = std::mem::zeroed();
         let url_wide = wide(url);
-        let succeeded = WinHttpGetProxyForUrl(
-            session,
-            url_wide.as_ptr(),
-            &mut options,
-            &mut proxy_info,
-        );
+        let succeeded =
+            WinHttpGetProxyForUrl(session, url_wide.as_ptr(), &mut options, &mut proxy_info);
         WinHttpCloseHandle(session);
 
         let proxy = if succeeded != 0 {
@@ -132,7 +127,9 @@ mod windows {
         if pointer.is_null() {
             return None;
         }
-        let length = (0..).take_while(|offset| *pointer.add(*offset) != 0).count();
+        let length = (0..)
+            .take_while(|offset| *pointer.add(*offset) != 0)
+            .count();
         String::from_utf16(std::slice::from_raw_parts(pointer, length)).ok()
     }
 

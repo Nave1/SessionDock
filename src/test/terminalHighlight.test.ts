@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { highlightTerminalOutput } from "../utils/terminalHighlight";
 
+// eslint-disable-next-line no-control-regex -- The test strips literal ANSI escape sequences.
 const stripSemanticColors = (text: string) => text.replace(/\x1b\[38;2;\d+;\d+;\d+m|\x1b\[39m/g, "");
 
 describe("Terminal output highlighting", () => {

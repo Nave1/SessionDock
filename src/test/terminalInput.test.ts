@@ -107,6 +107,7 @@ describe("Terminal Input Safety", () => {
       for (const cmd of commands) {
         const result = verifyUnchanged(cmd);
         // Must not contain ANSI escape (these commands have none)
+        // eslint-disable-next-line no-control-regex -- The assertion detects literal ANSI escape sequences.
         expect(result).not.toMatch(/\x1b\[[\d;]*m/);
         expect(result).toBe(cmd);
       }

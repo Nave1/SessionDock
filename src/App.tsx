@@ -11,7 +11,7 @@ import { useAppStore } from "./stores/appStore";
 import { useSessionStore } from "./stores/sessionStore";
 import { useToastStore } from "./stores/toastStore";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { createFolder, createSession, getFolders, getSessions, updateSession } from "./api/commands";
+import { createFolder, createSession, getCredentialProfiles, getFolders, getSessionGroups, getSessions, updateSession } from "./api/commands";
 import { importFolderHierarchy, parseCsvImportData, parseJsonImport } from "./utils/importExport";
 import type { CreateSessionRequest, CreateFolderRequest, Session } from "./types";
 import { safePersistedBmcUrl } from "./utils/bmcUrl";
@@ -29,7 +29,7 @@ function App() {
   const setSidebarWidth = useAppStore((s) => s.setSidebarWidth);
   const addTab = useAppStore((s) => s.addTab);
   const folders = useSessionStore((s) => s.folders);
-  const { addSession, addFolder, setSessions, setFolders, setIsLoading } = useSessionStore();
+  const { addSession, addFolder, setSessions, setFolders, setGroups, setCredentials, setIsLoading } = useSessionStore();
   const addToast = useToastStore((s) => s.addToast);
 
   useKeyboardShortcuts({ onCommandPalette: () => setCommandPaletteOpen(true) });
@@ -50,10 +50,17 @@ function App() {
     const loadSavedData = async () => {
       setIsLoading(true);
       try {
-        const [savedSessions, savedFolders] = await Promise.all([getSessions(), getFolders()]);
+        const [savedSessions, savedFolders, savedGroups, savedCredentials] = await Promise.all([
+          getSessions(),
+          getFolders(),
+          getSessionGroups(),
+          getCredentialProfiles(),
+        ]);
         if (!cancelled) {
           setSessions(savedSessions);
           setFolders(savedFolders);
+          setGroups(savedGroups);
+          setCredentials(savedCredentials);
         }
       } catch (error) {
         if (!cancelled) addToast("error", `Failed to load saved data: ${String(error)}`);
@@ -64,7 +71,7 @@ function App() {
 
     void loadSavedData();
     return () => { cancelled = true; };
-  }, [addToast, setFolders, setIsLoading, setSessions]);
+  }, [addToast, setCredentials, setFolders, setGroups, setIsLoading, setSessions]);
 
   const handleCreateSession = async (data: CreateSessionRequest) => {
     try {

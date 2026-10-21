@@ -220,6 +220,7 @@ pub fn reset_application_data(db: State<'_, Database>) -> Result<(), AppError> {
 
     transaction.execute("DELETE FROM recently_closed_tabs", [])?;
     transaction.execute("DELETE FROM session_tags", [])?;
+    transaction.execute("DELETE FROM session_groups", [])?;
     transaction.execute("DELETE FROM sessions", [])?;
     transaction.execute("DELETE FROM folders", [])?;
     transaction.execute("DELETE FROM tags", [])?;
@@ -236,36 +237,14 @@ pub fn reset_application_data(db: State<'_, Database>) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Get credential secret for connection (internal use only, never exposed to frontend display)
-pub fn get_credential_secret(
-    db: &Database,
-    credential_profile_id: &str,
-) -> Result<String, AppError> {
-    let conn = db.conn();
-    let vault_ref: String = conn
-        .query_row(
-            "SELECT vault_reference FROM credential_profiles WHERE id = ?1",
-            rusqlite::params![credential_profile_id],
-            |row| row.get(0),
-        )
-        .map_err(|_| AppError::NotFound("Credential profile not found".into()))?;
-
-    let vault = credential_vault::get_vault();
-    vault
-        .get_secret(&vault_ref)?
-        .ok_or_else(|| AppError::CredentialVault("Secret not found in vault".into()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::{read_text_file_from_path, write_text_file};
 
     #[test]
     fn writes_overwrites_and_reads_selected_text_file() {
-        let path = std::env::temp_dir().join(format!(
-            "sessiondock-file-io-{}.json",
-            uuid::Uuid::new_v4()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("sessiondock-file-io-{}.json", uuid::Uuid::new_v4()));
 
         write_text_file(&path, "first export").unwrap();
         write_text_file(&path, "replacement export").unwrap();

@@ -11,6 +11,7 @@ pub struct Session {
     pub credential_profile_id: Option<String>,
     pub authentication_method: AuthMethod,
     pub private_key_reference: Option<String>,
+    pub jump_host_ids: Vec<String>,
     pub folder_id: Option<String>,
     pub device_type: Option<String>,
     pub vendor: Option<String>,
@@ -42,6 +43,7 @@ pub struct Session {
     pub bmc_redfish_enabled: bool,
     pub bmc_cookie_persistence: BmcCookiePersistence,
     pub serial_baud_rate: u32,
+    pub reconnect_mode: ReconnectMode,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +56,7 @@ pub struct CreateSessionRequest {
     pub credential_profile_id: Option<String>,
     pub authentication_method: AuthMethod,
     pub private_key_reference: Option<String>,
+    pub jump_host_ids: Option<Vec<String>>,
     pub folder_id: Option<String>,
     pub device_type: Option<String>,
     pub vendor: Option<String>,
@@ -82,6 +85,7 @@ pub struct CreateSessionRequest {
     pub bmc_redfish_enabled: Option<bool>,
     pub bmc_cookie_persistence: Option<BmcCookiePersistence>,
     pub serial_baud_rate: Option<u32>,
+    pub reconnect_mode: Option<ReconnectMode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,6 +98,8 @@ pub struct UpdateSessionRequest {
     pub username: Option<String>,
     pub credential_profile_id: Option<String>,
     pub authentication_method: Option<AuthMethod>,
+    pub private_key_reference: Option<String>,
+    pub jump_host_ids: Option<Vec<String>>,
     pub folder_id: Option<String>,
     pub clear_folder: Option<bool>,
     pub device_type: Option<String>,
@@ -119,6 +125,33 @@ pub struct UpdateSessionRequest {
     pub bmc_redfish_enabled: Option<bool>,
     pub bmc_cookie_persistence: Option<BmcCookiePersistence>,
     pub serial_baud_rate: Option<u32>,
+    pub reconnect_mode: Option<ReconnectMode>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReconnectMode {
+    Disabled,
+    Once,
+    Automatic,
+}
+
+impl ReconnectMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::Once => "once",
+            Self::Automatic => "automatic",
+        }
+    }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "once" => Self::Once,
+            "automatic" => Self::Automatic,
+            _ => Self::Disabled,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -150,16 +183,6 @@ impl Protocol {
             "bmc" => Protocol::Bmc,
             "vnc" => Protocol::Vnc,
             _ => Protocol::Ssh,
-        }
-    }
-
-    pub fn default_port(&self) -> u16 {
-        match self {
-            Protocol::Ssh => 22,
-            Protocol::Telnet => 23,
-            Protocol::Serial => 0,
-            Protocol::Bmc => 443,
-            Protocol::Vnc => 5900,
         }
     }
 }
@@ -263,6 +286,26 @@ pub struct CreateFolderRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionGroup {
+    pub id: String,
+    pub name: String,
+    pub member_count: u32,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSessionGroupRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SetSessionGroupMembersRequest {
+    pub group_id: String,
+    pub session_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CredentialProfile {
     pub id: String,
     pub name: String,
@@ -281,13 +324,6 @@ pub struct CreateCredentialRequest {
     pub authentication_method: AuthMethod,
     pub password: Option<String>,
     pub description: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Tag {
-    pub id: String,
-    pub name: String,
-    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

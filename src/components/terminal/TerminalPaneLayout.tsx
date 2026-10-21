@@ -37,14 +37,25 @@ export function TerminalPaneLayout({ tab, session }: TerminalPaneLayoutProps) {
               protocol={tab.protocol}
               username={tab.username ?? session?.username}
               password={tab.password}
+              authenticationMethod={session?.authentication_method}
+              credentialProfileId={session?.credential_profile_id}
+              privateKeyReference={session?.private_key_reference}
+              jumpHostIds={session?.jump_host_ids}
               serialBaudRate={tab.serialBaudRate ?? session?.serial_baud_rate ?? 9600}
               keepaliveInterval={session?.keepalive_interval ?? 60}
+              reconnectMode={session?.reconnect_mode ?? "disabled"}
               canSplit={paneCount < 4}
               canClosePane={paneCount > 1}
               onSplitRight={() => splitTabPane(tab.id, paneId, "horizontal")}
               onSplitDown={() => splitTabPane(tab.id, paneId, "vertical")}
               onClosePane={() => closeTabPane(tab.id, paneId)}
               reconnectToken={tab.reconnectPaneId === paneId ? tab.reconnectToken : undefined}
+              disconnectToken={tab.disconnectPaneId === paneId ? tab.disconnectToken : undefined}
+              deviceContext={{
+                vendor: session?.vendor,
+                deviceType: session?.device_type,
+                model: session?.model,
+              }}
             />
           </div>
         );

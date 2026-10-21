@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useThemeStore, ThemeMode, AccentColor } from "../../stores/themeStore";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -16,6 +16,7 @@ import {
 import { createCsvExport, createSafeExport, importFolderHierarchy, openTextFile, parseCsvImportData, parseJsonImport, saveTextFile, type SafeExportData, type SafeExportSession } from "../../utils/importExport";
 import { decryptBackup, encryptBackup } from "../../utils/encryptedBackup";
 import { safePersistedBmcUrl } from "../../utils/bmcUrl";
+import { nativeInvoke } from "../../api/native";
 import type { CreateSessionRequest, Session } from "../../types";
 import {
   Settings as SettingsIcon,
@@ -26,7 +27,16 @@ import {
   Database,
   Info,
   Globe,
+  Trash2,
 } from "lucide-react";
+
+interface KnownHost {
+  id: string;
+  host: string;
+  port: number;
+  key_type: string;
+  fingerprint: string;
+}
 
 type SettingsTab = "general" | "appearance" | "terminal" | "ssh" | "security" | "data" | "about";
 
@@ -240,8 +250,13 @@ function SshSettings() {
         <LiveSelect label="Default auth method" options={["Password", "Private Key", "SSH Agent"]} value={s.defaultAuthMethod} onChange={(v) => s.updateSetting("defaultAuthMethod", v)} />
       </SettingGroup>
       <SettingGroup title="Host Key Verification">
-        <LiveToggle label="Verify host keys" checked={s.verifyHostKeys} onChange={(v) => s.updateSetting("verifyHostKeys", v)} />
-        <LiveToggle label="Warn on changed host keys" checked={s.warnChangedHostKeys} onChange={(v) => s.updateSetting("warnChangedHostKeys", v)} />
+        <div className="rounded border border-dock-border bg-dock-surface/40 p-3">
+          <p className="text-xs font-medium text-dock-text">Strict verification enabled</p>
+          <p className="mt-1 text-[11px] leading-5 text-dock-text-muted">
+            New SSH host keys require explicit trust. Changed keys always block the connection until the saved trust entry is reviewed and removed.
+          </p>
+        </div>
+        <KnownHosts />
       </SettingGroup>
       <SettingGroup title="SSH Agent">
         <LiveToggle label="Use SSH agent when available" checked={s.useSshAgent} onChange={(v) => s.updateSetting("useSshAgent", v)} />
@@ -251,8 +266,64 @@ function SshSettings() {
   );
 }
 
+function KnownHosts() {
+  const [hosts, setHosts] = useState<KnownHost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const addToast = useToastStore((state) => state.addToast);
+
+  const loadHosts = useCallback(async () => {
+    try {
+      setHosts(await nativeInvoke<KnownHost[]>("get_known_hosts"));
+    } catch (error) {
+      addToast("error", `Could not load trusted hosts: ${error}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  useEffect(() => {
+    void loadHosts();
+  }, [loadHosts]);
+
+  const removeHost = async (host: KnownHost) => {
+    if (!window.confirm(`Remove trust for ${host.host}:${host.port}?\n\nThe next connection will require you to verify its fingerprint again.`)) return;
+    try {
+      await nativeInvoke("remove_known_host", { id: host.id });
+      setHosts((current) => current.filter((item) => item.id !== host.id));
+      addToast("success", `Removed trusted host ${host.host}:${host.port}`);
+    } catch (error) {
+      addToast("error", `Could not remove trusted host: ${error}`);
+    }
+  };
+
+  if (loading) return <p className="text-[11px] text-dock-text-muted">Loading trusted hosts...</p>;
+  if (hosts.length === 0) return <p className="text-[11px] text-dock-text-muted">No trusted SSH hosts.</p>;
+
+  return (
+    <div className="divide-y divide-dock-border overflow-hidden rounded border border-dock-border">
+      {hosts.map((host) => (
+        <div key={host.id} className="flex items-start gap-3 p-3">
+          <div className="min-w-0 flex-1" dir="ltr">
+            <p className="truncate text-xs font-medium text-dock-text">{host.host}:{host.port}</p>
+            <p className="mt-1 truncate font-mono text-[10px] text-dock-text-muted">{host.key_type} {host.fingerprint}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void removeHost(host)}
+            className="shrink-0 rounded p-1.5 text-dock-text-muted hover:bg-red-500/10 hover:text-red-400"
+            title="Remove trusted host"
+            aria-label={`Remove trusted host ${host.host}:${host.port}`}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DataSettings() {
-  const { sessions, folders, setSessions, setFolders, setCredentials } = useSessionStore();
+  const { sessions, folders, setSessions, setFolders, setGroups, setCredentials } = useSessionStore();
   const addToast = useToastStore((state) => state.addToast);
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -388,6 +459,7 @@ function DataSettings() {
             await resetApplicationData();
             setSessions([]);
             setFolders([]);
+            setGroups([]);
             setCredentials([]);
             localStorage.clear();
             window.location.reload();
@@ -428,6 +500,9 @@ function toCreateSessionRequest(
     startup_command: session.startup_command,
     connection_timeout: session.connection_timeout ?? 30,
     keepalive_interval: session.keepalive_interval ?? 60,
+    reconnect_mode: session.reconnect_mode === "once" || session.reconnect_mode === "automatic"
+      ? session.reconnect_mode
+      : "disabled",
     tags: "tags" in session ? session.tags : undefined,
     bmc_use_https: session.bmc_use_https,
     bmc_web_path: session.bmc_web_path,

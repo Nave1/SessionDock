@@ -9,7 +9,11 @@ mod protocols;
 mod terminal;
 mod updater_proxy;
 
-use commands::connections::ConnectionManager;
+use commands::diagnostics::DiagnosticsManager;
+use commands::multi_exec::MultiExecManager;
+use commands::sftp::SftpTransferManager;
+use commands::terminal_logging::TerminalLogManager;
+use commands::tunnels::SshTunnelManager;
 pub use db::Database;
 pub use error::AppError;
 use terminal::{NativeSshManager, SerialManager, TelnetManager};
@@ -37,8 +41,12 @@ pub fn run() {
             let database = Database::new(&db_path).expect("Failed to initialize database");
 
             app.manage(database);
-            app.manage(ConnectionManager::new());
             app.manage(NativeSshManager::new());
+            app.manage(SftpTransferManager::new());
+            app.manage(SshTunnelManager::new());
+            app.manage(DiagnosticsManager::new());
+            app.manage(MultiExecManager::new());
+            app.manage(TerminalLogManager::new());
             app.manage(TelnetManager::new());
             app.manage(SerialManager::new());
 
@@ -56,15 +64,16 @@ pub fn run() {
             commands::folders::get_folders,
             commands::folders::update_folder,
             commands::folders::delete_folder,
+            commands::groups::create_session_group,
+            commands::groups::get_session_groups,
+            commands::groups::update_session_group,
+            commands::groups::delete_session_group,
+            commands::groups::get_session_group_members,
+            commands::groups::set_session_group_members,
             commands::credentials::store_credential,
             commands::credentials::get_credential_profiles,
             commands::credentials::delete_credential,
             commands::serial::list_serial_ports,
-            commands::connections::connect_ssh,
-            commands::connections::connect_telnet,
-            commands::connections::terminal_write,
-            commands::connections::terminal_resize,
-            commands::connections::disconnect_terminal,
             commands::known_hosts::get_known_hosts,
             commands::known_hosts::verify_host_key,
             commands::known_hosts::trust_host_key,
@@ -77,9 +86,34 @@ pub fn run() {
             commands::data::clear_recent_sessions,
             commands::data::reset_application_data,
             commands::terminal::spawn_terminal,
+            commands::terminal::inspect_ssh_host_key,
             commands::terminal::write_terminal,
             commands::terminal::resize_terminal,
             commands::terminal::close_terminal,
+            commands::terminal_logging::start_terminal_logging,
+            commands::terminal_logging::stop_terminal_logging,
+            commands::terminal_logging::get_terminal_logging_status,
+            commands::sftp::list_sftp_directory,
+            commands::sftp::create_sftp_directory,
+            commands::sftp::rename_sftp_entry,
+            commands::sftp::delete_sftp_entry,
+            commands::sftp::start_sftp_upload,
+            commands::sftp::start_sftp_download,
+            commands::sftp::pause_sftp_transfer,
+            commands::sftp::resume_sftp_transfer,
+            commands::sftp::cancel_sftp_transfer,
+            commands::scp::start_scp_upload,
+            commands::scp::start_scp_download,
+            commands::tunnels::start_local_tunnel,
+            commands::tunnels::start_remote_tunnel,
+            commands::tunnels::start_dynamic_tunnel,
+            commands::tunnels::list_ssh_tunnels,
+            commands::tunnels::stop_ssh_tunnel,
+            commands::diagnostics::start_ssh_diagnostic,
+            commands::diagnostics::cancel_ssh_diagnostic,
+            commands::multi_exec::classify_multi_exec_command,
+            commands::multi_exec::start_multi_exec,
+            commands::multi_exec::cancel_multi_exec,
             commands::snippets::get_snippets,
             commands::snippets::create_snippet,
             commands::snippets::update_snippet,

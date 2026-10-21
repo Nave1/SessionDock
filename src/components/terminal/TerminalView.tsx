@@ -6,17 +6,50 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { nativeInvoke } from "../../api/native";
 import { listen } from "@tauri-apps/api/event";
 import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown, Columns2, Rows2 } from "lucide-react";
+import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown, Columns2, Rows2, FolderOpen, Network, Code2, Cpu, ListChecks } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useAppStore } from "../../stores/appStore";
+import { useTransferEvents } from "../../hooks/useTransferEvents";
+import { useTunnelEvents } from "../../hooks/useTunnelEvents";
+import { useDiagnosticEvents } from "../../hooks/useDiagnosticEvents";
 import { findTerminalHighlights } from "../../utils/terminalHighlight";
 import { getTerminalContextMenuAction, getTerminalShortcutAction } from "../../utils/terminalInteraction";
+import { fitTerminalWhenVisible } from "../../utils/terminalLayout";
+import { shouldPromptForPassword, type SshAuthenticationMethod } from "../../utils/sshAuthentication";
+import { blocksAutomaticReconnect, reconnectDelayMs, RECONNECT_STABLE_RESET_MS } from "../../utils/reconnectPolicy";
+import type { ReconnectMode } from "../../types";
+import { SftpPanel } from "./SftpPanel";
+import { TunnelPanel } from "./TunnelPanel";
+import { SnippetPanel } from "./SnippetPanel";
+import { DeviceInfoPanel } from "./DeviceInfoPanel";
+import { MultiExecPanel } from "./MultiExecPanel";
+import { TerminalLoggingControl } from "./TerminalLoggingControl";
+import type { DeviceContext } from "../../device/providers";
 import "@xterm/xterm/css/xterm.css";
 
 interface SemanticDecorationLine {
   marker: IMarker;
   signature: string;
   decorations: IDecoration[];
+}
+
+interface SshHostKeyInspection {
+  host: string;
+  address: string;
+  port: number;
+  key_type: string;
+  fingerprint: string;
+  verification:
+    | { status: "trusted" }
+    | { status: "unknown"; fingerprint: string; key_type: string }
+    | {
+        status: "changed";
+        old_fingerprint: string;
+        old_key_type: string;
+        new_fingerprint: string;
+        new_key_type: string;
+      };
 }
 
 function clearSemanticDecorations(lines: SemanticDecorationLine[]) {
@@ -134,14 +167,21 @@ interface TerminalViewProps {
   protocol: string;
   username?: string;
   password?: string;
+  authenticationMethod?: SshAuthenticationMethod;
+  credentialProfileId?: string;
+  privateKeyReference?: string;
+  jumpHostIds?: string[];
   serialBaudRate?: number;
   keepaliveInterval?: number;
+  reconnectMode?: ReconnectMode;
   canSplit?: boolean;
   canClosePane?: boolean;
   onSplitRight?: () => void;
   onSplitDown?: () => void;
   onClosePane?: () => void;
   reconnectToken?: number;
+  disconnectToken?: number;
+  deviceContext?: DeviceContext;
 }
 
 export function TerminalView({
@@ -152,32 +192,63 @@ export function TerminalView({
   protocol,
   username,
   password,
+  authenticationMethod = "password",
+  credentialProfileId,
+  privateKeyReference,
+  jumpHostIds = [],
   serialBaudRate = 9600,
   keepaliveInterval = 60,
+  reconnectMode = "disabled",
   canSplit = true,
   canClosePane = false,
   onSplitRight,
   onSplitDown,
   onClosePane,
   reconnectToken,
+  disconnectToken,
+  deviceContext = {},
 }: TerminalViewProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<XTerm | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const searchAddonRef = useRef<SearchAddon | null>(null);
   const connectedRef = useRef(false);
   const connectionStateRef = useRef<"connecting" | "connected" | "disconnected">("connecting");
+  const reconnectTimerRef = useRef<number | null>(null);
+  const stableConnectionTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const reconnectInProgressRef = useRef(false);
+  const reconnectBlockedRef = useRef(false);
+  const explicitDisconnectRef = useRef(false);
+  const hasConnectedRef = useRef(false);
+  const scheduleReconnectRef = useRef<() => void>(() => {});
   const lastReconnectTokenRef = useRef(reconnectToken);
-  const updateTabStatus = useAppStore((state) => state.updateTabStatus);
+  const lastDisconnectTokenRef = useRef(disconnectToken);
+  const updatePaneStatus = useAppStore((state) => state.updatePaneStatus);
+  useTransferEvents(tabId, protocol === "ssh");
+  useTunnelEvents(tabId, protocol === "ssh");
+  useDiagnosticEvents(tabId, protocol === "ssh");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [auxiliaryPanel, setAuxiliaryPanel] = useState<"files" | "tunnels" | "snippets" | "device" | "multiExec" | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [terminalLogRevision, setTerminalLogRevision] = useState(0);
+  const [scheduledReconnect, setScheduledReconnect] = useState<{ attempt: number; seconds: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const clearReconnectTimers = useCallback(() => {
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+    if (stableConnectionTimerRef.current !== null) window.clearTimeout(stableConnectionTimerRef.current);
+    reconnectTimerRef.current = null;
+    stableConnectionTimerRef.current = null;
+    setScheduledReconnect(null);
+  }, []);
 
   const connectToHost = useCallback(async () => {
     if (connectedRef.current) return;
     connectedRef.current = true;
     connectionStateRef.current = "connecting";
-    updateTabStatus(statusTabId, "connecting");
+    updatePaneStatus(statusTabId, tabId, "connecting");
 
     const term = terminalRef.current;
     if (!term) return;
@@ -188,6 +259,56 @@ export function TerminalView({
 
     let finalUsername = username || "";
     let finalPassword = password || "";
+
+    if (protocol === "ssh") {
+      try {
+        while (true) {
+          const inspection = await nativeInvoke<SshHostKeyInspection>("inspect_ssh_host_key", {
+            host,
+            port,
+            jumpHostIds,
+          });
+          if (inspection.verification.status === "changed") {
+            reconnectBlockedRef.current = true;
+            const changed = inspection.verification;
+            term.writeln("\x1b[38;2;248;113;113mHOST KEY CHANGED - connection blocked.\x1b[39m");
+            term.writeln(`Host: ${inspection.host}:${inspection.port} (${inspection.address})`);
+            term.writeln(`Previous: ${changed.old_key_type} ${changed.old_fingerprint}`);
+            term.writeln(`Presented: ${changed.new_key_type} ${changed.new_fingerprint}`);
+            term.writeln("Verify the server identity and remove the trusted key from Settings before reconnecting.");
+            connectedRef.current = false;
+            connectionStateRef.current = "disconnected";
+            updatePaneStatus(statusTabId, tabId, "host_key_warning");
+            return;
+          }
+          if (inspection.verification.status === "trusted") break;
+
+          const trusted = window.confirm(
+            `Trust this SSH host key?\n\nHost: ${inspection.host}:${inspection.port}\nAddress: ${inspection.address}\nAlgorithm: ${inspection.key_type}\nFingerprint: ${inspection.fingerprint}\n\nConfirm this fingerprint through a trusted channel before continuing.`,
+          );
+          if (!trusted) {
+            reconnectBlockedRef.current = true;
+            term.writeln("\x1b[38;2;248;113;113mConnection cancelled: host key was not trusted.\x1b[39m");
+            connectedRef.current = false;
+            connectionStateRef.current = "disconnected";
+            updatePaneStatus(statusTabId, tabId, "host_key_warning");
+            return;
+          }
+          await nativeInvoke("trust_host_key", {
+            host: inspection.host,
+            port: inspection.port,
+            keyType: inspection.key_type,
+            fingerprint: inspection.fingerprint,
+          });
+        }
+      } catch (error) {
+        term.writeln(`\x1b[38;2;248;113;113mHost-key verification failed: ${error}\x1b[39m`);
+        connectedRef.current = false;
+        connectionStateRef.current = "disconnected";
+        updatePaneStatus(statusTabId, tabId, "host_key_warning");
+        return;
+      }
+    }
 
     // Prompt for username in terminal if not provided
     if (!finalUsername && protocol === "ssh") {
@@ -200,7 +321,7 @@ export function TerminalView({
     }
 
     // Prompt for password in terminal if not provided
-    if (!finalPassword && protocol === "ssh") {
+    if (shouldPromptForPassword(protocol, authenticationMethod, finalPassword, credentialProfileId)) {
       finalPassword = await promptInTerminal(term, "Password: ", true);
       if (!finalPassword) {
         term.writeln("\x1b[38;2;248;113;113mConnection cancelled.\x1b[39m");
@@ -213,14 +334,20 @@ export function TerminalView({
 
     try {
       await nativeInvoke("spawn_terminal", {
-        tabId,
-        host,
-        port,
-        protocol,
-        username: finalUsername || null,
-        password: finalPassword || null,
-        keepaliveSecs: keepaliveInterval,
-        serialBaudRate,
+        request: {
+          tabId,
+          host,
+          port,
+          protocol,
+          username: finalUsername || null,
+          password: finalPassword || null,
+          authenticationMethod,
+          credentialProfileId: credentialProfileId || null,
+          privateKeyReference: privateKeyReference || null,
+          jumpHostIds,
+          keepaliveSecs: keepaliveInterval,
+          serialBaudRate,
+        },
       });
       if (protocol === "ssh") {
         await nativeInvoke("resize_terminal", {
@@ -231,27 +358,82 @@ export function TerminalView({
       }
       term.focus();
     } catch (err) {
+      if (blocksAutomaticReconnect(err)) reconnectBlockedRef.current = true;
       term.writeln(`\x1b[38;2;248;113;113mConnection failed: ${err}\x1b[39m`);
       connectedRef.current = false;
       connectionStateRef.current = "disconnected";
-      updateTabStatus(statusTabId, "error");
+      updatePaneStatus(statusTabId, tabId, "error");
     }
-  }, [tabId, statusTabId, host, port, protocol, username, password, serialBaudRate, keepaliveInterval, updateTabStatus]);
+  }, [tabId, statusTabId, host, port, protocol, username, password, authenticationMethod, credentialProfileId, privateKeyReference, jumpHostIds, serialBaudRate, keepaliveInterval, updatePaneStatus]);
 
-  const handleReconnect = useCallback(async () => {
+  const performReconnect = useCallback(async (manual: boolean) => {
     const term = terminalRef.current;
     if (!term) return;
+    clearReconnectTimers();
+    explicitDisconnectRef.current = false;
+    if (manual) {
+      reconnectAttemptRef.current = 0;
+      reconnectBlockedRef.current = false;
+    }
+    reconnectInProgressRef.current = true;
     connectedRef.current = false;
     connectionStateRef.current = "connecting";
+    updatePaneStatus(statusTabId, tabId, "reconnecting");
     try {
       await nativeInvoke("close_terminal", { tabId, protocol });
+      setTerminalLogRevision((revision) => revision + 1);
     } catch { /* ignore close errors */ }
     // Wait for connection to fully close before reconnecting
     await new Promise(r => setTimeout(r, 500));
     term.reset();
     term.clear();
-    connectToHost();
-  }, [tabId, protocol, connectToHost]);
+    await connectToHost();
+    if (!connectedRef.current) {
+      reconnectInProgressRef.current = false;
+      scheduleReconnectRef.current();
+    }
+  }, [clearReconnectTimers, connectToHost, protocol, statusTabId, tabId, updatePaneStatus]);
+
+  const scheduleReconnect = useCallback(() => {
+    if (explicitDisconnectRef.current || reconnectBlockedRef.current || !hasConnectedRef.current) return;
+    if (shouldPromptForPassword(protocol, authenticationMethod, password || "", credentialProfileId)) {
+      connectionStateRef.current = "disconnected";
+      updatePaneStatus(statusTabId, tabId, "disconnected");
+      terminalRef.current?.writeln("Press Enter to reconnect.");
+      return;
+    }
+    if (stableConnectionTimerRef.current !== null) {
+      window.clearTimeout(stableConnectionTimerRef.current);
+      stableConnectionTimerRef.current = null;
+    }
+    const attempt = reconnectAttemptRef.current + 1;
+    const delay = reconnectDelayMs(reconnectMode, attempt);
+    if (delay === null) {
+      connectionStateRef.current = "disconnected";
+      updatePaneStatus(statusTabId, tabId, "disconnected");
+      terminalRef.current?.writeln("Press Enter to reconnect.");
+      return;
+    }
+    reconnectAttemptRef.current = attempt;
+    connectionStateRef.current = "connecting";
+    updatePaneStatus(statusTabId, tabId, "reconnecting");
+    setScheduledReconnect({ attempt, seconds: Math.ceil(delay / 1_000) });
+    terminalRef.current?.writeln(t("reconnect.scheduled", {
+      attempt,
+      seconds: Math.ceil(delay / 1_000),
+    }));
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      setScheduledReconnect(null);
+      void performReconnect(false);
+    }, delay);
+  }, [authenticationMethod, credentialProfileId, password, performReconnect, protocol, reconnectMode, statusTabId, t, tabId, updatePaneStatus]);
+
+  scheduleReconnectRef.current = scheduleReconnect;
+
+  const handleReconnect = useCallback(() => {
+    void performReconnect(true);
+  }, [performReconnect]);
 
   useEffect(() => {
     if (reconnectToken === undefined || reconnectToken === lastReconnectTokenRef.current) return;
@@ -275,8 +457,32 @@ export function TerminalView({
 
   const handleDisconnect = useCallback(async () => {
     if (connectionStateRef.current === "disconnected") return;
+    explicitDisconnectRef.current = true;
+    clearReconnectTimers();
     await nativeInvoke("close_terminal", { tabId, protocol }).catch(() => {});
-  }, [tabId, protocol]);
+    setTerminalLogRevision((revision) => revision + 1);
+    reconnectInProgressRef.current = false;
+    connectedRef.current = false;
+    connectionStateRef.current = "disconnected";
+    updatePaneStatus(statusTabId, tabId, "disconnected");
+    terminalRef.current?.writeln("Press Enter to reconnect.");
+  }, [clearReconnectTimers, protocol, statusTabId, tabId, updatePaneStatus]);
+
+  useEffect(() => {
+    if (disconnectToken === undefined || disconnectToken === lastDisconnectTokenRef.current) return;
+    lastDisconnectTokenRef.current = disconnectToken;
+    void handleDisconnect();
+  }, [disconnectToken, handleDisconnect]);
+
+  const cancelReconnect = useCallback(() => {
+    explicitDisconnectRef.current = true;
+    clearReconnectTimers();
+    reconnectInProgressRef.current = false;
+    connectedRef.current = false;
+    connectionStateRef.current = "disconnected";
+    updatePaneStatus(statusTabId, tabId, "disconnected");
+    terminalRef.current?.writeln("Press Enter to reconnect.");
+  }, [clearReconnectTimers, statusTabId, tabId, updatePaneStatus]);
 
   // Search functions
   const handleSearchNext = useCallback(() => {
@@ -342,8 +548,9 @@ export function TerminalView({
     terminal.loadAddon(searchAddon);
     terminal.loadAddon(webLinksAddon);
 
-    terminal.open(containerRef.current);
-    fitAddon.fit();
+    const terminalContainer = containerRef.current;
+    terminal.open(terminalContainer);
+    fitTerminalWhenVisible(terminalContainer, () => fitAddon.fit());
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -403,8 +610,17 @@ export function TerminalView({
     });
     const unlistenStatus = listen<string>(`terminal-status-${tabId}`, (event) => {
       if (event.payload === "connected") {
+        reconnectInProgressRef.current = false;
+        reconnectBlockedRef.current = false;
+        hasConnectedRef.current = true;
+        setScheduledReconnect(null);
         connectionStateRef.current = "connected";
-        updateTabStatus(statusTabId, "connected");
+        updatePaneStatus(statusTabId, tabId, "connected");
+        if (stableConnectionTimerRef.current !== null) window.clearTimeout(stableConnectionTimerRef.current);
+        stableConnectionTimerRef.current = window.setTimeout(() => {
+          reconnectAttemptRef.current = 0;
+          stableConnectionTimerRef.current = null;
+        }, RECONNECT_STABLE_RESET_MS);
       }
       if (event.payload === "disconnected") {
         terminal.writeln("");
@@ -413,14 +629,20 @@ export function TerminalView({
         disconnectReason = "";
         connectedRef.current = false;
         connectionStateRef.current = "disconnected";
-        updateTabStatus(statusTabId, "disconnected");
-        terminal.writeln("Press Enter to reconnect.");
+        if (explicitDisconnectRef.current) {
+          updatePaneStatus(statusTabId, tabId, "disconnected");
+          terminal.writeln("Press Enter to reconnect.");
+        } else if (!reconnectInProgressRef.current) {
+          scheduleReconnectRef.current();
+        }
       }
     });
 
     // Resize
-    const resizeObserver = new ResizeObserver(() => { fitAddon.fit(); });
-    resizeObserver.observe(containerRef.current);
+    const resizeObserver = new ResizeObserver(() => {
+      fitTerminalWhenVisible(terminalContainer, () => fitAddon.fit());
+    });
+    resizeObserver.observe(terminalContainer);
 
     terminal.onResize(({ cols, rows }) => {
       if (protocol === "ssh") nativeInvoke("resize_terminal", { tabId, cols, rows }).catch(() => {});
@@ -432,6 +654,8 @@ export function TerminalView({
 
     return () => {
       window.clearTimeout(connectTimer);
+      explicitDisconnectRef.current = true;
+      clearReconnectTimers();
       connectedRef.current = false;
       clearSemanticDecorations(semanticDecorations);
       resizeObserver.disconnect();
@@ -448,9 +672,28 @@ export function TerminalView({
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 h-8 overflow-x-auto bg-dock-sidebar border-b border-dock-border flex-shrink-0">
         <ToolbarBtn icon={RotateCw} title="Reconnect" onClick={handleReconnect} />
+        {scheduledReconnect && (
+          <button
+            type="button"
+            onClick={cancelReconnect}
+            className="flex h-6 items-center gap-1 rounded bg-amber-400/10 px-1.5 text-[10px] font-medium text-amber-300 hover:bg-amber-400/20"
+            title={t("reconnect.cancel")}
+            aria-label={t("reconnect.cancel")}
+          >
+            <RotateCw size={10} className="animate-spin" />
+            <span>{t("reconnect.scheduled", scheduledReconnect)}</span>
+            <X size={10} />
+          </button>
+        )}
         <ToolbarBtn icon={Columns2} title="Split right" onClick={() => onSplitRight?.()} disabled={!canSplit || !onSplitRight} />
         <ToolbarBtn icon={Rows2} title="Split down" onClick={() => onSplitDown?.()} disabled={!canSplit || !onSplitDown} />
         {canClosePane && onClosePane && <ToolbarBtn icon={X} title="Close pane" onClick={onClosePane} />}
+        {protocol === "ssh" && <ToolbarBtn icon={FolderOpen} title={t("sftp.files")} onClick={() => setAuxiliaryPanel((panel) => panel === "files" ? null : "files")} />}
+        {protocol === "ssh" && <ToolbarBtn icon={Network} title={t("tunnels.title")} onClick={() => setAuxiliaryPanel((panel) => panel === "tunnels" ? null : "tunnels")} />}
+        {protocol === "ssh" && <ToolbarBtn icon={Code2} title={t("snippets.title")} onClick={() => setAuxiliaryPanel((panel) => panel === "snippets" ? null : "snippets")} />}
+        {protocol === "ssh" && <ToolbarBtn icon={Cpu} title={t("deviceInfo.title")} onClick={() => setAuxiliaryPanel((panel) => panel === "device" ? null : "device")} />}
+        {protocol === "ssh" && <ToolbarBtn icon={ListChecks} title={t("multiExec.title")} onClick={() => setAuxiliaryPanel((panel) => panel === "multiExec" ? null : "multiExec")} />}
+        <TerminalLoggingControl key={`${tabId}-${terminalLogRevision}`} tabId={tabId} />
         <ToolbarBtn icon={Search} title="Search (Ctrl+F)" onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 50); }} />
         <div className="w-px h-4 bg-dock-border mx-1" />
         <ToolbarBtn icon={Copy} title="Copy" onClick={handleCopy} />
@@ -468,7 +711,10 @@ export function TerminalView({
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); if (e.target.value) searchAddonRef.current?.findNext(e.target.value); }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") { e.shiftKey ? handleSearchPrev() : handleSearchNext(); }
+              if (e.key === "Enter") {
+                if (e.shiftKey) handleSearchPrev();
+                else handleSearchNext();
+              }
               if (e.key === "Escape") closeSearch();
             }}
             placeholder="Search terminal..."
@@ -480,20 +726,27 @@ export function TerminalView({
         </div>
       )}
 
-      {/* Terminal */}
-      <div
-        ref={containerRef}
-        className="flex-1 xterm-container"
-        data-tab-id={tabId}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          if (getTerminalContextMenuAction(terminalRef.current?.hasSelection() ?? false) === "copy") {
-            handleCopy();
-          } else {
-            handlePaste();
-          }
-        }}
-      />
+      <div className="flex flex-1 min-h-0 min-w-0">
+        {/* Terminal */}
+        <div
+          ref={containerRef}
+          className="flex-1 min-w-0 xterm-container"
+          data-tab-id={tabId}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (getTerminalContextMenuAction(terminalRef.current?.hasSelection() ?? false) === "copy") {
+              handleCopy();
+            } else {
+              handlePaste();
+            }
+          }}
+        />
+        {protocol === "ssh" && auxiliaryPanel === "files" && <SftpPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
+        {protocol === "ssh" && auxiliaryPanel === "tunnels" && <TunnelPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
+        {protocol === "ssh" && auxiliaryPanel === "snippets" && <SnippetPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
+        {protocol === "ssh" && auxiliaryPanel === "device" && <DeviceInfoPanel tabId={tabId} context={deviceContext} onClose={() => setAuxiliaryPanel(null)} />}
+        {protocol === "ssh" && auxiliaryPanel === "multiExec" && <MultiExecPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
+      </div>
     </div>
   );
 }

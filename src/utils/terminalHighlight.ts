@@ -114,6 +114,7 @@ function isValidIPv4(ip: string): boolean {
 
 // Allow tabs and line endings, but bypass any data that performs terminal
 // control. This keeps prompts, cursor movement, paging, and fullscreen apps raw.
+// eslint-disable-next-line no-control-regex -- Terminal control bytes are the values being detected.
 const RE_TERMINAL_CONTROL = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/;
 
 /**

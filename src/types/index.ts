@@ -1,6 +1,7 @@
 export type Protocol = "ssh" | "telnet" | "serial" | "bmc" | "vnc";
 export type BmcViewerMode = "web" | "external-browser" | "vnc";
 export type BmcCookiePersistence = "tab" | "application" | "persistent";
+export type ReconnectMode = "disabled" | "once" | "automatic";
 
 export interface BmcSessionConfig {
   bmc_use_https: boolean;
@@ -30,6 +31,7 @@ export interface Session extends BmcSessionConfig {
   credential_profile_id?: string;
   authentication_method: "password" | "private_key" | "ssh_agent" | "manual";
   private_key_reference?: string;
+  jump_host_ids: string[];
   folder_id?: string;
   device_type?: string;
   vendor?: string;
@@ -46,6 +48,7 @@ export interface Session extends BmcSessionConfig {
   last_connected_at?: string;
   connection_count: number;
   serial_baud_rate?: number;
+  reconnect_mode?: ReconnectMode;
 }
 
 export interface CreateSessionRequest extends Partial<BmcSessionConfig> {
@@ -57,6 +60,7 @@ export interface CreateSessionRequest extends Partial<BmcSessionConfig> {
   credential_profile_id?: string;
   authentication_method: "password" | "private_key" | "ssh_agent" | "manual";
   private_key_reference?: string;
+  jump_host_ids?: string[];
   folder_id?: string;
   device_type?: string;
   vendor?: string;
@@ -70,6 +74,7 @@ export interface CreateSessionRequest extends Partial<BmcSessionConfig> {
   terminal_profile_id?: string;
   tags?: string[];
   serial_baud_rate?: number;
+  reconnect_mode?: ReconnectMode;
 }
 
 export interface Folder {
@@ -84,6 +89,14 @@ export interface Folder {
 export interface CreateFolderRequest {
   name: string;
   parent_id?: string;
+}
+
+export interface SessionGroup {
+  id: string;
+  name: string;
+  member_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CredentialProfile {

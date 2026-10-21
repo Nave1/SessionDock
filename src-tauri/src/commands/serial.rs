@@ -3,8 +3,7 @@ use crate::models::SerialPortInfo;
 
 #[tauri::command]
 pub fn list_serial_ports() -> Result<Vec<SerialPortInfo>, AppError> {
-    let ports = serialport::available_ports()
-        .map_err(|e| AppError::Serial(e.to_string()))?;
+    let ports = serialport::available_ports().map_err(|e| AppError::Serial(e.to_string()))?;
 
     Ok(ports
         .into_iter()

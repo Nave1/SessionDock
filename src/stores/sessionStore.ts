@@ -1,9 +1,10 @@
 import { create } from "zustand";
-import type { Session, Folder, CredentialProfile, SearchResult } from "../types";
+import type { Session, Folder, SessionGroup, CredentialProfile, SearchResult } from "../types";
 
 interface SessionState {
   sessions: Session[];
   folders: Folder[];
+  groups: SessionGroup[];
   credentials: CredentialProfile[];
   searchResults: SearchResult[];
   searchQuery: string;
@@ -21,6 +22,11 @@ interface SessionState {
   moveFolder: (id: string, parentId?: string) => void;
   deleteFolderPreservingContents: (id: string) => void;
 
+  setGroups: (groups: SessionGroup[]) => void;
+  addGroup: (group: SessionGroup) => void;
+  updateGroupInStore: (group: SessionGroup) => void;
+  removeGroup: (id: string) => void;
+
   setCredentials: (credentials: CredentialProfile[]) => void;
   setSearchResults: (results: SearchResult[]) => void;
   setSearchQuery: (query: string) => void;
@@ -30,6 +36,7 @@ interface SessionState {
 export const useSessionStore = create<SessionState>((set) => ({
   sessions: [],
   folders: [],
+  groups: [],
   credentials: [],
   searchResults: [],
   searchQuery: "",
@@ -80,6 +87,15 @@ export const useSessionStore = create<SessionState>((set) => ({
         ),
       };
     }),
+
+  setGroups: (groups) => set({ groups }),
+  addGroup: (group) => set((state) => ({ groups: [...state.groups, group] })),
+  updateGroupInStore: (group) =>
+    set((state) => ({
+      groups: state.groups.map((item) => item.id === group.id ? group : item),
+    })),
+  removeGroup: (id) =>
+    set((state) => ({ groups: state.groups.filter((group) => group.id !== id) })),
 
   setCredentials: (credentials) => set({ credentials }),
   setSearchResults: (results) => set({ searchResults: results }),

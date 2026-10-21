@@ -45,7 +45,7 @@ export function CredentialForm({ onSubmit, onCancel }: CredentialFormProps) {
           {/* Profile name */}
           <div>
             <label className="block text-xs text-dock-text-muted mb-1.5">
-              Profile Name
+              {t("sshAuth.profileName")}
             </label>
             <input
               type="text"
@@ -76,7 +76,7 @@ export function CredentialForm({ onSubmit, onCancel }: CredentialFormProps) {
           {/* Auth method */}
           <div>
             <label className="block text-xs text-dock-text-muted mb-1.5">
-              Authentication Method
+              {t("sshAuth.authenticationMethod")}
             </label>
             <select
               value={formData.authentication_method}
@@ -86,28 +86,25 @@ export function CredentialForm({ onSubmit, onCancel }: CredentialFormProps) {
               }))}
               className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text focus:border-dock-accent focus:outline-none"
             >
-              <option value="password">Password</option>
-              <option value="private_key">Private Key</option>
-              <option value="ssh_agent">SSH Agent</option>
-              <option value="manual">Manual (ask each time)</option>
+              <option value="password">{t("session.password")}</option>
+              <option value="private_key">{t("sshAuth.privateKey")}</option>
             </select>
           </div>
 
-          {/* Password (only for password auth) */}
-          {formData.authentication_method === "password" && (
+          {(formData.authentication_method === "password" || formData.authentication_method === "private_key") && (
             <div>
               <label className="block text-xs text-dock-text-muted mb-1.5">
-                {t("session.password")}
+                {formData.authentication_method === "private_key" ? t("sshAuth.privateKeyPassphrase") : t("session.password")}
               </label>
               <input
                 type="password"
                 value={formData.password || ""}
                 onChange={(e) => setFormData((p) => ({ ...p, password: e.target.value }))}
-                placeholder="Will be stored securely in OS vault"
+                placeholder={formData.authentication_method === "private_key" ? t("sshAuth.encryptedKeyPassphrase") : t("sshAuth.vaultPassword")}
                 className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
               />
               <p className="mt-1 text-[10px] text-dock-text-muted">
-                Stored in Windows Credential Manager / macOS Keychain. Never in plain text.
+                {t("sshAuth.vaultNotice")}
               </p>
             </div>
           )}

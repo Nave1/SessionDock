@@ -21,10 +21,7 @@ pub struct SerialSession {
 
 impl SerialSession {
     pub fn new(config: SerialConfig) -> Self {
-        Self {
-            config,
-            port: None,
-        }
+        Self { config, port: None }
     }
 
     pub fn connect(&mut self) -> Result<(), AppError> {
@@ -73,7 +70,10 @@ impl SerialSession {
                     }
                     serialport::ErrorKind::Io(io_kind) => match io_kind {
                         std::io::ErrorKind::PermissionDenied => {
-                            format!("Permission denied for port '{}'. The port may be in use.", self.config.port_name)
+                            format!(
+                                "Permission denied for port '{}'. The port may be in use.",
+                                self.config.port_name
+                            )
                         }
                         _ => format!("IO error opening port: {}", e),
                     },
@@ -87,7 +87,9 @@ impl SerialSession {
     }
 
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, AppError> {
-        let port = self.port.as_mut()
+        let port = self
+            .port
+            .as_mut()
             .ok_or_else(|| AppError::Serial("Not connected".into()))?;
 
         match port.read(buf) {
@@ -98,7 +100,9 @@ impl SerialSession {
     }
 
     pub fn write(&mut self, data: &[u8]) -> Result<(), AppError> {
-        let port = self.port.as_mut()
+        let port = self
+            .port
+            .as_mut()
             .ok_or_else(|| AppError::Serial("Not connected".into()))?;
 
         port.write_all(data)
@@ -113,9 +117,5 @@ impl SerialSession {
     pub fn disconnect(&mut self) -> Result<(), AppError> {
         self.port = None;
         Ok(())
-    }
-
-    pub fn is_connected(&self) -> bool {
-        self.port.is_some()
     }
 }

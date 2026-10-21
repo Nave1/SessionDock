@@ -1,8 +1,8 @@
-use tauri::State;
 use crate::credential_vault::{self, CredentialVault};
 use crate::db::Database;
 use crate::error::AppError;
 use crate::models::*;
+use tauri::State;
 
 #[tauri::command]
 pub fn store_credential(
@@ -16,16 +16,33 @@ pub fn store_credential(
     if request.name.trim().is_empty() {
         return Err(AppError::Validation("Credential name is required".into()));
     }
+    if request.name.len() > 120 || request.username.len() > 256 {
+        return Err(AppError::Validation(
+            "Credential profile fields are too long".into(),
+        ));
+    }
+    if request.name.contains('\0') || request.username.contains('\0') {
+        return Err(AppError::Validation(
+            "Credential profile contains invalid characters".into(),
+        ));
+    }
 
-    // Store the password in the OS credential vault (not in SQLite)
-    if let Some(password) = &request.password {
+    let stored_secret = request
+        .password
+        .as_ref()
+        .is_some_and(|secret| !secret.is_empty());
+    if let Some(password) = request
+        .password
+        .as_ref()
+        .filter(|secret| !secret.is_empty())
+    {
         let vault = credential_vault::get_vault();
         vault.store_secret(&vault_reference, password)?;
     }
 
     // Store only non-secret metadata in SQLite
     let conn = db.conn();
-    conn.execute(
+    let insert_result = conn.execute(
         "INSERT INTO credential_profiles (id, name, username, authentication_method, vault_reference, description, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         rusqlite::params![
@@ -38,7 +55,13 @@ pub fn store_credential(
             now,
             now,
         ],
-    )?;
+    );
+    if let Err(error) = insert_result {
+        if stored_secret {
+            let _ = credential_vault::get_vault().delete_secret(&vault_reference);
+        }
+        return Err(AppError::Database(error));
+    }
 
     Ok(CredentialProfile {
         id,
@@ -83,18 +106,17 @@ pub fn get_credential_profiles(
 }
 
 #[tauri::command]
-pub fn delete_credential(
-    db: State<'_, Database>,
-    id: String,
-) -> Result<(), AppError> {
+pub fn delete_credential(db: State<'_, Database>, id: String) -> Result<(), AppError> {
     let conn = db.conn();
 
     // Get vault reference before deleting
-    let vault_ref: String = conn.query_row(
-        "SELECT vault_reference FROM credential_profiles WHERE id = ?1",
-        rusqlite::params![id],
-        |row| row.get(0),
-    ).map_err(|_| AppError::NotFound("Credential profile not found".into()))?;
+    let vault_ref: String = conn
+        .query_row(
+            "SELECT vault_reference FROM credential_profiles WHERE id = ?1",
+            rusqlite::params![id],
+            |row| row.get(0),
+        )
+        .map_err(|_| AppError::NotFound("Credential profile not found".into()))?;
 
     // Delete from OS vault
     let vault = credential_vault::get_vault();

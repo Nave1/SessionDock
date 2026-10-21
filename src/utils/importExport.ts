@@ -45,6 +45,7 @@ export interface SafeExportSession {
   bmc_redfish_enabled?: boolean;
   bmc_cookie_persistence?: Session["bmc_cookie_persistence"];
   serial_baud_rate?: number;
+  reconnect_mode?: Session["reconnect_mode"];
 }
 
 export type ImportFolder = Pick<Folder, "id" | "name" | "parent_id" | "sort_order">;
@@ -103,6 +104,7 @@ export function createSafeExport(
       bmc_redfish_enabled: s.protocol === "bmc" ? s.bmc_redfish_enabled : undefined,
       bmc_cookie_persistence: s.protocol === "bmc" ? s.bmc_cookie_persistence : undefined,
       serial_baud_rate: s.protocol === "serial" ? s.serial_baud_rate ?? 9600 : undefined,
+      reconnect_mode: s.reconnect_mode || "disabled",
     })),
     folders,
     tags: Array.from(allTags),
@@ -118,7 +120,7 @@ export function createCsvExport(sessions: Session[], folders: Folder[] = []): st
     "Name", "Host", "Port", "Protocol", "Username",
     "Device Type", "Vendor", "Model", "Description", "Favorite",
     "BMC HTTPS", "BMC Web Path", "BMC Console URL", "BMC Viewer Mode",
-    "BMC Server Hostname", "BMC Serial Number", "BMC Site", "BMC Rack", "BMC Rack Unit", "Serial Speed (bps)",
+    "BMC Server Hostname", "BMC Serial Number", "BMC Site", "BMC Rack", "BMC Rack Unit", "Serial Speed (bps)", "Reconnect Mode",
   ];
 
   const folderRows = folders.map((folder) => [
@@ -156,6 +158,7 @@ export function createCsvExport(sessions: Session[], folders: Folder[] = []): st
     escapeCsv(s.protocol === "bmc" ? s.bmc_rack || "" : ""),
     escapeCsv(s.protocol === "bmc" ? s.bmc_rack_unit || "" : ""),
     s.protocol === "serial" ? String(s.serial_baud_rate ?? 9600) : "",
+    s.reconnect_mode || "disabled",
   ]);
 
   return [headers.join(","), ...folderRows.map((r) => r.join(",")), ...sessionRows.map((r) => r.join(","))].join("\n");
@@ -246,6 +249,11 @@ export function parseCsvImportData(csv: string): CsvImportData {
           }
           break;
         }
+        case "reconnect mode":
+          if (["disabled", "once", "automatic"].includes(value)) {
+            session.reconnect_mode = value as Session["reconnect_mode"];
+          }
+          break;
       }
     });
 

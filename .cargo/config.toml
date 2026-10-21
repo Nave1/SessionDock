@@ -1,0 +1,3 @@
+[env]
+# libssh2 disables WinCNG ECDH by default for pre-Windows-10 compatibility.
+CFLAGS_x86_64_pc_windows_msvc = { value = "/DLIBSSH2_ECDSA_WINCNG", force = false }

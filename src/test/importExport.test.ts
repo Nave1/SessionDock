@@ -26,6 +26,7 @@ const mockSession: Session = {
   protocol: "ssh",
   username: "admin",
   authentication_method: "password",
+  jump_host_ids: [],
   favorite: true,
   connection_timeout: 30,
   keepalive_interval: 60,
@@ -45,6 +46,7 @@ const mockSession: Session = {
   bmc_timeout_seconds: 30,
   bmc_redfish_enabled: true,
   bmc_cookie_persistence: "application",
+  reconnect_mode: "automatic",
 };
 
 const mockFolder: Folder = {
@@ -127,6 +129,12 @@ describe("CSV Import", () => {
       { id: "folder-2", name: "Switches", parent_id: "folder-1", sort_order: 1 },
     ]);
     expect(imported.sessions[0].folder_id).toBe("folder-2");
+    expect(imported.sessions[0].reconnect_mode).toBe("automatic");
+  });
+
+  it("rejects unknown reconnect modes from CSV", () => {
+    const sessions = parseCsvImport("Name,Host,Reconnect Mode\nSwitch,10.0.0.1,unsafe");
+    expect(sessions[0].reconnect_mode).toBeUndefined();
   });
 
   it("remaps parent and session folder IDs during import", async () => {
@@ -169,6 +177,7 @@ describe("JSON Export", () => {
     expect(exported.sessions).toHaveLength(1);
     expect(exported.folders).toHaveLength(1);
     expect(exported.tags).toContain("production");
+    expect(exported.sessions[0].reconnect_mode).toBe("automatic");
   });
 
   it("excludes IDs from exported sessions", () => {

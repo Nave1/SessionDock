@@ -39,14 +39,4 @@ impl CredentialVault for PlatformVault {
             Err(e) => Err(AppError::CredentialVault(e.to_string())),
         }
     }
-
-    fn has_secret(&self, key: &str) -> Result<bool, AppError> {
-        let entry = keyring::Entry::new(Self::SERVICE_NAME, key)
-            .map_err(|e| AppError::CredentialVault(e.to_string()))?;
-        match entry.get_password() {
-            Ok(_) => Ok(true),
-            Err(keyring::Error::NoEntry) => Ok(false),
-            Err(e) => Err(AppError::CredentialVault(e.to_string())),
-        }
-    }
 }

@@ -112,6 +112,7 @@ export function generateSeedData(sessionCount: number = 100): {
       protocol,
       username: randomElement(["admin", "netops", "readonly", "automation"]),
       authentication_method: protocol === "ssh" ? randomElement(["password", "private_key"]) : "password",
+      jump_host_ids: [],
       folder_id: folder.id,
       device_type: deviceType,
       vendor,

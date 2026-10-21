@@ -4,6 +4,7 @@ import type {
   CreateSessionRequest,
   Folder,
   CreateFolderRequest,
+  SessionGroup,
   CredentialProfile,
   SearchResult,
   SerialPortInfo,
@@ -57,6 +58,34 @@ export async function updateFolder(
 
 export async function deleteFolder(id: string, action: "move_to_parent" | "delete_all"): Promise<void> {
   return nativeInvoke("delete_folder", { id, action });
+}
+
+// --- Session groups ---
+
+export async function createSessionGroup(name: string): Promise<SessionGroup> {
+  return nativeInvoke("create_session_group", { request: { name } });
+}
+
+export async function getSessionGroups(): Promise<SessionGroup[]> {
+  return nativeInvoke("get_session_groups");
+}
+
+export async function updateSessionGroup(id: string, name: string): Promise<SessionGroup> {
+  return nativeInvoke("update_session_group", { id, name });
+}
+
+export async function deleteSessionGroup(id: string): Promise<void> {
+  return nativeInvoke("delete_session_group", { id });
+}
+
+export async function getSessionGroupMembers(groupId: string): Promise<string[]> {
+  return nativeInvoke("get_session_group_members", { groupId });
+}
+
+export async function setSessionGroupMembers(groupId: string, sessionIds: string[]): Promise<SessionGroup> {
+  return nativeInvoke("set_session_group_members", {
+    request: { group_id: groupId, session_ids: sessionIds },
+  });
 }
 
 // --- Credentials ---

@@ -1,6 +1,6 @@
 use crate::error::AppError;
-use tauri::{LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl};
 use std::time::Instant;
+use tauri::{LogicalPosition, LogicalSize, Manager, WebviewBuilder, WebviewUrl};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -108,15 +108,16 @@ pub fn set_bmc_webview_visible(
     visible: bool,
 ) -> Result<(), AppError> {
     let webview = get_bmc_webview(&app, &connection_id)?;
-    let result = if visible { webview.show() } else { webview.hide() };
+    let result = if visible {
+        webview.show()
+    } else {
+        webview.hide()
+    };
     result.map_err(|error| AppError::Generic(error.to_string()))
 }
 
 #[tauri::command]
-pub fn reload_bmc_webview(
-    app: tauri::AppHandle,
-    connection_id: String,
-) -> Result<(), AppError> {
+pub fn reload_bmc_webview(app: tauri::AppHandle, connection_id: String) -> Result<(), AppError> {
     get_bmc_webview(&app, &connection_id)?
         .reload()
         .map_err(|error| AppError::Generic(error.to_string()))
@@ -180,7 +181,9 @@ pub struct BmcTestResult {
 pub async fn test_bmc_connection(request: BmcTestRequest) -> Result<BmcTestResult, AppError> {
     let url = parse_bmc_url(&request.url)?;
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(request.timeout_seconds.clamp(1, 120)))
+        .timeout(std::time::Duration::from_secs(
+            request.timeout_seconds.clamp(1, 120),
+        ))
         .danger_accept_invalid_certs(request.ignore_tls_errors)
         .redirect(reqwest::redirect::Policy::limited(5))
         .build()
@@ -218,7 +221,10 @@ pub async fn test_bmc_connection(request: BmcTestRequest) -> Result<BmcTestResul
         match redfish_probe.send().await {
             Ok(redfish) => {
                 let code = redfish.status().as_u16();
-                (Some(redfish.status().is_success() || code == 401), Some(code))
+                (
+                    Some(redfish.status().is_success() || code == 401),
+                    Some(code),
+                )
             }
             Err(_) => (Some(false), None),
         }

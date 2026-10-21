@@ -7,6 +7,12 @@ import { TerminalTabs } from "./TerminalTabs";
 import { TerminalPaneLayout } from "./terminal/TerminalPaneLayout";
 import { BmcConsoleView } from "./bmc/BmcConsoleView";
 import { VncViewerView } from "./vnc/VncViewerView";
+import { CredentialsView } from "./views/CredentialsView";
+import { SessionGroupView } from "./views/SessionGroupView";
+import { ActiveConnectionsView } from "./views/ActiveConnectionsView";
+import { TransfersView } from "./views/TransfersView";
+import { TunnelsView } from "./views/TunnelsView";
+import { DiagnosticsView } from "./views/DiagnosticsView";
 import type { Session } from "../types";
 
 interface MainContentProps {
@@ -45,7 +51,7 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
   // Only show terminal when no specific view is selected (user clicked a tab, not a nav item)
-  const isNavView = currentView === "settings" || currentView === "home" || currentView === "credentials" || currentView === "tags";
+  const isNavView = currentView === "settings" || currentView === "home" || currentView === "credentials" || currentView === "tags" || currentView === "group" || currentView === "activeConnections" || currentView === "transfers" || currentView === "tunnels" || currentView === "diagnostics";
   const showTerminal = activeTab && !isNavView;
 
   return (
@@ -76,14 +82,26 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
         <div className={`absolute inset-0 ${showTerminal ? "hidden" : "z-10"}`}>
           {currentView === "settings" ? (
             <SettingsView />
+          ) : currentView === "credentials" ? (
+            <CredentialsView />
+          ) : currentView === "group" ? (
+            <SessionGroupView />
+          ) : currentView === "activeConnections" ? (
+            <ActiveConnectionsView />
+          ) : currentView === "transfers" ? (
+            <TransfersView />
+          ) : currentView === "tunnels" ? (
+            <TunnelsView />
+          ) : currentView === "diagnostics" ? (
+            <DiagnosticsView />
           ) : currentView === "allSessions" ? (
-            <SessionList sessions={sessions} title="All Sessions" onConnect={handleConnect} onEdit={() => {}} />
+            <SessionList sessions={sessions} title="All Sessions" onConnect={handleConnect} />
           ) : currentView === "favorites" ? (
-            <SessionList sessions={favoriteSessions} title="Favorites" onConnect={handleConnect} onEdit={() => {}} />
+            <SessionList sessions={favoriteSessions} title="Favorites" onConnect={handleConnect} />
           ) : currentView === "recent" ? (
-            <SessionList sessions={recentSessions} title="Recent Sessions" onConnect={handleConnect} onEdit={() => {}} />
+            <SessionList sessions={recentSessions} title="Recent Sessions" onConnect={handleConnect} />
           ) : currentView === "folder" ? (
-            <SessionList sessions={filteredSessions} title="Folder Sessions" onConnect={handleConnect} onEdit={() => {}} />
+            <SessionList sessions={filteredSessions} title="Folder Sessions" onConnect={handleConnect} />
           ) : (
             <HomeView onNewSession={onNewSession} onNewFolder={onNewFolder} onQuickConnect={onQuickConnect} onImport={onImport} />
           )}

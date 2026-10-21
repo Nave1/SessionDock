@@ -15,9 +15,6 @@ pub trait CredentialVault {
 
     /// Delete a secret by key. No-op if not found.
     fn delete_secret(&self, key: &str) -> Result<(), AppError>;
-
-    /// Check if a secret exists for the given key.
-    fn has_secret(&self, key: &str) -> Result<bool, AppError>;
 }
 
 /// Get the platform credential vault instance.

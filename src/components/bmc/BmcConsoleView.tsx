@@ -9,6 +9,8 @@ import { BmcConsoleToolbar } from "./BmcConsoleToolbar";
 
 export function BmcConsoleView({ tab, active }: { tab: TerminalTab; active: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const [error, setError] = useState<string>();
   const updateTabStatus = useAppStore((state) => state.updateTabStatus);
   const bmc = tab.bmc;
@@ -57,7 +59,7 @@ export function BmcConsoleView({ tab, active }: { tab: TerminalTab; active: bool
           await closeBmcWebview(tab.id, bmc?.bmc_cookie_persistence === "tab");
           return;
         }
-        await setBmcWebviewVisible(tab.id, active);
+        await setBmcWebviewVisible(tab.id, activeRef.current);
         updateTabStatus(tab.id, "connected");
       } catch (cause) {
         if (!disposed) {

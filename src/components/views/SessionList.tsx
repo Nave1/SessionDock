@@ -13,10 +13,9 @@ interface SessionListProps {
   sessions: Session[];
   title: string;
   onConnect: (session: Session) => void;
-  onEdit: (session: Session) => void;
 }
 
-export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: SessionListProps) {
+export function SessionList({ sessions, title, onConnect }: SessionListProps) {
   const { t } = useTranslation();
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -86,6 +85,7 @@ export function SessionList({ sessions, title, onConnect, onEdit: _onEdit }: Ses
               <span className="text-[10px] text-dock-text-muted">
                 {session.host}{session.port > 0 && session.port !== 22 ? `:${session.port}` : ""}
                 {session.username && ` • ${session.username}`}
+                {session.jump_host_ids.length > 0 && ` • via ${session.jump_host_ids.length} ${session.jump_host_ids.length === 1 ? "hop" : "hops"}`}
               </span>
             </div>
 

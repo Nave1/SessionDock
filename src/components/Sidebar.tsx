@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useAppStore, ViewMode } from "../stores/appStore";
+import { listTerminalPaneIds, useAppStore, ViewMode } from "../stores/appStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { FolderTree } from "./tree/FolderTree";
 import { getActiveFolderDrag, setActiveFolderDrag } from "../utils/folderTree";
-import { deleteFolder, updateFolder, updateSession } from "../api/commands";
+import { createSessionGroup, deleteFolder, updateFolder, updateSession } from "../api/commands";
 import { useToastStore } from "../stores/toastStore";
+import { useTransferStore } from "../stores/transferStore";
+import { useTunnelStore } from "../stores/tunnelStore";
+import { useDiagnosticStore } from "../stores/diagnosticStore";
 import { createCsvExport, createSafeExport, saveTextFile } from "../utils/importExport";
 import {
   Home,
@@ -17,6 +20,12 @@ import {
   FolderPlus,
   Search,
   Zap,
+  KeyRound,
+  Users,
+  Activity,
+  ArrowRightLeft,
+  Network,
+  Stethoscope,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -30,10 +39,26 @@ interface SidebarProps {
 
 export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFolder, onQuickConnect }: SidebarProps) {
   const { t } = useTranslation();
-  const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId, addTab } = useAppStore();
-  const { folders, sessions, moveFolder, deleteFolderPreservingContents } = useSessionStore();
+  const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId, selectedGroupId, setSelectedGroupId, addTab, tabs } = useAppStore();
+  const { folders, groups, sessions, addGroup, moveFolder, deleteFolderPreservingContents } = useSessionStore();
   const addToast = useToastStore((state) => state.addToast);
+  const activeTransferCount = useTransferStore((state) => state.transfers.filter((transfer) => transfer.status === "running" || transfer.status === "paused").length);
+  const activeTunnelCount = useTunnelStore((state) => state.tunnels.length);
+  const activeDiagnosticCount = useDiagnosticStore((state) => state.diagnostics.filter((diagnostic) => diagnostic.status === "running").length);
   const [rootDragOver, setRootDragOver] = useState(false);
+
+  const handleCreateGroup = async () => {
+    const name = window.prompt(t("groups.namePrompt"))?.trim();
+    if (!name) return;
+    try {
+      const group = await createSessionGroup(name);
+      addGroup(group);
+      setSelectedGroupId(group.id);
+      setCurrentView("group");
+    } catch (error) {
+      addToast("error", `${t("groups.createFailed")}: ${String(error)}`);
+    }
+  };
 
   const handleMoveFolder = async (folderId: string, parentId?: string) => {
     try {
@@ -81,7 +106,12 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
     { view: "favorites", icon: Star, label: t("sidebar.favorites") },
     { view: "recent", icon: Clock, label: t("sidebar.recent") },
     { view: "allSessions", icon: List, label: t("sidebar.allSessions") },
+    { view: "activeConnections", icon: Activity, label: t("sidebar.activeConnections") },
+    { view: "transfers", icon: ArrowRightLeft, label: t("sidebar.transfers") },
+    { view: "tunnels", icon: Network, label: t("sidebar.tunnels") },
+    { view: "diagnostics", icon: Stethoscope, label: t("sidebar.diagnostics") },
   ];
+  const activeConnectionCount = tabs.reduce((count, tab) => count + listTerminalPaneIds(tab.paneLayout ?? { type: "pane", id: tab.id }).length, 0);
 
   return (
     <aside
@@ -155,11 +185,52 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
                   {sessions.filter(s => s.favorite).length}
                 </span>
               )}
+              {view === "activeConnections" && activeConnectionCount > 0 && (
+                <span className="ml-auto text-[10px] text-dock-text-muted tabular-nums">
+                  {activeConnectionCount}
+                </span>
+              )}
+              {view === "transfers" && activeTransferCount > 0 && (
+                <span className="ml-auto text-[10px] text-dock-text-muted tabular-nums">
+                  {activeTransferCount}
+                </span>
+              )}
+              {view === "tunnels" && activeTunnelCount > 0 && (
+                <span className="ml-auto text-[10px] text-dock-text-muted tabular-nums">
+                  {activeTunnelCount}
+                </span>
+              )}
+              {view === "diagnostics" && activeDiagnosticCount > 0 && (
+                <span className="ml-auto text-[10px] text-dock-text-muted tabular-nums">
+                  {activeDiagnosticCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
         {/* Separator */}
+        <div className="my-3 mx-2 border-t border-dock-border" />
+
+        <div className="px-0.5">
+          <div className="mb-1 flex items-center justify-between px-2">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-dock-text-muted">{t("groups.title")}</span>
+            <button type="button" onClick={() => void handleCreateGroup()} className="p-1 text-dock-text-muted hover:text-dock-text" title={t("groups.create")}>
+              <Plus size={11} />
+            </button>
+          </div>
+          <div className="space-y-0.5">
+            {groups.map((group) => (
+              <button key={group.id} type="button" onClick={() => { setSelectedGroupId(group.id); setCurrentView("group"); }} className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-[11px] ${currentView === "group" && selectedGroupId === group.id ? "bg-dock-accent/10 text-dock-accent" : "text-dock-text-muted hover:bg-dock-surface hover:text-dock-text"}`}>
+                <Users size={12} />
+                <span className="min-w-0 flex-1 truncate text-left">{group.name}</span>
+                <span className="tabular-nums text-[9px]">{group.member_count}</span>
+              </button>
+            ))}
+          </div>
+          {groups.length === 0 && <p className="px-2.5 py-2 text-[10px] italic text-dock-text-muted">{t("groups.none")}</p>}
+        </div>
+
         <div className="my-3 mx-2 border-t border-dock-border" />
 
         {/* Folder tree */}
@@ -254,7 +325,18 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
       </nav>
 
       {/* Bottom settings */}
-      <div className="px-2 py-2 border-t border-dock-border flex-shrink-0">
+      <div className="px-2 py-2 border-t border-dock-border flex-shrink-0 space-y-0.5">
+        <button
+          onClick={() => setCurrentView("credentials")}
+          className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[12px] font-medium ${
+            currentView === "credentials"
+              ? "bg-dock-accent/10 text-dock-accent"
+              : "text-dock-text-muted hover:text-dock-text hover:bg-dock-surface"
+          }`}
+        >
+          <KeyRound size={14} strokeWidth={1.5} />
+          <span>{t("sidebar.credentials")}</span>
+        </button>
         <button
           onClick={() => setCurrentView("settings")}
           className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[12px] font-medium ${
