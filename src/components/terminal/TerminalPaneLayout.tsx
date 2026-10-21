@@ -38,7 +38,7 @@ export function TerminalPaneLayout({ tab, session }: TerminalPaneLayoutProps) {
               username={tab.username ?? session?.username}
               password={tab.password}
               authenticationMethod={session?.authentication_method}
-              credentialProfileId={session?.credential_profile_id}
+              credentialProfileId={tab.credentialProfileId ?? session?.credential_profile_id}
               privateKeyReference={session?.private_key_reference}
               jumpHostIds={session?.jump_host_ids}
               serialBaudRate={tab.serialBaudRate ?? session?.serial_baud_rate ?? 9600}
@@ -56,6 +56,11 @@ export function TerminalPaneLayout({ tab, session }: TerminalPaneLayoutProps) {
                 deviceType: session?.device_type,
                 model: session?.model,
               }}
+              initialAuxiliaryPanel={paneId === tab.id ? tab.initialAuxiliaryPanel : undefined}
+              initialTransferProtocol={paneId === tab.id ? tab.initialTransferProtocol : undefined}
+              requestedAuxiliaryPanel={tab.toolPaneId === paneId ? tab.toolPanel : undefined}
+              requestedTransferProtocol={tab.toolPaneId === paneId ? tab.toolTransferProtocol : undefined}
+              toolRequestToken={tab.toolPaneId === paneId ? tab.toolRequestToken : undefined}
             />
           </div>
         );

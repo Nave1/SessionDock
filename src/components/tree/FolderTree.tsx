@@ -27,6 +27,7 @@ interface FolderTreeProps {
   onRenameFolder?: (folder: Folder) => void;
   onExportFolder?: (folderId: string, format: "json" | "csv") => void;
   onEditSession?: (session: Session) => void;
+  onDeleteSession?: (session: Session) => void;
 }
 
 interface TreeNode {
@@ -84,6 +85,7 @@ export function FolderTree({
   onRenameFolder,
   onExportFolder,
   onEditSession,
+  onDeleteSession,
 }: FolderTreeProps) {
   const tree = buildTree(folders, sessions);
   const unfiledSessions = sessions.filter((session) => !session.folder_id);
@@ -192,6 +194,7 @@ export function FolderTree({
             setContextMenu(null);
             setSessionContextMenu({ session, x, y });
           }}
+          onDeleteSession={onDeleteSession}
         />
       ))}
       <div
@@ -225,7 +228,7 @@ export function FolderTree({
           Unfiled · Drop here {unfiledSessions.length > 0 && `(${unfiledSessions.length})`}
         </div>
         {unfiledSessions.map((session) => (
-          <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} onOpenContextMenu={(selected, x, y) => setSessionContextMenu({ session: selected, x, y })} depth={0} />
+          <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} onOpenContextMenu={(selected, x, y) => setSessionContextMenu({ session: selected, x, y })} onDeleteSession={onDeleteSession} depth={0} />
         ))}
       </div>
       {contextMenu && (
@@ -274,6 +277,10 @@ export function FolderTree({
             onEditSession?.(sessionContextMenu.session);
             setSessionContextMenu(null);
           }} />
+          <ContextMenuButton icon={Trash2} label="Delete session" danger onClick={() => {
+            onDeleteSession?.(sessionContextMenu.session);
+            setSessionContextMenu(null);
+          }} />
         </div>
       )}
     </div>
@@ -297,6 +304,7 @@ function TreeNodeItem({
   setRootDragOver,
   onOpenContextMenu,
   onOpenSessionContextMenu,
+  onDeleteSession,
 }: {
   node: TreeNode;
   depth: number;
@@ -314,6 +322,7 @@ function TreeNodeItem({
   setRootDragOver: (active: boolean) => void;
   onOpenContextMenu: (folder: Folder, x: number, y: number) => void;
   onOpenSessionContextMenu: (session: Session, x: number, y: number) => void;
+  onDeleteSession?: (session: Session) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -496,10 +505,11 @@ function TreeNodeItem({
               setRootDragOver={setRootDragOver}
               onOpenContextMenu={onOpenContextMenu}
               onOpenSessionContextMenu={onOpenSessionContextMenu}
+              onDeleteSession={onDeleteSession}
             />
           ))}
           {node.sessions.map((session) => (
-            <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} onOpenContextMenu={onOpenSessionContextMenu} depth={depth + 1} />
+            <SessionTreeItem key={session.id} session={session} onSelectSession={onSelectSession} onOpenContextMenu={onOpenSessionContextMenu} onDeleteSession={onDeleteSession} depth={depth + 1} />
           ))}
         </>
       )}
@@ -527,28 +537,45 @@ function ContextMenuButton({ icon: Icon, label, onClick, danger = false }: {
   );
 }
 
-function SessionTreeItem({ session, onSelectSession, onOpenContextMenu, depth }: {
+function SessionTreeItem({ session, onSelectSession, onOpenContextMenu, onDeleteSession, depth }: {
   session: Session;
   onSelectSession: (session: Session) => void;
   onOpenContextMenu: (session: Session, x: number, y: number) => void;
+  onDeleteSession?: (session: Session) => void;
   depth: number;
 }) {
   return (
-    <button
-      onPointerDown={(event) => beginSessionPointerDrag(event.nativeEvent, session.id)}
-      onClick={() => { if (!shouldSuppressSessionClick()) onSelectSession(session); }}
+    <div
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
         onOpenContextMenu(session, event.clientX, event.clientY);
       }}
-      className="w-full flex items-center gap-1.5 px-2 py-1 rounded text-xs text-dock-text-muted hover:text-dock-text hover:bg-dock-surface transition-colors cursor-grab active:cursor-grabbing"
+      className="group flex w-full items-center rounded text-xs text-dock-text-muted transition-colors hover:bg-dock-surface hover:text-dock-text"
       style={{ paddingLeft: `${depth * 12 + 8}px` }}
     >
-      <ProtocolDot protocol={session.protocol} />
-      <span className="truncate">{session.name}</span>
-      <span className="ml-auto text-[10px] opacity-60">{session.host}</span>
-    </button>
+      <button
+        type="button"
+        onPointerDown={(event) => beginSessionPointerDrag(event.nativeEvent, session.id)}
+        onClick={() => { if (!shouldSuppressSessionClick()) onSelectSession(session); }}
+        className="flex min-w-0 flex-1 cursor-grab items-center gap-1.5 py-1 text-left active:cursor-grabbing"
+      >
+        <ProtocolDot protocol={session.protocol} />
+        <span className="truncate">{session.name}</span>
+        <span className="ml-auto truncate text-[10px] opacity-60">{session.host}</span>
+      </button>
+      {onDeleteSession && (
+        <button
+          type="button"
+          onClick={(event) => { event.stopPropagation(); onDeleteSession(session); }}
+          className="mx-1 p-1 text-dock-text-muted opacity-0 hover:text-red-400 focus:opacity-100 group-hover:opacity-100"
+          title={`Delete ${session.name}`}
+          aria-label={`Delete ${session.name}`}
+        >
+          <Trash2 size={11} />
+        </button>
+      )}
+    </div>
   );
 }
 

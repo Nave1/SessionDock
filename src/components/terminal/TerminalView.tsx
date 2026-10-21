@@ -9,7 +9,7 @@ import { readText, writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { Search, RotateCw, Trash2, Copy, ClipboardPaste, X, ChevronUp, ChevronDown, Columns2, Rows2, FolderOpen, Network, Code2, Cpu, ListChecks } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore } from "../../stores/settingsStore";
-import { useAppStore } from "../../stores/appStore";
+import { useAppStore, type TerminalAuxiliaryPanel, type TerminalTransferProtocol } from "../../stores/appStore";
 import { useTransferEvents } from "../../hooks/useTransferEvents";
 import { useTunnelEvents } from "../../hooks/useTunnelEvents";
 import { useDiagnosticEvents } from "../../hooks/useDiagnosticEvents";
@@ -182,6 +182,11 @@ interface TerminalViewProps {
   reconnectToken?: number;
   disconnectToken?: number;
   deviceContext?: DeviceContext;
+  initialAuxiliaryPanel?: TerminalAuxiliaryPanel;
+  initialTransferProtocol?: TerminalTransferProtocol;
+  requestedAuxiliaryPanel?: TerminalAuxiliaryPanel;
+  requestedTransferProtocol?: TerminalTransferProtocol;
+  toolRequestToken?: number;
 }
 
 export function TerminalView({
@@ -207,6 +212,11 @@ export function TerminalView({
   reconnectToken,
   disconnectToken,
   deviceContext = {},
+  initialAuxiliaryPanel,
+  initialTransferProtocol,
+  requestedAuxiliaryPanel,
+  requestedTransferProtocol,
+  toolRequestToken,
 }: TerminalViewProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -230,11 +240,16 @@ export function TerminalView({
   useTunnelEvents(tabId, protocol === "ssh");
   useDiagnosticEvents(tabId, protocol === "ssh");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [auxiliaryPanel, setAuxiliaryPanel] = useState<"files" | "tunnels" | "snippets" | "device" | "multiExec" | null>(null);
+  const [paneConnected, setPaneConnected] = useState(false);
+  const [auxiliaryPanel, setAuxiliaryPanel] = useState<TerminalAuxiliaryPanel | null>(initialAuxiliaryPanel ?? null);
   const [searchQuery, setSearchQuery] = useState("");
   const [terminalLogRevision, setTerminalLogRevision] = useState(0);
   const [scheduledReconnect, setScheduledReconnect] = useState<{ attempt: number; seconds: number } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (toolRequestToken && requestedAuxiliaryPanel) setAuxiliaryPanel(requestedAuxiliaryPanel);
+  }, [requestedAuxiliaryPanel, toolRequestToken]);
 
   const clearReconnectTimers = useCallback(() => {
     if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
@@ -615,6 +630,7 @@ export function TerminalView({
         hasConnectedRef.current = true;
         setScheduledReconnect(null);
         connectionStateRef.current = "connected";
+        setPaneConnected(true);
         updatePaneStatus(statusTabId, tabId, "connected");
         if (stableConnectionTimerRef.current !== null) window.clearTimeout(stableConnectionTimerRef.current);
         stableConnectionTimerRef.current = window.setTimeout(() => {
@@ -629,6 +645,7 @@ export function TerminalView({
         disconnectReason = "";
         connectedRef.current = false;
         connectionStateRef.current = "disconnected";
+        setPaneConnected(false);
         if (explicitDisconnectRef.current) {
           updatePaneStatus(statusTabId, tabId, "disconnected");
           terminal.writeln("Press Enter to reconnect.");
@@ -741,7 +758,7 @@ export function TerminalView({
             }
           }}
         />
-        {protocol === "ssh" && auxiliaryPanel === "files" && <SftpPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
+        {protocol === "ssh" && paneConnected && auxiliaryPanel === "files" && <SftpPanel tabId={tabId} initialTransferProtocol={requestedTransferProtocol ?? initialTransferProtocol} onClose={() => setAuxiliaryPanel(null)} />}
         {protocol === "ssh" && auxiliaryPanel === "tunnels" && <TunnelPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
         {protocol === "ssh" && auxiliaryPanel === "snippets" && <SnippetPanel tabId={tabId} onClose={() => setAuxiliaryPanel(null)} />}
         {protocol === "ssh" && auxiliaryPanel === "device" && <DeviceInfoPanel tabId={tabId} context={deviceContext} onClose={() => setAuxiliaryPanel(null)} />}

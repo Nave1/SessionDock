@@ -1,14 +1,14 @@
 import { useDeferredValue, useState } from "react";
-import { CircleStop, ExternalLink, RotateCcw, Search, Stethoscope, Trash2, X } from "lucide-react";
+import { CircleStop, ExternalLink, Play, RotateCcw, Search, Stethoscope, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
-import { listTerminalPaneIds, useAppStore } from "../../stores/appStore";
+import { findConnectedSshPane, listTerminalPaneIds, useAppStore } from "../../stores/appStore";
 import { type DiagnosticRecord, type DiagnosticStatus, useDiagnosticStore } from "../../stores/diagnosticStore";
 import { useToastStore } from "../../stores/toastStore";
 
 type DiagnosticFilter = "all" | "active" | "completed" | "failed";
 
-export function DiagnosticsView() {
+export function DiagnosticsView({ onQuickConnect = () => undefined }: { onQuickConnect?: () => void }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DiagnosticFilter>("all");
@@ -16,7 +16,7 @@ export function DiagnosticsView() {
   const diagnostics = useDiagnosticStore((state) => state.diagnostics);
   const attachDiagnostic = useDiagnosticStore((state) => state.attachDiagnostic);
   const clearFinished = useDiagnosticStore((state) => state.clearFinished);
-  const { tabs, setActiveTab, setActivePane, setCurrentView } = useAppStore();
+  const { tabs, activeTabId, setActiveTab, setActivePane, setCurrentView, requestPaneTool } = useAppStore();
   const addToast = useToastStore((state) => state.addToast);
 
   const ownerFor = (diagnostic: DiagnosticRecord) => tabs.find((tab) =>
@@ -40,6 +40,12 @@ export function DiagnosticsView() {
     setActiveTab(owner.id);
     setActivePane(owner.id, diagnostic.tabId);
     setCurrentView("recent");
+  };
+
+  const runDiagnostic = () => {
+    const target = findConnectedSshPane(tabs, activeTabId);
+    if (!target) return onQuickConnect();
+    requestPaneTool(target.tabId, target.paneId, "device");
   };
 
   const cancel = async (diagnostic: DiagnosticRecord) => {
@@ -87,6 +93,10 @@ export function DiagnosticsView() {
           <DiagnosticCount label={t("diagnosticsWorkspace.active")} count={activeCount} tone="active" />
           <DiagnosticCount label={t("diagnosticsWorkspace.completed")} count={completedCount} tone="completed" />
           <DiagnosticCount label={t("diagnosticsWorkspace.failed")} count={failedCount} tone="failed" />
+          <button type="button" onClick={runDiagnostic} className="ms-1 inline-flex h-7 items-center gap-1 rounded bg-dock-accent px-2.5 text-[10px] font-medium text-white hover:bg-dock-accent-hover">
+            <Play size={11} />
+            <span>{t("diagnosticsWorkspace.start")}</span>
+          </button>
         </div>
       </header>
 
@@ -113,7 +123,7 @@ export function DiagnosticsView() {
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {diagnostics.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-1 text-center text-xs text-dock-text-muted"><span>{t("diagnosticsWorkspace.empty")}</span><span className="text-[10px]">{t("diagnosticsWorkspace.emptyHint")}</span></div>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-xs text-dock-text-muted"><span>{t("diagnosticsWorkspace.empty")}</span><span className="text-[10px]">{t("diagnosticsWorkspace.emptyHint")}</span><button type="button" onClick={runDiagnostic} className="inline-flex h-7 items-center gap-1 rounded border border-dock-border px-2.5 text-[10px] text-dock-text hover:border-dock-accent"><Play size={11} />{t("diagnosticsWorkspace.start")}</button></div>
         ) : visibleDiagnostics.length === 0 ? (
           <div className="px-2 py-4 text-xs text-dock-text-muted">{t("diagnosticsWorkspace.noMatches")}</div>
         ) : (

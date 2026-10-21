@@ -16,6 +16,8 @@ export type ConnectionStatus =
   | "reconnecting";
 
 export type TerminalSplitDirection = "horizontal" | "vertical";
+export type TerminalAuxiliaryPanel = "files" | "tunnels" | "snippets" | "device" | "multiExec";
+export type TerminalTransferProtocol = "sftp" | "scp";
 
 export interface TerminalPane {
   type: "pane";
@@ -91,6 +93,7 @@ export interface TerminalTab {
   protocol: Protocol;
   username?: string;
   password?: string;
+  credentialProfileId?: string;
   serialBaudRate?: number;
   status: ConnectionStatus;
   paneStatuses?: Record<string, ConnectionStatus>;
@@ -102,6 +105,12 @@ export interface TerminalTab {
   reconnectToken?: number;
   disconnectPaneId?: string;
   disconnectToken?: number;
+  initialAuxiliaryPanel?: TerminalAuxiliaryPanel;
+  initialTransferProtocol?: TerminalTransferProtocol;
+  toolPaneId?: string;
+  toolPanel?: TerminalAuxiliaryPanel;
+  toolTransferProtocol?: TerminalTransferProtocol;
+  toolRequestToken?: number;
 }
 
 interface AppState {
@@ -134,6 +143,7 @@ interface AppState {
   requestTabReconnect: (tabId: string) => void;
   requestPaneReconnect: (tabId: string, paneId: string) => void;
   requestPaneDisconnect: (tabId: string, paneId: string) => void;
+  requestPaneTool: (tabId: string, paneId: string, panel: TerminalAuxiliaryPanel, transferProtocol?: TerminalTransferProtocol) => void;
 }
 
 export const useAppStore = create<AppState>()(persist((set) => ({
@@ -265,7 +275,36 @@ export const useAppStore = create<AppState>()(persist((set) => ({
         disconnectToken: (tab.disconnectToken ?? 0) + 1,
       } : tab),
     })),
+
+  requestPaneTool: (tabId, paneId, panel, transferProtocol) =>
+    set((state) => ({
+      activeTabId: tabId,
+      currentView: "recent",
+      tabs: state.tabs.map((tab) => tab.id === tabId ? {
+        ...tab,
+        activePaneId: paneId,
+        toolPaneId: paneId,
+        toolPanel: panel,
+        toolTransferProtocol: transferProtocol,
+        toolRequestToken: (tab.toolRequestToken ?? 0) + 1,
+      } : tab),
+    })),
 }), {
   name: "sessiondock-app-ui",
   partialize: (state) => ({ sidebarWidth: state.sidebarWidth }),
 }));
+
+export function findConnectedSshPane(tabs: TerminalTab[], activeTabId?: string | null): { tabId: string; paneId: string } | undefined {
+  const orderedTabs = [...tabs].sort((first, second) => Number(second.id === activeTabId) - Number(first.id === activeTabId));
+  for (const tab of orderedTabs) {
+    if (tab.protocol !== "ssh" || tab.status !== "connected") continue;
+    const paneIds = listTerminalPaneIds(tab.paneLayout ?? { type: "pane", id: tab.id });
+    const activePaneId = tab.activePaneId && paneIds.includes(tab.activePaneId) ? tab.activePaneId : paneIds[0];
+    const explicitStatuses = tab.paneStatuses && Object.keys(tab.paneStatuses).length > 0;
+    if (!explicitStatuses) return { tabId: tab.id, paneId: activePaneId };
+    if (tab.paneStatuses?.[activePaneId] === "connected") return { tabId: tab.id, paneId: activePaneId };
+    const connectedPaneId = paneIds.find((paneId) => tab.paneStatuses?.[paneId] === "connected");
+    if (connectedPaneId) return { tabId: tab.id, paneId: connectedPaneId };
+  }
+  return undefined;
+}

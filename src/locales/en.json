@@ -84,6 +84,7 @@
   },
   "transfers": {
     "title": "Transfers",
+    "start": "Start transfer",
     "summary": "{{count}} transfers this run",
     "all": "All",
     "active": "Active",
@@ -116,6 +117,7 @@
   },
   "tunnelsWorkspace": {
     "title": "Tunnels",
+    "start": "Create tunnel",
     "summary": "{{count}} active tunnels",
     "all": "All",
     "local": "Local",
@@ -138,6 +140,7 @@
   },
   "diagnosticsWorkspace": {
     "title": "Diagnostics",
+    "start": "Run diagnostic",
     "summary": "{{count}} checks this run",
     "all": "All",
     "active": "Active",
@@ -170,7 +173,15 @@
     "totalFolders": "Folders",
     "noSessions": "No sessions yet. Create your first session to get started."
   },
+  "quickConnect": {
+    "scpNotice": "SCP uses a secure SSH connection. After connecting, the Files panel opens in SCP mode so you can upload or download a specific remote file.",
+    "enterManually": "Enter username and password manually",
+    "noSavedCredentials": "No saved password credentials are available. Create one in Credentials, or enter the details manually."
+  },
   "session": {
+    "deleteConfirm": "Delete {{name}}?",
+    "deleted": "{{name}} deleted",
+    "deleteFailed": "Failed to delete session",
     "name": "Name",
     "host": "Host",
     "port": "Port",

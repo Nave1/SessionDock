@@ -4,7 +4,7 @@ import { listTerminalPaneIds, useAppStore, ViewMode } from "../stores/appStore";
 import { useSessionStore } from "../stores/sessionStore";
 import { FolderTree } from "./tree/FolderTree";
 import { getActiveFolderDrag, setActiveFolderDrag } from "../utils/folderTree";
-import { createSessionGroup, deleteFolder, updateFolder, updateSession } from "../api/commands";
+import { createSessionGroup, deleteFolder, deleteSession, updateFolder, updateSession } from "../api/commands";
 import { useToastStore } from "../stores/toastStore";
 import { useTransferStore } from "../stores/transferStore";
 import { useTunnelStore } from "../stores/tunnelStore";
@@ -40,7 +40,7 @@ interface SidebarProps {
 export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFolder, onQuickConnect }: SidebarProps) {
   const { t } = useTranslation();
   const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId, selectedGroupId, setSelectedGroupId, addTab, tabs } = useAppStore();
-  const { folders, groups, sessions, addGroup, moveFolder, deleteFolderPreservingContents } = useSessionStore();
+  const { folders, groups, sessions, addGroup, moveFolder, deleteFolderPreservingContents, removeSession } = useSessionStore();
   const addToast = useToastStore((state) => state.addToast);
   const activeTransferCount = useTransferStore((state) => state.transfers.filter((transfer) => transfer.status === "running" || transfer.status === "paused").length);
   const activeTunnelCount = useTunnelStore((state) => state.tunnels.length);
@@ -66,6 +66,17 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
       moveFolder(folderId, parentId);
     } catch (error) {
       addToast("error", `Failed to move folder: ${String(error)}`);
+    }
+  };
+
+  const handleDeleteSession = async (session: import("../types").Session) => {
+    if (!window.confirm(t("session.deleteConfirm", { name: session.name }))) return;
+    try {
+      await deleteSession(session.id);
+      removeSession(session.id);
+      addToast("success", t("session.deleted", { name: session.name }));
+    } catch (error) {
+      addToast("error", `${t("session.deleteFailed")}: ${String(error)}`);
     }
   };
 
@@ -315,6 +326,7 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
             }}
             onExportFolder={(folderId, format) => void handleExportFolder(folderId, format)}
             onEditSession={onEditSession}
+            onDeleteSession={(session) => void handleDeleteSession(session)}
           />
           {folders.length === 0 && (
             <p className="px-2.5 py-3 text-[11px] text-dock-text-muted italic">

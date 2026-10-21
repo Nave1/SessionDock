@@ -54,6 +54,19 @@ describe("TunnelsView", () => {
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-1");
   });
 
+  it("opens the tunnel creator on a connected SSH pane", () => {
+    render(<TunnelsView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "tunnelsWorkspace.start" }));
+
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState().tabs[0]).toMatchObject({
+      activePaneId: "pane-1",
+      toolPaneId: "pane-1",
+      toolPanel: "tunnels",
+    });
+  });
+
   it("stops a tunnel through the native manager", async () => {
     render(<TunnelsView />);
     fireEvent.click(await screen.findByRole("button", { name: "tunnels.stop" }));

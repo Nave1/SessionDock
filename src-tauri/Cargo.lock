@@ -3693,7 +3693,7 @@ dependencies = [
 
 [[package]]
 name = "sessiondock"
-version = "0.10.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3719,6 +3719,7 @@ dependencies = [
  "tokio",
  "uuid",
  "winapi",
+ "winreg",
 ]
 
 [[package]]

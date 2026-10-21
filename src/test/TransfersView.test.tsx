@@ -54,6 +54,31 @@ describe("TransfersView", () => {
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-1");
   });
 
+  it("opens Files on a connected SSH pane to start a transfer", () => {
+    render(<TransfersView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "transfers.start" }));
+
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState().tabs[0]).toMatchObject({
+      activePaneId: "pane-1",
+      toolPaneId: "pane-1",
+      toolPanel: "files",
+      toolTransferProtocol: "sftp",
+    });
+  });
+
+  it("opens Quick Connect when no SSH pane is connected", () => {
+    useAppStore.setState({ tabs: [], activeTabId: null });
+    useTransferStore.setState({ transfers: [] });
+    const onQuickConnect = vi.fn();
+    render(<TransfersView onQuickConnect={onQuickConnect} />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "transfers.start" })[0]);
+
+    expect(onQuickConnect).toHaveBeenCalledOnce();
+  });
+
   it("pauses through the native transfer manager", async () => {
     render(<TransfersView />);
     fireEvent.click(screen.getByRole("button", { name: "sftp.pause" }));

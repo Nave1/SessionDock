@@ -1,14 +1,14 @@
 import { useDeferredValue, useEffect, useState } from "react";
-import { CircleStop, ExternalLink, Network, RefreshCw, Search, X } from "lucide-react";
+import { CircleStop, ExternalLink, Network, Plus, RefreshCw, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
-import { listTerminalPaneIds, useAppStore } from "../../stores/appStore";
+import { findConnectedSshPane, listTerminalPaneIds, useAppStore } from "../../stores/appStore";
 import { type SshTunnelInfo, useTunnelStore } from "../../stores/tunnelStore";
 import { useToastStore } from "../../stores/toastStore";
 
 type TunnelFilter = "all" | SshTunnelInfo["mode"];
 
-export function TunnelsView() {
+export function TunnelsView({ onQuickConnect = () => undefined }: { onQuickConnect?: () => void }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TunnelFilter>("all");
@@ -18,7 +18,7 @@ export function TunnelsView() {
   const tunnels = useTunnelStore((state) => state.tunnels);
   const setAllTunnels = useTunnelStore((state) => state.setAllTunnels);
   const removeTunnel = useTunnelStore((state) => state.removeTunnel);
-  const { tabs, setActiveTab, setActivePane, setCurrentView } = useAppStore();
+  const { tabs, activeTabId, setActiveTab, setActivePane, setCurrentView, requestPaneTool } = useAppStore();
   const addToast = useToastStore((state) => state.addToast);
 
   const refresh = async () => {
@@ -55,6 +55,12 @@ export function TunnelsView() {
     setCurrentView("recent");
   };
 
+  const createTunnel = () => {
+    const target = findConnectedSshPane(tabs, activeTabId);
+    if (!target) return onQuickConnect();
+    requestPaneTool(target.tabId, target.paneId, "tunnels");
+  };
+
   const stop = async (tunnel: SshTunnelInfo) => {
     try {
       await nativeInvoke("stop_ssh_tunnel", { tunnelId: tunnel.id });
@@ -78,6 +84,10 @@ export function TunnelsView() {
           <TunnelCount label={t("tunnelsWorkspace.local")} count={modeCount("local")} />
           <TunnelCount label={t("tunnelsWorkspace.remote")} count={modeCount("remote")} />
           <TunnelCount label={t("tunnelsWorkspace.dynamic")} count={modeCount("dynamic")} />
+          <button type="button" onClick={createTunnel} className="ms-1 inline-flex h-7 items-center gap-1 rounded bg-dock-accent px-2.5 text-[10px] font-medium text-white hover:bg-dock-accent-hover">
+            <Plus size={12} />
+            <span>{t("tunnelsWorkspace.start")}</span>
+          </button>
         </div>
       </header>
 
@@ -106,7 +116,7 @@ export function TunnelsView() {
         ) : error ? (
           <div className="p-3 text-xs text-red-400" role="alert">{error}</div>
         ) : tunnels.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-1 text-center text-xs text-dock-text-muted"><span>{t("tunnelsWorkspace.empty")}</span><span className="text-[10px]">{t("tunnelsWorkspace.emptyHint")}</span></div>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-center text-xs text-dock-text-muted"><span>{t("tunnelsWorkspace.empty")}</span><span className="text-[10px]">{t("tunnelsWorkspace.emptyHint")}</span><button type="button" onClick={createTunnel} className="inline-flex h-7 items-center gap-1 rounded border border-dock-border px-2.5 text-[10px] text-dock-text hover:border-dock-accent"><Plus size={12} />{t("tunnelsWorkspace.start")}</button></div>
         ) : visibleTunnels.length === 0 ? (
           <div className="px-2 py-4 text-xs text-dock-text-muted">{t("tunnelsWorkspace.noMatches")}</div>
         ) : (

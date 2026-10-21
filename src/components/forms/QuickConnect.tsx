@@ -4,6 +4,7 @@ import { X, AlertTriangle } from "lucide-react";
 import type { BmcSessionConfig, Protocol } from "../../types";
 import { BmcSessionFields } from "./BmcSessionFields";
 import { SerialConnectionFields } from "./SerialConnectionFields";
+import { useSessionStore } from "../../stores/sessionStore";
 
 interface QuickConnectProps {
   onConnect: (config: QuickConnectConfig) => void;
@@ -16,12 +17,16 @@ export interface QuickConnectConfig extends Partial<BmcSessionConfig> {
   protocol: Protocol;
   username: string;
   password: string;
+  credential_profile_id?: string;
+  transfer_mode?: "scp";
   saveAsSession: boolean;
   serial_baud_rate: number;
 }
 
 export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
   const { t } = useTranslation();
+  const credentials = useSessionStore((state) => state.credentials);
+  const passwordCredentials = credentials.filter((credential) => credential.authentication_method === "password");
   const [config, setConfig] = useState<QuickConnectConfig>({
     host: "",
     port: 22,
@@ -48,9 +53,10 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
     }
   };
 
-  const handleProtocolChange = (protocol: Protocol) => {
+  const handleProtocolChange = (mode: Protocol | "scp") => {
+    const protocol = mode === "scp" ? "ssh" : mode;
     const ports = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
-    setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], ...(protocol === "serial" ? { serial_baud_rate: prev.serial_baud_rate || 9600 } : {}), ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
+    setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], transfer_mode: mode === "scp" ? "scp" : undefined, credential_profile_id: protocol === "ssh" ? prev.credential_profile_id : undefined, ...(protocol === "serial" ? { serial_baud_rate: prev.serial_baud_rate || 9600 } : {}), ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
     setShowTelnetWarning(false);
   };
 
@@ -69,13 +75,13 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
         <div className="p-5 space-y-4 max-h-[calc(90vh-49px)] overflow-y-auto">
           {/* Protocol */}
           <div className="flex flex-wrap gap-1">
-            {(["ssh", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
+            {(["ssh", "scp", "telnet", "serial", "bmc", "vnc"] as const).map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => handleProtocolChange(p)}
                 className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
-                  config.protocol === p
+                  (p === "scp" ? config.transfer_mode === "scp" : config.protocol === p && !config.transfer_mode)
                     ? "bg-dock-accent text-white"
                     : "bg-dock-surface text-dock-text-muted hover:text-dock-text"
                 }`}
@@ -84,6 +90,12 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
               </button>
             ))}
           </div>
+
+          {config.transfer_mode === "scp" && (
+            <div className="rounded border border-dock-accent/30 bg-dock-accent/10 p-3 text-xs leading-5 text-dock-text-muted">
+              {t("quickConnect.scpNotice")}
+            </div>
+          )}
 
           {/* Telnet warning */}
           {showTelnetWarning && (
@@ -160,6 +172,34 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
             </div>
           )}
 
+          {config.protocol === "ssh" && (
+            <div>
+              <label className="block text-xs text-dock-text-muted mb-1.5" htmlFor="quick-connect-credential">
+                {t("sshAuth.credentialProfile")}
+              </label>
+              <select
+                id="quick-connect-credential"
+                value={config.credential_profile_id || ""}
+                onChange={(event) => {
+                  const credential = passwordCredentials.find((item) => item.id === event.target.value);
+                  setConfig((previous) => ({
+                    ...previous,
+                    credential_profile_id: credential?.id,
+                    username: credential?.username || previous.username,
+                    password: "",
+                  }));
+                }}
+                className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text focus:border-dock-accent focus:outline-none"
+              >
+                <option value="">{t("quickConnect.enterManually")}</option>
+                {passwordCredentials.map((credential) => (
+                  <option key={credential.id} value={credential.id}>{credential.name} ({credential.username})</option>
+                ))}
+              </select>
+              {passwordCredentials.length === 0 && <p className="mt-1 text-[10px] text-dock-text-muted">{t("quickConnect.noSavedCredentials")}</p>}
+            </div>
+          )}
+
           {/* Username */}
           {config.protocol !== "vnc" && <div>
             <label className="block text-xs text-dock-text-muted mb-1.5">
@@ -169,6 +209,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
               type="text"
               value={config.username}
               onChange={(e) => setConfig((p) => ({ ...p, username: e.target.value }))}
+              disabled={Boolean(config.credential_profile_id)}
               onKeyDown={handleKeyDown}
               placeholder="(optional - SSH will prompt if needed)"
               className="w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
@@ -176,7 +217,7 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
           </div>}
 
           {/* Password */}
-          {(config.protocol === "ssh" || config.protocol === "bmc") && (
+          {((config.protocol === "ssh" && !config.credential_profile_id) || config.protocol === "bmc") && (
             <div>
               <label className="block text-xs text-dock-text-muted mb-1.5">
                 {t("session.password")}

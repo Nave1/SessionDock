@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-21
+
+### Added
+- Add compact session deletion actions to sidebar rows and their context menus, with confirmation and dependency-safe backend validation
+- Add SCP to Quick Connect as a discoverable SSH-backed transfer mode that opens the Files panel ready for SCP
+- Add saved password credential selection to Quick Connect while keeping credential secrets in the OS vault and backend
+- Add visible start actions to Transfers, Tunnels, and Diagnostics that open the correct tool on a connected SSH pane
+- Add Windows registry serial-port discovery as a fallback to native enumeration, with deduplication and natural COM-port sorting
+
+### Fixed
+- Remove the misleading COM3 placeholder when no serial port has been detected
+- Route operational workspace start actions to Quick Connect when no SSH pane is connected
+
 ## [0.10.0] - 2026-10-21
 
 ### Added

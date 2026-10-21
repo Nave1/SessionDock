@@ -123,10 +123,13 @@ function App() {
       protocol: config.protocol,
       username: config.username || undefined,
       password: config.password || undefined,
+      credentialProfileId: config.credential_profile_id,
       serialBaudRate: config.protocol === "serial" ? config.serial_baud_rate : undefined,
       status: "connecting",
       pinned: false,
       bmc: config.protocol === "bmc" ? config : undefined,
+      initialAuxiliaryPanel: config.transfer_mode === "scp" ? "files" : undefined,
+      initialTransferProtocol: config.transfer_mode,
     });
     setQuickConnectOpen(false);
     addToast("info", `Connecting to ${config.host}...`);
@@ -140,6 +143,7 @@ function App() {
         protocol: config.protocol,
         username: config.username || undefined,
         authentication_method: "password" as const,
+        credential_profile_id: config.credential_profile_id,
         favorite: false,
         connection_timeout: 30,
         keepalive_interval: 60,

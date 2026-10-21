@@ -57,6 +57,19 @@ describe("DiagnosticsView", () => {
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-1");
   });
 
+  it("opens Device Info on a connected SSH pane to run diagnostics", () => {
+    render(<DiagnosticsView />);
+
+    fireEvent.click(screen.getByRole("button", { name: "diagnosticsWorkspace.start" }));
+
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState().tabs[0]).toMatchObject({
+      activePaneId: "pane-1",
+      toolPaneId: "pane-1",
+      toolPanel: "device",
+    });
+  });
+
   it("cancels active work through the native diagnostics manager", async () => {
     useDiagnosticStore.setState({ diagnostics: [{ ...completedDiagnostic, status: "running", stdout: "", exitCode: undefined }] });
     render(<DiagnosticsView />);

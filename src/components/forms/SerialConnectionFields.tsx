@@ -73,13 +73,14 @@ export function SerialConnectionFields({
             type="text"
             value={portName}
             onChange={(event) => onPortNameChange(event.target.value)}
-            placeholder="COM3"
+            placeholder="Enter a COM port name"
             required
             className="mt-2 w-full px-3 py-2 rounded bg-dock-bg border border-dock-border text-xs text-dock-text placeholder-dock-text-muted focus:border-dock-accent focus:outline-none"
           />
         )}
         {error && <p className="mt-1 text-[11px] text-dock-error">{error}</p>}
-        {!loading && !error && ports.length === 0 && <p className="mt-1 text-[11px] text-dock-text-muted">No ports detected. Enter a COM port manually.</p>}
+        {loading && <p className="mt-1 text-[11px] text-dock-text-muted">Detecting connected serial ports...</p>}
+        {!loading && !error && ports.length === 0 && <p className="mt-1 text-[11px] text-dock-text-muted">No connected serial ports were detected. Enter a port name manually.</p>}
       </div>
 
       <div>

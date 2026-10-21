@@ -5,6 +5,7 @@ import {
   ExternalLink,
   Pause,
   Play,
+  Plus,
   RotateCcw,
   Search,
   Trash2,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
-import { listTerminalPaneIds, useAppStore } from "../../stores/appStore";
+import { findConnectedSshPane, listTerminalPaneIds, useAppStore } from "../../stores/appStore";
 import {
   type TransferRecord,
   type TransferStatus,
@@ -25,7 +26,7 @@ type TransferFilter = "all" | "active" | "completed" | "failed";
 
 const ACTIVE_STATUSES = new Set<TransferStatus>(["running", "paused"]);
 
-export function TransfersView() {
+export function TransfersView({ onQuickConnect = () => undefined }: { onQuickConnect?: () => void }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<TransferFilter>("all");
@@ -34,7 +35,7 @@ export function TransfersView() {
   const setTransferStatus = useTransferStore((state) => state.setTransferStatus);
   const attachRequest = useTransferStore((state) => state.attachRequest);
   const clearFinished = useTransferStore((state) => state.clearFinished);
-  const { tabs, setActiveTab, setActivePane, setCurrentView } = useAppStore();
+  const { tabs, activeTabId, setActiveTab, setActivePane, setCurrentView, requestPaneTool } = useAppStore();
   const addToast = useToastStore((state) => state.addToast);
 
   const ownerFor = (transfer: TransferRecord) => tabs.find((tab) =>
@@ -58,6 +59,12 @@ export function TransfersView() {
     setActiveTab(owner.id);
     setActivePane(owner.id, transfer.tabId);
     setCurrentView("recent");
+  };
+
+  const startTransfer = () => {
+    const target = findConnectedSshPane(tabs, activeTabId);
+    if (!target) return onQuickConnect();
+    requestPaneTool(target.tabId, target.paneId, "files", "sftp");
   };
 
   const changeState = async (transfer: TransferRecord, action: "pause" | "resume" | "cancel") => {
@@ -106,6 +113,10 @@ export function TransfersView() {
           <TransferCount label={t("transfers.active")} count={activeCount} tone="active" />
           <TransferCount label={t("transfers.completed")} count={completedCount} tone="completed" />
           <TransferCount label={t("transfers.failed")} count={failedCount} tone="failed" />
+          <button type="button" onClick={startTransfer} className="ms-1 inline-flex h-7 items-center gap-1 rounded bg-dock-accent px-2.5 text-[10px] font-medium text-white hover:bg-dock-accent-hover">
+            <Plus size={12} />
+            <span>{t("transfers.start")}</span>
+          </button>
         </div>
       </header>
 
@@ -132,7 +143,7 @@ export function TransfersView() {
 
       <div className="min-h-0 flex-1 overflow-auto p-3">
         {transfers.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-xs text-dock-text-muted">{t("transfers.empty")}</div>
+          <div className="flex h-full flex-col items-center justify-center gap-2 text-xs text-dock-text-muted"><span>{t("transfers.empty")}</span><button type="button" onClick={startTransfer} className="inline-flex h-7 items-center gap-1 rounded border border-dock-border px-2.5 text-[10px] text-dock-text hover:border-dock-accent"><Plus size={12} />{t("transfers.start")}</button></div>
         ) : visibleTransfers.length === 0 ? (
           <div className="px-2 py-4 text-xs text-dock-text-muted">{t("transfers.noMatches")}</div>
         ) : (

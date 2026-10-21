@@ -23,6 +23,7 @@ import {
   type TransferRequest,
   useTransferStore,
 } from "../../stores/transferStore";
+import type { TerminalTransferProtocol } from "../../stores/appStore";
 import {
   formatTransferSize,
   joinRemotePath,
@@ -35,9 +36,8 @@ import {
 interface SftpPanelProps {
   tabId: string;
   onClose: () => void;
+  initialTransferProtocol?: TerminalTransferProtocol;
 }
-
-type TransferProtocol = "sftp" | "scp";
 
 interface EditAction {
   kind: "mkdir" | "rename";
@@ -53,7 +53,7 @@ function validEntryName(name: string): boolean {
   return name.length > 0 && name !== "." && name !== ".." && !name.includes("/") && !name.includes("\\") && !name.includes("\0");
 }
 
-export function SftpPanel({ tabId, onClose }: SftpPanelProps) {
+export function SftpPanel({ tabId, onClose, initialTransferProtocol = "sftp" }: SftpPanelProps) {
   const { t } = useTranslation();
   const addToast = useToastStore((state) => state.addToast);
   const [path, setPath] = useState("/");
@@ -67,9 +67,13 @@ export function SftpPanel({ tabId, onClose }: SftpPanelProps) {
   const allTransfers = useTransferStore((state) => state.transfers);
   const attachRequest = useTransferStore((state) => state.attachRequest);
   const setTransferStatus = useTransferStore((state) => state.setTransferStatus);
-  const [transferProtocol, setTransferProtocol] = useState<TransferProtocol>("sftp");
+  const [transferProtocol, setTransferProtocol] = useState<TerminalTransferProtocol>(initialTransferProtocol);
   const [scpRemotePath, setScpRemotePath] = useState("/");
   const transfers = allTransfers.filter((transfer) => transfer.tabId === tabId).slice(0, 25);
+
+  useEffect(() => {
+    setTransferProtocol(initialTransferProtocol);
+  }, [initialTransferProtocol]);
 
   const loadDirectory = useCallback(async (nextPath: string) => {
     setLoading(true);
@@ -207,7 +211,7 @@ export function SftpPanel({ tabId, onClose }: SftpPanelProps) {
         <IconButton label={t("sftp.newFolder")} onClick={() => setEditAction({ kind: "mkdir", value: "" })} icon={FolderPlus} />
         <IconButton label={t("sftp.rename")} onClick={() => selected && setEditAction({ kind: "rename", value: selected.name })} icon={Pencil} disabled={!selected} />
         <IconButton label={t("sftp.delete")} onClick={() => void remove()} icon={Trash2} disabled={!selected} danger />
-        <select value={transferProtocol} onChange={(event) => setTransferProtocol(event.target.value as TransferProtocol)} aria-label={t("sftp.transferProtocol")} className="ms-auto h-6 bg-dock-bg border border-dock-border rounded text-[10px] text-dock-text px-1">
+        <select value={transferProtocol} onChange={(event) => setTransferProtocol(event.target.value as TerminalTransferProtocol)} aria-label={t("sftp.transferProtocol")} className="ms-auto h-6 bg-dock-bg border border-dock-border rounded text-[10px] text-dock-text px-1">
           <option value="sftp">SFTP</option>
           <option value="scp">SCP</option>
         </select>

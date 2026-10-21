@@ -89,11 +89,11 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
           ) : currentView === "activeConnections" ? (
             <ActiveConnectionsView />
           ) : currentView === "transfers" ? (
-            <TransfersView />
+            <TransfersView onQuickConnect={onQuickConnect} />
           ) : currentView === "tunnels" ? (
-            <TunnelsView />
+            <TunnelsView onQuickConnect={onQuickConnect} />
           ) : currentView === "diagnostics" ? (
-            <DiagnosticsView />
+            <DiagnosticsView onQuickConnect={onQuickConnect} />
           ) : currentView === "allSessions" ? (
             <SessionList sessions={sessions} title="All Sessions" onConnect={handleConnect} />
           ) : currentView === "favorites" ? (
