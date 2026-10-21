@@ -10,6 +10,14 @@ Built for network engineers, data-center technicians, system administrators, and
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+## What's new in v1.0.0
+
+- Delete saved sessions directly from the sidebar using the trash icon or the session context menu.
+- Use **SCP Quick Connect** to establish SSH and open the Files panel ready for an SCP transfer.
+- Select a saved password credential in Quick Connect instead of entering the username and password manually.
+- Start a transfer, create a tunnel, or run a diagnostic directly from its workspace. If no SSH connection is active, SessionDock opens Quick Connect first.
+- Discover connected Windows COM ports through native enumeration plus the Windows serial registry, with duplicate removal and natural COM-port ordering.
+
 ## Features
 
 ### Connections and terminal
@@ -21,18 +29,18 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Integrated SFTP** - Browse, upload, download, rename, delete, and create directories from a contextual Files panel on an authenticated SSH pane, including ProxyJump routes.
 - **SCP compatibility transfers** - Stream single-file uploads and downloads through authenticated SSH and ProxyJump panes when a server does not provide SFTP; SFTP remains the default.
 - **Transfer controls** - Stream files with progress, pause, resume, cancel, and retry controls without buffering entire files in memory.
-- **Transfers workspace** - Monitor every in-process SFTP and SCP job across open panes, filter runtime history, focus its owning connection, and control active or failed work globally.
+- **Transfers workspace** - Start a transfer on a connected SSH pane, monitor every in-process SFTP and SCP job across open panes, filter runtime history, focus its owning connection, and control active or failed work globally.
 - **SSH local tunnels** - Forward an automatic or chosen `127.0.0.1` port through an authenticated SSH or ProxyJump pane to a remote host and port.
 - **SSH remote tunnels** - Request an automatic or chosen server-side `127.0.0.1` port and forward accepted connections back to a local target.
 - **SSH dynamic forwarding** - Run a pane-owned SOCKS5 CONNECT proxy on an automatic or chosen local `127.0.0.1` port, including domain requests resolved through the SSH path.
-- **Tunnels workspace** - Inspect every active local, remote, and dynamic forward, filter runtime endpoints, focus its owning SSH pane, and stop it from one operational table.
+- **Tunnels workspace** - Open the tunnel creator on a connected SSH pane, inspect every active local, remote, and dynamic forward, filter runtime endpoints, focus its owning pane, and stop it from one operational table.
 - **Hostname and IP support** - Resolves DNS names, tries all resolved addresses, and reports connection errors by stage.
-- **Quick Connect** - Open an SSH, Telnet, Serial, BMC, or VNC connection without creating a saved session first.
+- **Quick Connect** - Open SSH, SCP, Telnet, Serial, BMC, or VNC without creating a saved session first. SSH and SCP can use a saved password credential or manually entered credentials.
 - **BMC / KVM over IP** - Open iDRAC, iLO, XClarity, Supermicro IPMI, and other browser-based management consoles in restricted native child WebViews or the default browser.
 - **VNC remote desktop** - Save or quickly open a VM desktop as a standalone VNC connection through RealVNC Viewer, using port 5900 by default.
 - **BMC diagnostics** - Test HTTP(S) reachability, latency, authentication responses, and optional Redfish discovery before connecting.
 - **Telnet support** - Connect to legacy network equipment with a clear transport security warning.
-- **Serial support** - Detect serial ports and configure baud rate, data bits, stop bits, parity, and flow control.
+- **Serial support** - Detect connected serial ports, merge the Windows serial registry as a discovery fallback, sort COM ports naturally, and configure baud rate, data bits, stop bits, parity, and flow control.
 - **Tabbed and split terminal workspace** - Run multiple concurrent sessions, split a terminal right or down into as many as four panes, and focus or close panes independently.
 - **Active Connections workspace** - Search and filter every open pane, inspect protocol, endpoint, and live status, then focus, reconnect, explicitly disconnect, or close it from one operational table.
 - **Full terminal interaction** - Raw keyboard input, control sequences, selection-aware copy, right-click paste, resize, links, scrolling, and remote output are handled by xterm.js.
@@ -42,7 +50,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Command snippets** - Create, search, edit, favorite, and categorize reusable commands in a pane-side library; insertion shows and copies the exact command into the SSH terminal without pressing Enter.
 - **Device Info and Quick Commands** - Match configured session metadata to conservative Generic SSH, Linux, or Arista EOS providers and expose exact read-only commands for insertion without automatic probing or execution.
 - **Structured device diagnostics** - Run provider-specific allowlisted checks in isolated SSH channels with status, exit code, truncation state, and raw stdout/stderr shown beside the terminal.
-- **Diagnostics workspace** - Monitor allowlisted checks across SSH panes, filter bounded runtime history, inspect raw output, focus or cancel active work, and rerun finished checks on their owning connection.
+- **Diagnostics workspace** - Open Device Info on a connected SSH pane to select an allowlisted check, then monitor checks across panes, inspect raw output, cancel active work, or rerun finished checks.
 - **MultiExec** - Review one exact command against explicitly selected connected SSH panes, confirm modifying or high-risk batches, and inspect status plus raw output independently for every target.
 - **Semantic output colors** - Optionally highlights IP/CIDR addresses, MAC addresses, interfaces, VLANs, timestamps, status words, and ping results without changing the remote byte stream or overriding native ANSI colors.
 
@@ -51,7 +59,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Saved sessions** - Store connection profiles with protocol, host, port, username, vendor, model, device type, description, and tags.
 - **Persistent local library** - Sessions, folders, and groups are stored in SQLite and restored automatically when SessionDock starts.
 - **Session groups** - Build flat reusable groups whose sessions can overlap, edit membership from a searchable list, and connect up to 25 group members together with confirmation for larger batches.
-- **Session editing and deletion** - Update saved profiles or remove them with confirmation.
+- **Session editing and deletion** - Update saved profiles or remove them with confirmation from the session list, sidebar trash icon, or sidebar context menu.
 - **Session folder assignment** - Choose a folder while creating or editing a session, or drag sessions between folders and the permanent Unfiled area.
 - **Nested folders** - Build multi-level folder hierarchies and drag folders into other folders.
 - **Root reordering** - Drag nested folders back to the top level using the Sidebar root target.
@@ -73,6 +81,33 @@ Built for network engineers, data-center technicians, system administrators, and
 - **English and Hebrew UI** - Includes right-to-left layout support for Hebrew.
 - **Local-first design** - No account, analytics, telemetry, or cloud backend; application data remains on the local device.
 - **Native desktop experience** - Compact Tauri interface with custom SessionDock branding, no console window, and a Windows NSIS installer.
+- **Signed automatic updates** - Check GitHub releases for signed updater manifests and install verified SessionDock updates in place.
+
+## Using Transfers, Tunnels, and Diagnostics
+
+These workspaces operate on an authenticated SSH connection. Their primary action uses the active connected SSH pane when possible; if none is available, SessionDock opens Quick Connect.
+
+### Transfers
+
+1. Open **Transfers** and select **Start transfer**.
+2. In the Files panel, choose **SFTP** for directory browsing and file management, or **SCP** for a single file at an absolute remote path.
+3. Upload or download the file. Use the Transfers workspace to monitor progress, pause, resume, cancel, or retry.
+
+### Tunnels
+
+1. Open **Tunnels** and select **Create tunnel**.
+2. Choose local forwarding, remote forwarding, or a dynamic SOCKS5 proxy and enter the listener and target details.
+3. Start the tunnel. The Tunnels workspace shows its runtime endpoint and provides focus and stop controls.
+
+All tunnel listeners are restricted to `127.0.0.1`.
+
+### Diagnostics
+
+1. Open **Diagnostics** and select **Run diagnostic**.
+2. Device Info opens on the selected SSH pane. Choose one of the provider's predefined checks.
+3. Review status and bounded raw output in the Diagnostics workspace, where active checks can be cancelled and completed checks can be rerun.
+
+Diagnostics use backend allowlisted commands; this workspace does not accept arbitrary commands.
 
 ## Security
 
@@ -128,7 +163,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_1.0.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_1.0.0_x64-setup.exe` from the [v1.0.0 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.0.0) and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
