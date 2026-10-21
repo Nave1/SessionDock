@@ -5,7 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.0] - 2026-10-21
+
+### Added
+- Add native OpenSSH private-key and SSH-agent authentication for saved SSH sessions
+- Add OS-vault credential profiles for SSH passwords and encrypted-key passphrases
+- Add explicit first-use SSH host-key trust and trusted-host management
+- Add native SSH ProxyJump chains with up to five ordered saved jump hosts
+- Add integrated SFTP browsing and file management on authenticated SSH and ProxyJump panes
+- Add opt-in native SCP single-file transfers for SSH servers without SFTP, including ProxyJump routes and shared transfer controls
+- Add streamed upload and download queues with progress, pause, resume, cancel, retry, and explicit overwrite confirmation
+- Add the first SSH Tunnel Manager slice with runtime local forwarding, automatic port allocation, and per-pane start/stop controls
+- Add runtime SSH remote forwarding with loopback-only server listeners, automatic port allocation, and explicit local targets
+- Add runtime SOCKS5 CONNECT forwarding with loopback-only listeners, automatic port allocation, remote-side domain resolution, and pane-owned lifecycle controls
+- Add a pane-scoped Command Snippets library with search, create/edit/delete, favorites, categories, vendor metadata, and exact-command insertion without automatic execution
+- Add the first Device Intelligence slice with metadata-driven Generic SSH, Linux, and Arista EOS providers plus transparent pane-scoped Quick Commands
+- Add structured Linux and Arista EOS diagnostics with pane-scoped progress, cancellation, exit status, and raw output
+- Add MultiExec for one-command execution across explicitly selected connected SSH panes with per-target status, cancellation, exit code, and raw output
+- Add opt-in SSH, Telnet, and Serial terminal logging to timestamped files in a user-selected local folder with a persistent recording indicator
+- Add per-session disabled, retry-once, and automatic reconnect modes with bounded exponential backoff, visible retry state, and cancellation
+- Add reusable session groups with many-to-many membership, searchable assignment, and bounded connect-all actions
+- Add a searchable Active Connections workspace with pane-level status, focus, reconnect, explicit disconnect, and close controls
+- Add a global Transfers workspace with cross-pane progress, filtering, focus, pause, resume, cancel, retry, and bounded runtime history
+- Add a global Tunnels workspace with authoritative runtime refresh, forwarding-mode filters, owner-pane focus, stop controls, and live navigation counts
+- Add a global Diagnostics workspace with cross-pane status, filtering, owner focus, cancellation, rerun, explicit raw output, and bounded runtime history
+
+### Security
+- Remove the unused legacy connection IPC and incomplete SSH/Telnet facades so connection lifecycle commands use only the authenticated, host-key-verified native terminal path
+- Enforce SSH host-key verification in the Rust connection path before all authentication methods
+- Block changed host keys without one-click replacement and keep private keys and passphrases out of SQLite and exports
+- Verify and authenticate every ProxyJump hop independently, reject invalid chains, and bind internal bridges only to loopback
+- Normalize SFTP paths, reject unsafe remote names, stage transfers before publish, and cancel pane-owned jobs on disconnect
+- Restrict SCP to shell-safe absolute remote file paths, require explicit upload confirmation, and stage local downloads before publish
+- Restrict local tunnel listeners to `127.0.0.1`, validate endpoints, and stop pane-owned listeners and channels on disconnect
+- Restrict remote tunnel listeners to server-side `127.0.0.1` and cancel server forwarding plus active channels on pane disconnect
+- Restrict dynamic SOCKS listeners to client-side `127.0.0.1`, reject unsupported authentication, BIND, UDP, malformed destinations, and stalled handshakes
+- Validate snippet identifiers and bounded text fields through typed Rust request payloads, apply edits atomically, and keep insertion separate from command execution
+- Keep provider matching local and conservative, expose confidence and metadata source, and never probe or execute Quick Commands automatically
+- Resolve diagnostic commands from a fixed Rust allowlist, execute them outside the interactive PTY, and enforce 10-second and 64 KiB limits with pane-close cancellation
+- Reclassify MultiExec commands in Rust, default unknown commands to potentially modifying, require strong high-risk confirmation, cap batches at 25 unique targets, and isolate every execution from interactive PTYs
+- Keep terminal logging disabled by default, require explicit sensitive-data confirmation, create new local files without overwrite, avoid secret-redaction claims, never upload logs, and flush logs when their pane closes
+- Keep automatic reconnect disabled by default, cancel retries after explicit disconnects and trust/authentication failures, and preserve host-key verification on every attempt
+- Validate group names and membership identifiers in Rust, update memberships transactionally, and cap connect-all batches at 25 sessions
+- Route Active Connections lifecycle controls through pane owners, avoid displaying credentials, and close native terminal resources before removing panes
+- Keep transfer paths and retry metadata in non-persisted runtime state, route controls through narrow native commands, and cancel stale active records when their pane closes
+- Keep tunnel creation scoped to explicit SSH panes, expose only runtime endpoint metadata globally, and route stop actions through the validated native tunnel manager
+- Keep diagnostic commands backend-allowlisted, retain raw results in bounded non-persisted runtime state, and route global cancel or rerun actions through narrow native commands
+- Add read-only npm and RustSec dependency audit gates for lockfile changes and weekly advisory checks
+- Refresh locked QUIC and TLS dependencies to patched releases for current RustSec denial-of-service and cryptographic advisories
+- Refresh certificate verification dependencies for current RustSec trust-store advisories
+- Enforce frontend, Rust, and dependency-security gates before publishing signed release artifacts
+
+### Fixed
+- Defer xterm fitting while terminal panes are hidden so background connections initialize without zero-dimension rendering errors
+- Restore frontend linting with an ESLint 9 flat config and enforce it in CI alongside TypeScript and React hook checks
 
 ## [0.9.7] - 2026-10-06
 

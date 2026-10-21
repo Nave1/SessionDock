@@ -1,0 +1,11 @@
+# Tauri's updater depends on zip 4 only on Windows. Update artifacts are
+# minisign-verified against the embedded public key before installation, so
+# archive extraction is not reachable with attacker-controlled input unless
+# the release signing key is compromised. tauri-plugin-updater 2.14.0 still
+# requires zip 4; remove these exceptions as soon as upstream supports zip 9.
+[advisories]
+ignore = [
+  "RUSTSEC-2026-0367",
+  "RUSTSEC-2026-0368",
+  "RUSTSEC-2026-0369",
+]

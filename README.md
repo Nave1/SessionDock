@@ -6,7 +6,7 @@ A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remo
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-0.9.7-blue)
+![Version](https://img.shields.io/badge/version-0.10.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -15,7 +15,17 @@ Built for network engineers, data-center technicians, system administrators, and
 ### Connections and terminal
 
 - **Native embedded SSH** - SSH runs in-process through libssh2; SessionDock does not wrap `ssh.exe`, Command Prompt, or PowerShell.
-- **SSH authentication** - Supports password and keyboard-interactive authentication with an in-terminal credential prompt.
+- **SSH authentication** - Supports password, keyboard-interactive, OpenSSH private-key, and SSH-agent authentication through native libssh2 APIs.
+- **SSH host trust** - Requires explicit fingerprint approval for new hosts and blocks changed keys until the saved trust entry is reviewed and removed.
+- **SSH jump hosts** - Route saved SSH sessions through an ordered chain of up to five credential-ready bastions using native libssh2 `direct-tcpip` channels.
+- **Integrated SFTP** - Browse, upload, download, rename, delete, and create directories from a contextual Files panel on an authenticated SSH pane, including ProxyJump routes.
+- **SCP compatibility transfers** - Stream single-file uploads and downloads through authenticated SSH and ProxyJump panes when a server does not provide SFTP; SFTP remains the default.
+- **Transfer controls** - Stream files with progress, pause, resume, cancel, and retry controls without buffering entire files in memory.
+- **Transfers workspace** - Monitor every in-process SFTP and SCP job across open panes, filter runtime history, focus its owning connection, and control active or failed work globally.
+- **SSH local tunnels** - Forward an automatic or chosen `127.0.0.1` port through an authenticated SSH or ProxyJump pane to a remote host and port.
+- **SSH remote tunnels** - Request an automatic or chosen server-side `127.0.0.1` port and forward accepted connections back to a local target.
+- **SSH dynamic forwarding** - Run a pane-owned SOCKS5 CONNECT proxy on an automatic or chosen local `127.0.0.1` port, including domain requests resolved through the SSH path.
+- **Tunnels workspace** - Inspect every active local, remote, and dynamic forward, filter runtime endpoints, focus its owning SSH pane, and stop it from one operational table.
 - **Hostname and IP support** - Resolves DNS names, tries all resolved addresses, and reports connection errors by stage.
 - **Quick Connect** - Open an SSH, Telnet, Serial, BMC, or VNC connection without creating a saved session first.
 - **BMC / KVM over IP** - Open iDRAC, iLO, XClarity, Supermicro IPMI, and other browser-based management consoles in restricted native child WebViews or the default browser.
@@ -24,14 +34,23 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Telnet support** - Connect to legacy network equipment with a clear transport security warning.
 - **Serial support** - Detect serial ports and configure baud rate, data bits, stop bits, parity, and flow control.
 - **Tabbed and split terminal workspace** - Run multiple concurrent sessions, split a terminal right or down into as many as four panes, and focus or close panes independently.
+- **Active Connections workspace** - Search and filter every open pane, inspect protocol, endpoint, and live status, then focus, reconnect, explicitly disconnect, or close it from one operational table.
 - **Full terminal interaction** - Raw keyboard input, control sequences, selection-aware copy, right-click paste, resize, links, scrolling, and remote output are handled by xterm.js.
 - **Terminal search** - Find text in the active terminal and move between matches.
+- **Opt-in terminal logging** - Record raw remote output for SSH, Telnet, or Serial panes to timestamped files in an explicitly selected local folder, with a persistent recording indicator and pane-owned stop/flush behavior.
+- **Optional auto reconnect** - Configure saved SSH, Telnet, and Serial sessions to stay disconnected, retry once, or retry automatically with exponential backoff capped at 30 seconds and a visible cancel control.
+- **Command snippets** - Create, search, edit, favorite, and categorize reusable commands in a pane-side library; insertion shows and copies the exact command into the SSH terminal without pressing Enter.
+- **Device Info and Quick Commands** - Match configured session metadata to conservative Generic SSH, Linux, or Arista EOS providers and expose exact read-only commands for insertion without automatic probing or execution.
+- **Structured device diagnostics** - Run provider-specific allowlisted checks in isolated SSH channels with status, exit code, truncation state, and raw stdout/stderr shown beside the terminal.
+- **Diagnostics workspace** - Monitor allowlisted checks across SSH panes, filter bounded runtime history, inspect raw output, focus or cancel active work, and rerun finished checks on their owning connection.
+- **MultiExec** - Review one exact command against explicitly selected connected SSH panes, confirm modifying or high-risk batches, and inspect status plus raw output independently for every target.
 - **Semantic output colors** - Optionally highlights IP/CIDR addresses, MAC addresses, interfaces, VLANs, timestamps, status words, and ping results without changing the remote byte stream or overriding native ANSI colors.
 
 ### Session organization
 
 - **Saved sessions** - Store connection profiles with protocol, host, port, username, vendor, model, device type, description, and tags.
-- **Persistent local library** - Sessions and folders are stored in SQLite and restored automatically when SessionDock starts.
+- **Persistent local library** - Sessions, folders, and groups are stored in SQLite and restored automatically when SessionDock starts.
+- **Session groups** - Build flat reusable groups whose sessions can overlap, edit membership from a searchable list, and connect up to 25 group members together with confirmation for larger batches.
 - **Session editing and deletion** - Update saved profiles or remove them with confirmation.
 - **Session folder assignment** - Choose a folder while creating or editing a session, or drag sessions between folders and the permanent Unfiled area.
 - **Nested folders** - Build multi-level folder hierarchies and drag folders into other folders.
@@ -41,6 +60,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Session search** - Search by name, host, vendor, model, description, and tags.
 - **Command palette** - Press `Ctrl+K` to search sessions and run common application actions from the keyboard.
 - **Native import and export** - Use Windows Open/Save dialogs for reliable JSON/CSV import and export to any user-selected path without credential secrets.
+- **Export boundary** - Normal exports omit credential profiles, private-key paths, and jump-host routing links so restored data cannot silently inherit access paths.
 - **Encrypted backups** - Create and restore password-encrypted AES-GCM backups from the Data settings page using native file dialogs.
 
 ### Interface and preferences
@@ -57,7 +77,21 @@ Built for network engineers, data-center technicians, system administrators, and
 ## Security
 
 - Passwords stored exclusively in OS credential vaults (never in SQLite or config files)
+- Private keys remain at their original filesystem path; optional passphrases are stored only in the OS credential vault
 - SSH authentication handled entirely in-process (no external ssh.exe)
+- SSH host keys are verified before authentication and rechecked by the backend before a terminal opens
+- Every jump host is resolved, authenticated, and host-key verified independently; internal bridge listeners bind only to loopback
+- SFTP reuses the authenticated SSH transport, validates remote paths and metadata, stages transfers before publishing, and requires confirmation before overwrite
+- Closing an SSH pane cancels its active transfers; failed and cancelled jobs remove staged partial files where the remote server permits it
+- Local tunnel listeners bind only to `127.0.0.1`, open one native SSH `direct-tcpip` channel per client, and stop with their owning pane
+- Remote tunnel listeners request only server-side `127.0.0.1` binds, connect to an explicit local target, and are cancelled when their owning pane closes
+- Dynamic SOCKS listeners bind only to `127.0.0.1`, support CONNECT without proxy authentication, and stop with their owning pane; SOCKS BIND and UDP are not supported
+- Command snippets are bounded and validated before local SQLite storage; inserting a snippet never submits it, and destructive classification is user-authored metadata rather than a safety guarantee
+- Device provider matching uses configured local metadata only; fallback never guesses a vendor, Quick Command classification is advisory, and commands are neither probed nor executed automatically
+- Structured diagnostics accept provider and check identifiers only; Rust resolves a fixed allowlist, uses a separate SSH channel, caps runtime and combined output, cancels pane-owned jobs on close, and keeps global history in bounded memory only
+- MultiExec reclassifies commands in Rust, treats classification as advisory, limits each batch to 25 unique connected panes, requires explicit acknowledgement for modifying commands and an exact target-count phrase for high-risk commands, and applies per-target runtime/output caps
+- Terminal logging is disabled by default, requires an explicit sensitive-data confirmation and native folder selection, writes create-new timestamped files locally, never uploads them, performs no claimed secret redaction, and flushes when its pane closes
+- Auto reconnect remains disabled by default, never runs after an explicit disconnect, and stops for host-key trust decisions, interactive credential prompts, and authentication-stage failures
 - No telemetry, no analytics, no cloud backend
 - All data stays local on your device
 - Credential vault abstraction for Windows Credential Manager and macOS Keychain
@@ -94,7 +128,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 ### Windows
 
-Download `SessionDock_0.9.7_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
+Download `SessionDock_0.10.0_x64-setup.exe` from the `release/` folder and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
@@ -134,7 +168,7 @@ npm run dev
 
 # Or manually:
 npx tauri build
-# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.9.7_x64-setup.exe
+# Output: src-tauri\target\release\bundle\nsis\SessionDock_0.10.0_x64-setup.exe
 ```
 
 > **Intel network users:** The build script automatically sets the proxy (`proxy-iil.intel.com:912`). If you're on a different network, remove the proxy lines from `build.ps1`.
@@ -143,8 +177,16 @@ npx tauri build
 
 ```powershell
 npm test          # unit tests
+npm run lint      # TypeScript and React correctness lint
 npx tsc --noEmit  # TypeScript check
+
+# Dependency security audits
+npm audit --audit-level=high
+cargo install cargo-audit --version 0.22.2 --locked
+cargo audit --manifest-path src-tauri/Cargo.toml
 ```
+
+Dependency audits also run in CI when either lockfile changes and on a weekly schedule.
 
 ## Build Outputs
 

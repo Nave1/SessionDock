@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   check:
@@ -32,20 +32,27 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      - name: Frontend lint
+        run: npm run lint
+
       - name: Run frontend tests
         run: npm test
 
       - name: Rust format check
-        run: cargo fmt --check
+        run: cargo fmt -- --check
         working-directory: src-tauri
 
       - name: Rust clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+        working-directory: src-tauri
+
+      - name: Run Rust tests
+        run: cargo test --locked
         working-directory: src-tauri
 
       - name: Build frontend
         run: npm run build
 
       - name: Rust build check
-        run: cargo build
+        run: cargo build --locked
         working-directory: src-tauri

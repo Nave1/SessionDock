@@ -44,6 +44,12 @@ logs/
 *.db
 *.db-wal
 *.db-shm
+SSH_sessions_Backup/
+
+# Local review and smoke artifacts
+.review-diff.txt
+native-ssh-smoke.js
+prompt for next ver.txt
 
 # Test coverage
 coverage/
