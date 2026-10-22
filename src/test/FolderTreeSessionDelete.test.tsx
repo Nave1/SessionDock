@@ -64,4 +64,14 @@ describe("FolderTree session deletion", () => {
 
     expect(onDeleteSession).toHaveBeenCalledWith(session);
   });
+
+  it("offers SCP for SSH sessions from the context menu", () => {
+    const onScpSession = vi.fn();
+    render(
+      <FolderTree folders={[]} sessions={[session]} selectedFolderId={null} onSelectFolder={vi.fn()} onSelectSession={vi.fn()} onScpSession={onScpSession} />,
+    );
+    fireEvent.contextMenu(screen.getByText("Lab switch"));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Connect with SCP" }));
+    expect(onScpSession).toHaveBeenCalledWith(session);
+  });
 });

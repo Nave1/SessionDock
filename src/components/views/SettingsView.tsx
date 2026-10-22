@@ -97,7 +97,6 @@ function GeneralSettings() {
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Startup">
-        <LiveToggle label="Restore open tabs on restart" checked={s.restoreTabs} onChange={(v) => s.updateSetting("restoreTabs", v)} />
         <LiveToggle label="Confirm before closing active sessions" checked={s.confirmCloseActive} onChange={(v) => s.updateSetting("confirmCloseActive", v)} />
         <LiveToggle label="Start minimized" checked={s.startMinimized} onChange={(v) => s.updateSetting("startMinimized", v)} />
       </SettingGroup>
@@ -156,7 +155,6 @@ function AppearanceSettings() {
         </div>
       </SettingGroup>
       <SettingGroup title="Layout">
-        <LiveSelect label="UI density" options={["Compact", "Comfortable"]} value={s.uiDensity} onChange={(v) => s.updateSetting("uiDensity", v)} />
         <LiveToggle label="Animations" checked={s.animations} onChange={(v) => s.updateSetting("animations", v)} />
         <LiveToggle label="Reduced motion" checked={s.reducedMotion} onChange={(v) => s.updateSetting("reducedMotion", v)} />
       </SettingGroup>
@@ -180,7 +178,7 @@ function TerminalSettings() {
       <SettingGroup title="Behavior">
         <LiveInput label="Scrollback lines" value={String(s.scrollbackLines)} type="number" onChange={(v) => s.updateSetting("scrollbackLines", parseInt(v) || 10000)} />
         <LiveToggle label="Copy on select" checked={s.copyOnSelect} onChange={(v) => s.updateSetting("copyOnSelect", v)} />
-        <LiveSelect label="Bell" options={["None", "Sound", "Visual"]} value={s.bellMode} onChange={(v) => s.updateSetting("bellMode", v)} />
+        <LiveSelect label="Bell" options={["None", "Visual"]} value={s.bellMode === "Visual" ? "Visual" : "None"} onChange={(v) => s.updateSetting("bellMode", v)} />
         <LiveToggle label="Semantic output colors" checked={s.semanticTerminalColors} onChange={(v) => s.updateSetting("semanticTerminalColors", v)} />
       </SettingGroup>
     </div>
@@ -190,14 +188,6 @@ function TerminalSettings() {
 function SecuritySettings() {
   return (
     <div className="space-y-6 max-w-lg">
-      <SettingGroup title="Application Lock">
-        <LiveSelect
-          label="Lock mode"
-          options={["Disabled", "On startup", "After idle timeout"]}
-          value="Disabled"
-          onChange={() => {}}
-        />
-      </SettingGroup>
       <SettingGroup title="Credential Vault">
         <div className="px-3 py-2 rounded bg-dock-success/10 border border-dock-success/20 text-xs text-dock-success">
           ✓ OS credential vault available (Windows Credential Manager)
@@ -245,9 +235,7 @@ function SshSettings() {
   return (
     <div className="space-y-6 max-w-lg">
       <SettingGroup title="Connection">
-        <LiveInput label="Default timeout (seconds)" value={String(s.sshTimeout)} type="number" onChange={(v) => s.updateSetting("sshTimeout", parseInt(v) || 30)} />
         <LiveInput label="Keepalive interval (seconds)" value={String(s.sshKeepalive)} type="number" onChange={(v) => s.updateSetting("sshKeepalive", parseInt(v) || 60)} />
-        <LiveSelect label="Default auth method" options={["Password", "Private Key", "SSH Agent"]} value={s.defaultAuthMethod} onChange={(v) => s.updateSetting("defaultAuthMethod", v)} />
       </SettingGroup>
       <SettingGroup title="Host Key Verification">
         <div className="rounded border border-dock-border bg-dock-surface/40 p-3">
@@ -257,10 +245,6 @@ function SshSettings() {
           </p>
         </div>
         <KnownHosts />
-      </SettingGroup>
-      <SettingGroup title="SSH Agent">
-        <LiveToggle label="Use SSH agent when available" checked={s.useSshAgent} onChange={(v) => s.updateSetting("useSshAgent", v)} />
-        <LiveSelect label="Agent type" options={["Auto-detect", "OpenSSH", "Pageant"]} value={s.sshAgentType} onChange={(v) => s.updateSetting("sshAgentType", v)} />
       </SettingGroup>
     </div>
   );

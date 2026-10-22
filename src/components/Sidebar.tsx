@@ -35,9 +35,10 @@ interface SidebarProps {
   onEditSession: (session: import("../types").Session) => void;
   onNewFolder: (parentId?: string) => void;
   onQuickConnect: () => void;
+  onScpSession: (session: import("../types").Session) => void;
 }
 
-export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFolder, onQuickConnect }: SidebarProps) {
+export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFolder, onQuickConnect, onScpSession }: SidebarProps) {
   const { t } = useTranslation();
   const { currentView, setCurrentView, selectedFolderId, setSelectedFolderId, selectedGroupId, setSelectedGroupId, addTab, tabs } = useAppStore();
   const { folders, groups, sessions, addGroup, moveFolder, deleteFolderPreservingContents, removeSession } = useSessionStore();
@@ -327,6 +328,7 @@ export function Sidebar({ width, onResize, onNewSession, onEditSession, onNewFol
             onExportFolder={(folderId, format) => void handleExportFolder(folderId, format)}
             onEditSession={onEditSession}
             onDeleteSession={(session) => void handleDeleteSession(session)}
+            onScpSession={onScpSession}
           />
           {folders.length === 0 && (
             <p className="px-2.5 py-3 text-[11px] text-dock-text-muted italic">

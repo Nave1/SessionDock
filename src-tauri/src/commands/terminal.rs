@@ -248,7 +248,7 @@ fn resolve_ssh_authentication(
                 provided_password.to_string()
             } else {
                 credential_secret(db, credential_profile_id, method)?
-                    .ok_or_else(|| AppError::Ssh("Password is required".into()))?
+                    .ok_or_else(|| AppError::CredentialVault("The selected credential profile has no saved password. Edit the profile and save its password again.".into()))?
             };
             Ok(SshAuthentication::Password(password))
         }

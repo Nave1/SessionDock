@@ -42,7 +42,7 @@ export function TerminalPaneLayout({ tab, session }: TerminalPaneLayoutProps) {
               privateKeyReference={session?.private_key_reference}
               jumpHostIds={session?.jump_host_ids}
               serialBaudRate={tab.serialBaudRate ?? session?.serial_baud_rate ?? 9600}
-              keepaliveInterval={session?.keepalive_interval ?? 60}
+              keepaliveInterval={tab.keepaliveInterval ?? session?.keepalive_interval ?? 60}
               reconnectMode={session?.reconnect_mode ?? "disabled"}
               canSplit={paneCount < 4}
               canClosePane={paneCount > 1}

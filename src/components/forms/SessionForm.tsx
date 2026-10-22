@@ -8,6 +8,7 @@ import { BmcSessionFields } from "./BmcSessionFields";
 import { SerialConnectionFields } from "./SerialConnectionFields";
 import { safePersistedBmcUrl } from "../../utils/bmcUrl";
 import { isEligibleJumpHost, moveJumpHostId } from "../../utils/sshJumpHosts";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 interface SessionFormProps {
   onSubmit: (data: CreateSessionRequest) => void;
@@ -21,18 +22,22 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
   const { t } = useTranslation();
   const credentials = useSessionStore((state) => state.credentials);
   const sessions = useSessionStore((state) => state.sessions);
+  const settings = useSettingsStore.getState();
+  const defaultProtocol = settings.defaultProtocol.toLowerCase() as "ssh" | "telnet" | "serial";
   const [jumpHostSelection, setJumpHostSelection] = useState("");
   const [formData, setFormData] = useState<CreateSessionRequest>(() => initialSession
     ? { ...initialSession }
     : {
         name: "",
         host: "",
-        port: 22,
-        protocol: "ssh",
+        port: defaultProtocol === "telnet" ? settings.defaultTelnetPort : defaultProtocol === "serial" ? 0 : settings.defaultSshPort,
+        protocol: defaultProtocol,
         authentication_method: "password",
         favorite: false,
         reconnect_mode: "disabled",
         serial_baud_rate: 9600,
+        connection_timeout: 30,
+        keepalive_interval: settings.sshKeepalive,
         folder_id: initialFolderId,
       });
 
@@ -50,7 +55,8 @@ export function SessionForm({ onSubmit, onCancel, folders, initialFolderId, init
   };
 
   const handleProtocolChange = (protocol: CreateSessionRequest["protocol"]) => {
-    const defaultPorts = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
+    const currentSettings = useSettingsStore.getState();
+    const defaultPorts = { ssh: currentSettings.defaultSshPort, telnet: currentSettings.defaultTelnetPort, serial: 0, bmc: 443, vnc: 5900 };
     setFormData((prev) => ({ ...prev, protocol, port: defaultPorts[protocol], ...(protocol === "serial" ? { serial_baud_rate: prev.serial_baud_rate || 9600 } : {}), ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "application" } : {}) }));
   };
 

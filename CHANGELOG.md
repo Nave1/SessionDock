@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-22
+
+### Added
+- Edit credential profile names and usernames, replace vault passwords, and explicitly reveal the current password from the edit dialog
+- Start an SCP connection for a saved SSH session from its sidebar context menu or session-list action while reusing Quick Connect credential selection
+
+### Fixed
+- Reject new password credential profiles without a vault secret and report existing profiles whose saved password is missing
+- Apply Quick Connect credentials through the existing camel-case IPC contract and preserve vault secrets during metadata-only credential edits
+- Replace the deprecated Arista EOS `show environment all` quick command with `show system environment all`
+- Wire startup, close-confirmation, connection-default, language, motion, terminal, and SSH keepalive settings to runtime behavior
+- Remove tab-restoration, application-lock, SSH-agent-selection, timeout, and density controls that did not have a safe or supported implementation
+
+### Security
+- Retrieve an existing credential secret only after an explicit reveal action and keep it in dialog-local memory
+- Continue storing credential secrets exclusively in the operating-system vault; SQLite, exports, logs, and persisted frontend state contain metadata only
+
 ## [1.0.0] - 2026-10-21
 
 ### Added

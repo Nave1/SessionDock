@@ -15,6 +15,8 @@ import { createFolder, createSession, getCredentialProfiles, getFolders, getSess
 import { importFolderHierarchy, parseCsvImportData, parseJsonImport } from "./utils/importExport";
 import type { CreateSessionRequest, CreateFolderRequest, Session } from "./types";
 import { safePersistedBmcUrl } from "./utils/bmcUrl";
+import { useSettingsStore } from "./stores/settingsStore";
+import i18n from "./i18n";
 
 function App() {
   const commandPaletteOpen = useAppStore((s) => s.commandPaletteOpen);
@@ -25,14 +27,32 @@ function App() {
   const [folderFormOpen, setFolderFormOpen] = useState(false);
   const [folderFormParentId, setFolderFormParentId] = useState<string | undefined>();
   const [quickConnectOpen, setQuickConnectOpen] = useState(false);
+  const [quickConnectInitial, setQuickConnectInitial] = useState<Partial<QuickConnectConfig>>();
   const sidebarWidth = useAppStore((s) => s.sidebarWidth);
   const setSidebarWidth = useAppStore((s) => s.setSidebarWidth);
   const addTab = useAppStore((s) => s.addTab);
   const folders = useSessionStore((s) => s.folders);
   const { addSession, addFolder, setSessions, setFolders, setGroups, setCredentials, setIsLoading } = useSessionStore();
   const addToast = useToastStore((s) => s.addToast);
+  const language = useSettingsStore((s) => s.language);
+  const animations = useSettingsStore((s) => s.animations);
+  const reducedMotion = useSettingsStore((s) => s.reducedMotion);
 
   useKeyboardShortcuts({ onCommandPalette: () => setCommandPaletteOpen(true) });
+
+  useEffect(() => {
+    void i18n.changeLanguage(language === "עברית" ? "he" : "en");
+    document.documentElement.dir = language === "עברית" ? "rtl" : "ltr";
+  }, [language]);
+
+  useEffect(() => {
+    document.documentElement.dataset.motion = !animations || reducedMotion ? "reduced" : "full";
+  }, [animations, reducedMotion]);
+
+  useEffect(() => {
+    if (!useSettingsStore.getState().startMinimized) return;
+    void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().minimize());
+  }, []);
 
   const openSessionForm = (folderId?: string) => {
     setSessionFormFolderId(folderId);
@@ -42,6 +62,25 @@ function App() {
   const openFolderForm = (parentId?: string) => {
     setFolderFormParentId(parentId);
     setFolderFormOpen(true);
+  };
+
+  const openQuickConnect = () => {
+    setQuickConnectInitial(undefined);
+    setQuickConnectOpen(true);
+  };
+
+  const openScpConnect = (session: Session) => {
+    if (session.protocol !== "ssh") return;
+    setQuickConnectInitial({
+      host: session.host,
+      port: session.port,
+      protocol: "ssh",
+      username: session.username ?? "",
+      credential_profile_id: session.authentication_method === "password" ? session.credential_profile_id : undefined,
+      transfer_mode: "scp",
+      saveAsSession: false,
+    });
+    setQuickConnectOpen(true);
   };
 
   useEffect(() => {
@@ -124,6 +163,7 @@ function App() {
       username: config.username || undefined,
       password: config.password || undefined,
       credentialProfileId: config.credential_profile_id,
+      keepaliveInterval: useSettingsStore.getState().sshKeepalive,
       serialBaudRate: config.protocol === "serial" ? config.serial_baud_rate : undefined,
       status: "connecting",
       pinned: false,
@@ -132,6 +172,7 @@ function App() {
       initialTransferProtocol: config.transfer_mode,
     });
     setQuickConnectOpen(false);
+    setQuickConnectInitial(undefined);
     addToast("info", `Connecting to ${config.host}...`);
 
     // If user wants to save, create a session
@@ -285,12 +326,14 @@ function App() {
         onNewSession={openSessionForm}
         onEditSession={setEditingSession}
         onNewFolder={openFolderForm}
-        onQuickConnect={() => setQuickConnectOpen(true)}
+        onQuickConnect={openQuickConnect}
+        onScpSession={openScpConnect}
       />
       <MainContent
         onNewSession={() => openSessionForm()}
         onNewFolder={() => setFolderFormOpen(true)}
-        onQuickConnect={() => setQuickConnectOpen(true)}
+        onQuickConnect={openQuickConnect}
+        onScpSession={openScpConnect}
         onImport={handleImport}
       />
 
@@ -328,7 +371,8 @@ function App() {
       {quickConnectOpen && (
         <QuickConnect
           onConnect={handleQuickConnect}
-          onCancel={() => setQuickConnectOpen(false)}
+          onCancel={() => { setQuickConnectOpen(false); setQuickConnectInitial(undefined); }}
+          initialConfig={quickConnectInitial}
         />
       )}
 

@@ -1,8 +1,16 @@
 import { useAppStore } from "../stores/appStore";
 import { X, RotateCw } from "lucide-react";
+import { useSettingsStore } from "../stores/settingsStore";
 
 export function TerminalTabs() {
   const { tabs, activeTabId, setActiveTab, removeTab, setCurrentView, requestTabReconnect } = useAppStore();
+  const confirmCloseActive = useSettingsStore((state) => state.confirmCloseActive);
+
+  const closeTab = (tab: (typeof tabs)[number]) => {
+    const isActiveConnection = tab.status === "connected" || tab.status === "connecting" || tab.status === "reconnecting";
+    if (isActiveConnection && confirmCloseActive && !window.confirm(`Close the active connection to ${tab.sessionName}?`)) return;
+    removeTab(tab.id);
+  };
 
   return (
     <div className="flex items-center h-[38px] bg-dock-sidebar border-b border-dock-border overflow-x-auto flex-shrink-0">
@@ -50,7 +58,8 @@ export function TerminalTabs() {
 
             {/* Close */}
             <button
-              onClick={(e) => { e.stopPropagation(); removeTab(tab.id); }}
+              onClick={(e) => { e.stopPropagation(); closeTab(tab); }}
+              aria-label={`Close ${tab.sessionName}`}
               className="opacity-0 group-hover:opacity-100 text-dock-text-muted hover:text-red-400 ml-1"
             >
               <X size={12} />

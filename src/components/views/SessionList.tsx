@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Star, ExternalLink, GripVertical, Pencil, Trash2, X } from "lucide-react";
+import { Star, ExternalLink, GripVertical, Pencil, Trash2, X, ArrowRightLeft } from "lucide-react";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useToastStore } from "../../stores/toastStore";
 import { deleteSession, updateSession } from "../../api/commands";
@@ -13,9 +13,10 @@ interface SessionListProps {
   sessions: Session[];
   title: string;
   onConnect: (session: Session) => void;
+  onScpConnect?: (session: Session) => void;
 }
 
-export function SessionList({ sessions, title, onConnect }: SessionListProps) {
+export function SessionList({ sessions, title, onConnect, onScpConnect }: SessionListProps) {
   const { t } = useTranslation();
   const [editingSession, setEditingSession] = useState<Session | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -98,6 +99,14 @@ export function SessionList({ sessions, title, onConnect }: SessionListProps) {
               >
                 <ExternalLink size={12} />
               </button>
+              {session.protocol === "ssh" && onScpConnect && <button
+                onClick={(e) => { e.stopPropagation(); onScpConnect(session); }}
+                className="p-1.5 rounded hover:bg-dock-accent/20 text-dock-accent"
+                title="Connect with SCP"
+                aria-label={`Connect to ${session.name} with SCP`}
+              >
+                <ArrowRightLeft size={12} />
+              </button>}
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingSession(session); }}
                 className="p-1.5 rounded hover:bg-dock-surface-hover text-dock-text-muted hover:text-dock-text"

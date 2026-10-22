@@ -37,6 +37,12 @@ describe("device provider registry", () => {
     }
   });
 
+  it("uses the current EOS system environment command", () => {
+    expect(aristaEosProvider.quickCommands.find((command) => command.id === "eos-environment")?.command)
+      .toBe("show system environment all");
+    expect(aristaEosProvider.quickCommands.some((command) => command.command === "show environment all")).toBe(false);
+  });
+
   it("keeps diagnostic IDs aligned with the backend allowlist", () => {
     expect(aristaEosProvider.diagnostics.map((diagnostic) => diagnostic.id)).toEqual([
       "eos-platform",

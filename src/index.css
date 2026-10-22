@@ -69,6 +69,14 @@ body {
   50% { opacity: 0.4; }
 }
 
+@keyframes terminalBell {
+  50% { box-shadow: inset 0 0 0 2px var(--color-dock-warning); }
+}
+
+.terminal-visual-bell {
+  animation: terminalBell 180ms ease-out;
+}
+
 .animate-fade-in {
   animation: fadeIn 150ms ease-out;
 }
@@ -86,6 +94,15 @@ body {
   transition-property: background-color, border-color, color, opacity, transform, box-shadow;
   transition-duration: 120ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.001ms !important;
 }
 
 /* Terminal container */

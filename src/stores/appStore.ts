@@ -95,6 +95,7 @@ export interface TerminalTab {
   password?: string;
   credentialProfileId?: string;
   serialBaudRate?: number;
+  keepaliveInterval?: number;
   status: ConnectionStatus;
   paneStatuses?: Record<string, ConnectionStatus>;
   pinned: boolean;

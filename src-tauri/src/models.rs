@@ -327,6 +327,16 @@ pub struct CreateCredentialRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateCredentialRequest {
+    pub id: String,
+    pub name: String,
+    pub username: String,
+    pub authentication_method: AuthMethod,
+    pub password: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchResult {
     pub session: Session,
     pub folder_path: Option<String>,

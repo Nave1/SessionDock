@@ -3,7 +3,6 @@ import { persist } from "zustand/middleware";
 
 interface SettingsState {
   // General
-  restoreTabs: boolean;
   confirmCloseActive: boolean;
   startMinimized: boolean;
   defaultProtocol: string;
@@ -23,19 +22,11 @@ interface SettingsState {
   semanticTerminalColors: boolean;
 
   // SSH
-  sshTimeout: number;
   sshKeepalive: number;
-  defaultAuthMethod: string;
-  verifyHostKeys: boolean;
-  warnChangedHostKeys: boolean;
-  useSshAgent: boolean;
-  sshAgentType: string;
 
   // Appearance
-  uiDensity: string;
   animations: boolean;
   reducedMotion: boolean;
-  accentColor: string;
 
   // Actions
   updateSetting: <K extends keyof SettingsState>(key: K, value: SettingsState[K]) => void;
@@ -45,7 +36,6 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       // General defaults
-      restoreTabs: true,
       confirmCloseActive: true,
       startMinimized: false,
       defaultProtocol: "SSH",
@@ -65,19 +55,11 @@ export const useSettingsStore = create<SettingsState>()(
       semanticTerminalColors: true,
 
       // SSH defaults
-      sshTimeout: 30,
       sshKeepalive: 60,
-      defaultAuthMethod: "Password",
-      verifyHostKeys: true,
-      warnChangedHostKeys: true,
-      useSshAgent: true,
-      sshAgentType: "Auto-detect",
 
       // Appearance defaults
-      uiDensity: "Compact",
       animations: true,
       reducedMotion: false,
-      accentColor: "Blue",
 
       updateSetting: (key, value) =>
         set((state) => ({ ...state, [key]: value })),

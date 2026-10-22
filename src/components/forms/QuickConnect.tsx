@@ -5,10 +5,12 @@ import type { BmcSessionConfig, Protocol } from "../../types";
 import { BmcSessionFields } from "./BmcSessionFields";
 import { SerialConnectionFields } from "./SerialConnectionFields";
 import { useSessionStore } from "../../stores/sessionStore";
+import { useSettingsStore } from "../../stores/settingsStore";
 
 interface QuickConnectProps {
   onConnect: (config: QuickConnectConfig) => void;
   onCancel: () => void;
+  initialConfig?: Partial<QuickConnectConfig>;
 }
 
 export interface QuickConnectConfig extends Partial<BmcSessionConfig> {
@@ -23,18 +25,21 @@ export interface QuickConnectConfig extends Partial<BmcSessionConfig> {
   serial_baud_rate: number;
 }
 
-export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
+export function QuickConnect({ onConnect, onCancel, initialConfig }: QuickConnectProps) {
   const { t } = useTranslation();
   const credentials = useSessionStore((state) => state.credentials);
   const passwordCredentials = credentials.filter((credential) => credential.authentication_method === "password");
+  const defaults = useSettingsStore.getState();
+  const defaultProtocol = defaults.defaultProtocol.toLowerCase() as "ssh" | "telnet" | "serial";
   const [config, setConfig] = useState<QuickConnectConfig>({
     host: "",
-    port: 22,
-    protocol: "ssh",
+    port: defaultProtocol === "telnet" ? defaults.defaultTelnetPort : defaultProtocol === "serial" ? 0 : defaults.defaultSshPort,
+    protocol: defaultProtocol,
     username: "",
     password: "",
     saveAsSession: false,
     serial_baud_rate: 9600,
+    ...initialConfig,
   });
   const [showTelnetWarning, setShowTelnetWarning] = useState(false);
 
@@ -55,7 +60,8 @@ export function QuickConnect({ onConnect, onCancel }: QuickConnectProps) {
 
   const handleProtocolChange = (mode: Protocol | "scp") => {
     const protocol = mode === "scp" ? "ssh" : mode;
-    const ports = { ssh: 22, telnet: 23, serial: 0, bmc: 443, vnc: 5900 };
+    const settings = useSettingsStore.getState();
+    const ports = { ssh: settings.defaultSshPort, telnet: settings.defaultTelnetPort, serial: 0, bmc: 443, vnc: 5900 };
     setConfig((prev) => ({ ...prev, protocol, port: ports[protocol], transfer_mode: mode === "scp" ? "scp" : undefined, credential_profile_id: protocol === "ssh" ? prev.credential_profile_id : undefined, ...(protocol === "serial" ? { serial_baud_rate: prev.serial_baud_rate || 9600 } : {}), ...(protocol === "bmc" ? { bmc_use_https: true, bmc_viewer_mode: "web", bmc_timeout_seconds: 30, bmc_redfish_enabled: true, bmc_cookie_persistence: "tab" } : {}) }));
     setShowTelnetWarning(false);
   };

@@ -6,17 +6,17 @@ A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remo
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## What's new in v1.0.0
+## What's new in v1.0.1
 
-- Delete saved sessions directly from the sidebar using the trash icon or the session context menu.
-- Use **SCP Quick Connect** to establish SSH and open the Files panel ready for an SCP transfer.
-- Select a saved password credential in Quick Connect instead of entering the username and password manually.
-- Start a transfer, create a tunnel, or run a diagnostic directly from its workspace. If no SSH connection is active, SessionDock opens Quick Connect first.
-- Discover connected Windows COM ports through native enumeration plus the Windows serial registry, with duplicate removal and natural COM-port ordering.
+- Edit credential profile usernames and passwords, with explicit password reveal backed by the operating-system vault.
+- Start an SCP connection for any saved SSH session from the sidebar context menu or the session-list action, then choose a saved credential or enter one manually.
+- Repair credential profiles that were previously saved without a vault password and receive a precise error when a selected profile has no secret.
+- Use the current Arista EOS system environment command from Device Info Quick Commands.
+- Apply Settings choices for startup, active-session close confirmation, connection defaults, language, motion, terminal rendering and behavior, and SSH keepalive.
 
 ## Features
 
@@ -28,6 +28,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **SSH jump hosts** - Route saved SSH sessions through an ordered chain of up to five credential-ready bastions using native libssh2 `direct-tcpip` channels.
 - **Integrated SFTP** - Browse, upload, download, rename, delete, and create directories from a contextual Files panel on an authenticated SSH pane, including ProxyJump routes.
 - **SCP compatibility transfers** - Stream single-file uploads and downloads through authenticated SSH and ProxyJump panes when a server does not provide SFTP; SFTP remains the default.
+- **Saved-session SCP** - Start SCP from an SSH session's sidebar context menu or session-list action and choose a saved password credential or enter credentials manually.
 - **Transfer controls** - Stream files with progress, pause, resume, cancel, and retry controls without buffering entire files in memory.
 - **Transfers workspace** - Start a transfer on a connected SSH pane, monitor every in-process SFTP and SCP job across open panes, filter runtime history, focus its owning connection, and control active or failed work globally.
 - **SSH local tunnels** - Forward an automatic or chosen `127.0.0.1` port through an authenticated SSH or ProxyJump pane to a remote host and port.
@@ -60,6 +61,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Persistent local library** - Sessions, folders, and groups are stored in SQLite and restored automatically when SessionDock starts.
 - **Session groups** - Build flat reusable groups whose sessions can overlap, edit membership from a searchable list, and connect up to 25 group members together with confirmation for larger batches.
 - **Session editing and deletion** - Update saved profiles or remove them with confirmation from the session list, sidebar trash icon, or sidebar context menu.
+- **Credential profile editing** - Update vault-backed usernames and passwords, explicitly reveal the current password when needed, and repair profiles with missing secrets.
 - **Session folder assignment** - Choose a folder while creating or editing a session, or drag sessions between folders and the permanent Unfiled area.
 - **Nested folders** - Build multi-level folder hierarchies and drag folders into other folders.
 - **Root reordering** - Drag nested folders back to the top level using the Sidebar root target.
@@ -75,7 +77,7 @@ Built for network engineers, data-center technicians, system administrators, and
 
 - **Dark, light, and system themes** - Choose a theme mode that persists across restarts, with high-contrast dark-mode text.
 - **Accent colors** - Switch instantly between Blue, Cyan, Green, Purple, and Orange accents.
-- **Configurable terminal appearance** - Set terminal font family, font size, cursor style, cursor blink, scrollback, and semantic coloring.
+- **Configurable terminal behavior** - Apply terminal font family, font size, line height, cursor style and blink, scrollback, copy-on-select, visual bell, and semantic coloring to active terminals.
 - **Home dashboard** - View connection summaries, favorites, recent sessions, and saved sessions.
 - **Keyboard shortcuts** - Quickly create sessions, close tabs, change tabs, and open the command palette.
 - **English and Hebrew UI** - Includes right-to-left layout support for Hebrew.
@@ -163,7 +165,7 @@ Diagnostics use backend allowlisted commands; this workspace does not accept arb
 
 ### Windows
 
-Download `SessionDock_1.0.0_x64-setup.exe` from the [v1.0.0 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.0.0) and run it. The NSIS installer will:
+Download `SessionDock_1.0.1_x64-setup.exe` from the [v1.0.1 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.0.1) and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs

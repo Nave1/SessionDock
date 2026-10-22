@@ -104,6 +104,21 @@ export async function getCredentialProfiles(): Promise<CredentialProfile[]> {
   return nativeInvoke("get_credential_profiles");
 }
 
+export async function getCredentialSecret(id: string): Promise<string | null> {
+  return nativeInvoke("get_credential_secret", { id });
+}
+
+export async function updateCredential(request: {
+  id: string;
+  name: string;
+  username: string;
+  authentication_method: string;
+  password?: string;
+  description?: string;
+}): Promise<CredentialProfile> {
+  return nativeInvoke("update_credential", { request });
+}
+
 export async function deleteCredential(id: string): Promise<void> {
   return nativeInvoke("delete_credential", { id });
 }

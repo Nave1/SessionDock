@@ -250,6 +250,15 @@
     "missingJumpHost": "Unavailable jump-host session",
     "jumpHostNotice": "Connections follow this order. Each hop requires its own saved credentials and host-key trust. Maximum 5 hops."
   },
+  "credentials": {
+    "newTitle": "New Credential Profile",
+    "editTitle": "Edit Credential Profile",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "missingPassword": "This profile has no saved password. Enter one to repair it.",
+    "save": "Save Profile",
+    "update": "Update Profile"
+  },
   "bmc": {
     "settings": "BMC Remote Console",
     "vendorPreset": "Vendor preset",

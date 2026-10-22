@@ -20,9 +20,10 @@ interface MainContentProps {
   onNewFolder: () => void;
   onQuickConnect: () => void;
   onImport: () => void;
+  onScpSession: (session: Session) => void;
 }
 
-export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImport }: MainContentProps) {
+export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImport, onScpSession }: MainContentProps) {
   const { currentView, tabs, activeTabId, addTab, selectedFolderId } = useAppStore();
   const { sessions } = useSessionStore();
 
@@ -95,13 +96,13 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
           ) : currentView === "diagnostics" ? (
             <DiagnosticsView onQuickConnect={onQuickConnect} />
           ) : currentView === "allSessions" ? (
-            <SessionList sessions={sessions} title="All Sessions" onConnect={handleConnect} />
+            <SessionList sessions={sessions} title="All Sessions" onConnect={handleConnect} onScpConnect={onScpSession} />
           ) : currentView === "favorites" ? (
-            <SessionList sessions={favoriteSessions} title="Favorites" onConnect={handleConnect} />
+            <SessionList sessions={favoriteSessions} title="Favorites" onConnect={handleConnect} onScpConnect={onScpSession} />
           ) : currentView === "recent" ? (
-            <SessionList sessions={recentSessions} title="Recent Sessions" onConnect={handleConnect} />
+            <SessionList sessions={recentSessions} title="Recent Sessions" onConnect={handleConnect} onScpConnect={onScpSession} />
           ) : currentView === "folder" ? (
-            <SessionList sessions={filteredSessions} title="Folder Sessions" onConnect={handleConnect} />
+            <SessionList sessions={filteredSessions} title="Folder Sessions" onConnect={handleConnect} onScpConnect={onScpSession} />
           ) : (
             <HomeView onNewSession={onNewSession} onNewFolder={onNewFolder} onQuickConnect={onQuickConnect} onImport={onImport} />
           )}

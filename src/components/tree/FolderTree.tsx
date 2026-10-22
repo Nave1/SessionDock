@@ -9,6 +9,7 @@ import {
   FolderOpen,
   Pencil,
   Trash2,
+  ArrowRightLeft,
 } from "lucide-react";
 import type { Folder, Session } from "../../types";
 import { beginSessionPointerDrag, canMoveFolder, getActiveFolderDrag, getActiveSessionDrag, setActiveFolderDrag, setActiveSessionDrag, shouldSuppressSessionClick } from "../../utils/folderTree";
@@ -28,6 +29,7 @@ interface FolderTreeProps {
   onExportFolder?: (folderId: string, format: "json" | "csv") => void;
   onEditSession?: (session: Session) => void;
   onDeleteSession?: (session: Session) => void;
+  onScpSession?: (session: Session) => void;
 }
 
 interface TreeNode {
@@ -86,6 +88,7 @@ export function FolderTree({
   onExportFolder,
   onEditSession,
   onDeleteSession,
+  onScpSession,
 }: FolderTreeProps) {
   const tree = buildTree(folders, sessions);
   const unfiledSessions = sessions.filter((session) => !session.folder_id);
@@ -195,6 +198,7 @@ export function FolderTree({
             setSessionContextMenu({ session, x, y });
           }}
           onDeleteSession={onDeleteSession}
+          onScpSession={onScpSession}
         />
       ))}
       <div
@@ -277,6 +281,10 @@ export function FolderTree({
             onEditSession?.(sessionContextMenu.session);
             setSessionContextMenu(null);
           }} />
+          {sessionContextMenu.session.protocol === "ssh" && <ContextMenuButton icon={ArrowRightLeft} label="Connect with SCP" onClick={() => {
+            onScpSession?.(sessionContextMenu.session);
+            setSessionContextMenu(null);
+          }} />}
           <ContextMenuButton icon={Trash2} label="Delete session" danger onClick={() => {
             onDeleteSession?.(sessionContextMenu.session);
             setSessionContextMenu(null);
@@ -305,6 +313,7 @@ function TreeNodeItem({
   onOpenContextMenu,
   onOpenSessionContextMenu,
   onDeleteSession,
+  onScpSession,
 }: {
   node: TreeNode;
   depth: number;
@@ -323,6 +332,7 @@ function TreeNodeItem({
   onOpenContextMenu: (folder: Folder, x: number, y: number) => void;
   onOpenSessionContextMenu: (session: Session, x: number, y: number) => void;
   onDeleteSession?: (session: Session) => void;
+  onScpSession?: (session: Session) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -506,6 +516,7 @@ function TreeNodeItem({
               onOpenContextMenu={onOpenContextMenu}
               onOpenSessionContextMenu={onOpenSessionContextMenu}
               onDeleteSession={onDeleteSession}
+              onScpSession={onScpSession}
             />
           ))}
           {node.sessions.map((session) => (

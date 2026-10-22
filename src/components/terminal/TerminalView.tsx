@@ -522,6 +522,8 @@ export function TerminalView({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const terminalSettings = useSettingsStore.getState();
+
     const terminal = new XTerm({
       theme: {
         background: "#0a0a0f",
@@ -546,12 +548,12 @@ export function TerminalView({
         brightCyan: "#7dcfff",
         brightWhite: "#e8e8f0",
       },
-      fontFamily: "JetBrains Mono, Cascadia Code, Consolas, monospace",
-      fontSize: 14,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      cursorStyle: "block",
-      scrollback: 10000,
+      fontFamily: terminalSettings.fontFamily,
+      fontSize: terminalSettings.fontSize,
+      lineHeight: terminalSettings.lineHeight,
+      cursorBlink: terminalSettings.cursorBlink,
+      cursorStyle: terminalSettings.cursorStyle.toLowerCase() as "block" | "underline" | "bar",
+      scrollback: terminalSettings.scrollbackLines,
       allowProposedApi: true,
     });
 
@@ -581,6 +583,31 @@ export function TerminalView({
         return;
       }
       nativeInvoke("write_terminal", { tabId, data, protocol }).catch(() => {});
+    });
+
+    const selectionDisposable = terminal.onSelectionChange(() => {
+      if (useSettingsStore.getState().copyOnSelect && terminal.hasSelection()) {
+        void writeText(terminal.getSelection());
+      }
+    });
+
+    const bellDisposable = terminal.onBell(() => {
+      if (useSettingsStore.getState().bellMode !== "Visual") return;
+      terminalContainer.classList.remove("terminal-visual-bell");
+      void terminalContainer.offsetWidth;
+      terminalContainer.classList.add("terminal-visual-bell");
+    });
+
+    const unsubscribeSettings = useSettingsStore.subscribe((settings, previous) => {
+      terminal.options.fontFamily = settings.fontFamily;
+      terminal.options.fontSize = settings.fontSize;
+      terminal.options.lineHeight = settings.lineHeight;
+      terminal.options.cursorBlink = settings.cursorBlink;
+      terminal.options.cursorStyle = settings.cursorStyle.toLowerCase() as "block" | "underline" | "bar";
+      terminal.options.scrollback = settings.scrollbackLines;
+      if (settings.fontFamily !== previous.fontFamily || settings.fontSize !== previous.fontSize || settings.lineHeight !== previous.lineHeight) {
+        fitTerminalWhenVisible(terminalContainer, () => fitAddon.fit());
+      }
     });
 
     // Preserve Ctrl+C as SIGINT unless text is selected. Local shortcuts are
@@ -675,6 +702,9 @@ export function TerminalView({
       clearReconnectTimers();
       connectedRef.current = false;
       clearSemanticDecorations(semanticDecorations);
+      selectionDisposable.dispose();
+      bellDisposable.dispose();
+      unsubscribeSettings();
       resizeObserver.disconnect();
       unlistenData.then((fn) => fn());
       unlistenCloseDetail.then((fn) => fn());

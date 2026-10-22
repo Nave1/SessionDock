@@ -71,6 +71,8 @@ pub fn run() {
             commands::groups::get_session_group_members,
             commands::groups::set_session_group_members,
             commands::credentials::store_credential,
+            commands::credentials::update_credential,
+            commands::credentials::get_credential_secret,
             commands::credentials::get_credential_profiles,
             commands::credentials::delete_credential,
             commands::serial::list_serial_ports,

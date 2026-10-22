@@ -101,7 +101,7 @@ export const aristaEosProvider: DeviceProvider = {
     quickCommand("eos-bgp", "BGP summary", "show ip bgp summary", "Fabric"),
     quickCommand("eos-mlag", "MLAG status", "show mlag", "Fabric"),
     quickCommand("eos-vxlan", "VXLAN VTEPs", "show vxlan vtep", "Fabric"),
-    quickCommand("eos-environment", "Environment", "show environment all", "Health"),
+    quickCommand("eos-environment", "Environment", "show system environment all", "Health"),
   ],
   diagnostics: [
     diagnostic("eos-platform", "Platform identity", "show version", "Identity"),

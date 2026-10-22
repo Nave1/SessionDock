@@ -13,19 +13,13 @@ pub fn store_credential(
     let now = chrono::Utc::now().to_rfc3339();
     let vault_reference = format!("cred_{}", id);
 
-    if request.name.trim().is_empty() {
-        return Err(AppError::Validation("Credential name is required".into()));
-    }
-    if request.name.len() > 120 || request.username.len() > 256 {
-        return Err(AppError::Validation(
-            "Credential profile fields are too long".into(),
-        ));
-    }
-    if request.name.contains('\0') || request.username.contains('\0') {
-        return Err(AppError::Validation(
-            "Credential profile contains invalid characters".into(),
-        ));
-    }
+    validate_credential_fields(
+        &request.name,
+        &request.username,
+        &request.authentication_method,
+        request.password.as_deref(),
+        false,
+    )?;
 
     let stored_secret = request
         .password
@@ -76,6 +70,141 @@ pub fn store_credential(
 }
 
 #[tauri::command]
+pub fn get_credential_secret(
+    db: State<'_, Database>,
+    id: String,
+) -> Result<Option<String>, AppError> {
+    validate_profile_id(&id)?;
+    let vault_reference: String = db
+        .conn()
+        .query_row(
+            "SELECT vault_reference FROM credential_profiles WHERE id = ?1",
+            rusqlite::params![id],
+            |row| row.get(0),
+        )
+        .map_err(|_| AppError::NotFound("Credential profile not found".into()))?;
+    credential_vault::get_vault().get_secret(&vault_reference)
+}
+
+#[tauri::command]
+pub fn update_credential(
+    db: State<'_, Database>,
+    request: UpdateCredentialRequest,
+) -> Result<CredentialProfile, AppError> {
+    validate_profile_id(&request.id)?;
+    let (vault_reference, created_at): (String, String) = db
+        .conn()
+        .query_row(
+            "SELECT vault_reference, created_at FROM credential_profiles WHERE id = ?1",
+            rusqlite::params![request.id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|_| AppError::NotFound("Credential profile not found".into()))?;
+    let vault = credential_vault::get_vault();
+    let existing_secret = vault.get_secret(&vault_reference)?;
+    validate_credential_fields(
+        &request.name,
+        &request.username,
+        &request.authentication_method,
+        request.password.as_deref(),
+        existing_secret.is_some(),
+    )?;
+
+    let replacement = request
+        .password
+        .as_deref()
+        .filter(|secret| !secret.is_empty());
+    if let Some(secret) = replacement {
+        vault.store_secret(&vault_reference, secret)?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let update_result = db.conn().execute(
+        "UPDATE credential_profiles SET name = ?1, username = ?2, authentication_method = ?3, description = ?4, updated_at = ?5 WHERE id = ?6",
+        rusqlite::params![
+            request.name.trim(),
+            request.username.trim(),
+            request.authentication_method.as_str(),
+            request.description,
+            now,
+            request.id,
+        ],
+    );
+    if let Err(error) = update_result {
+        if replacement.is_some() {
+            match existing_secret {
+                Some(secret) => {
+                    let _ = vault.store_secret(&vault_reference, &secret);
+                }
+                None => {
+                    let _ = vault.delete_secret(&vault_reference);
+                }
+            }
+        }
+        return Err(AppError::Database(error));
+    }
+
+    Ok(CredentialProfile {
+        id: request.id,
+        name: request.name.trim().to_string(),
+        username: request.username.trim().to_string(),
+        authentication_method: request.authentication_method,
+        vault_reference,
+        description: request.description,
+        created_at,
+        updated_at: now,
+    })
+}
+
+fn validate_profile_id(id: &str) -> Result<(), AppError> {
+    if id.is_empty() || id.len() > 128 || id.contains('\0') {
+        return Err(AppError::Validation(
+            "Invalid credential profile reference".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_credential_fields(
+    name: &str,
+    username: &str,
+    method: &AuthMethod,
+    password: Option<&str>,
+    has_existing_secret: bool,
+) -> Result<(), AppError> {
+    if name.trim().is_empty() || username.trim().is_empty() {
+        return Err(AppError::Validation(
+            "Credential name and username are required".into(),
+        ));
+    }
+    if name.len() > 120
+        || username.len() > 256
+        || password.is_some_and(|secret| secret.len() > 4096)
+    {
+        return Err(AppError::Validation(
+            "Credential profile fields are too long".into(),
+        ));
+    }
+    if name.contains('\0')
+        || username.contains('\0')
+        || password.is_some_and(|secret| secret.contains('\0'))
+    {
+        return Err(AppError::Validation(
+            "Credential profile contains invalid characters".into(),
+        ));
+    }
+    if matches!(method, AuthMethod::Password)
+        && !has_existing_secret
+        && !password.is_some_and(|secret| !secret.is_empty())
+    {
+        return Err(AppError::Validation(
+            "A password is required for password credential profiles".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_credential_profiles(
     db: State<'_, Database>,
 ) -> Result<Vec<CredentialProfile>, AppError> {
@@ -107,6 +236,7 @@ pub fn get_credential_profiles(
 
 #[tauri::command]
 pub fn delete_credential(db: State<'_, Database>, id: String) -> Result<(), AppError> {
+    validate_profile_id(&id)?;
     let conn = db.conn();
 
     // Get vault reference before deleting
@@ -129,4 +259,38 @@ pub fn delete_credential(db: State<'_, Database>, id: String) -> Result<(), AppE
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_credential_fields;
+    use crate::models::AuthMethod;
+
+    #[test]
+    fn password_profiles_require_a_vault_secret() {
+        assert!(
+            validate_credential_fields("Network", "admin", &AuthMethod::Password, None, false)
+                .is_err()
+        );
+        assert!(validate_credential_fields(
+            "Network",
+            "admin",
+            &AuthMethod::Password,
+            Some(""),
+            false
+        )
+        .is_err());
+        assert!(validate_credential_fields(
+            "Network",
+            "admin",
+            &AuthMethod::Password,
+            Some("secret"),
+            false
+        )
+        .is_ok());
+        assert!(
+            validate_credential_fields("Network", "admin", &AuthMethod::Password, None, true)
+                .is_ok()
+        );
+    }
 }

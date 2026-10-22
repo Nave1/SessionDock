@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { KeyRound, Plus, Trash2 } from "lucide-react";
-import { deleteCredential, storeCredential } from "../../api/commands";
+import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
+import { deleteCredential, storeCredential, updateCredential } from "../../api/commands";
 import { useSessionStore } from "../../stores/sessionStore";
 import { useToastStore } from "../../stores/toastStore";
 import { CredentialForm, type CredentialFormData } from "../forms/CredentialForm";
+import type { CredentialProfile } from "../../types";
 
 export function CredentialsView() {
   const credentials = useSessionStore((state) => state.credentials);
   const setCredentials = useSessionStore((state) => state.setCredentials);
   const addToast = useToastStore((state) => state.addToast);
   const [formOpen, setFormOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<CredentialProfile | null>(null);
 
   const createProfile = async (data: CredentialFormData) => {
     try {
@@ -22,6 +24,18 @@ export function CredentialsView() {
       addToast("success", `Credential profile "${profile.name}" created`);
     } catch (error) {
       addToast("error", `Failed to create credential profile: ${String(error)}`);
+    }
+  };
+
+  const updateProfile = async (data: CredentialFormData) => {
+    if (!editingProfile) return;
+    try {
+      const profile = await updateCredential({ id: editingProfile.id, ...data, password: data.password || undefined });
+      setCredentials(credentials.map((credential) => credential.id === profile.id ? profile : credential).sort((first, second) => first.name.localeCompare(second.name)));
+      setEditingProfile(null);
+      addToast("success", `Credential profile "${profile.name}" updated`);
+    } catch (error) {
+      addToast("error", `Failed to update credential profile: ${String(error)}`);
     }
   };
 
@@ -70,6 +84,14 @@ export function CredentialsView() {
                   </div>
                 </div>
                 <button
+                  onClick={() => setEditingProfile(credential)}
+                  title="Edit credential profile"
+                  aria-label={`Edit ${credential.name}`}
+                  className="p-2 text-dock-text-muted hover:text-dock-accent"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
                   onClick={() => void removeProfile(credential.id, credential.name)}
                   title="Delete credential profile"
                   className="p-2 text-dock-text-muted hover:text-dock-error"
@@ -83,6 +105,7 @@ export function CredentialsView() {
       </div>
 
       {formOpen && <CredentialForm onSubmit={(data) => void createProfile(data)} onCancel={() => setFormOpen(false)} />}
+      {editingProfile && <CredentialForm initialProfile={editingProfile} onSubmit={(data) => void updateProfile(data)} onCancel={() => setEditingProfile(null)} />}
     </div>
   );
 }
