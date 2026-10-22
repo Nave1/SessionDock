@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-22
+
+### Added
+- Add an integrated WinSCP-style dual-pane Files workspace with local drives and folders on the left and the connected device on the right
+- Navigate local drives and directories and create, rename, or delete local entries without launching an external file-transfer application
+- Upload a selected local file or download a selected remote file directly into the current local directory
+
+### Changed
+- Keep remote directory browsing on the authenticated SFTP subsystem while allowing explicit SCP single-file transfers for compatible SSH servers
+- Reuse the existing streaming transfer queue for dual-pane progress, pause, resume, cancel, retry, staging, and overwrite handling
+
+### Security
+- Expose local filesystem operations through narrow path-validated Rust commands instead of broad frontend filesystem access
+- Reject local path control characters, unsafe entry names, symlink deletion, recursive deletion, and implicit overwrite
+
 ## [1.0.2] - 2026-10-22
 
 ### Fixed

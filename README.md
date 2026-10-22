@@ -6,15 +6,16 @@ A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remo
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-1.0.2-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## What's new in v1.0.2
+## What's new in v1.1.0
 
-- Password credential profiles now persist through the native Windows Credential Manager backend and authenticate across application operations.
-- Every password save is read back through a fresh operating-system vault entry before SessionDock accepts the profile.
-- Failed or non-persistent vault writes stop immediately instead of creating credential metadata that cannot authenticate.
+- The integrated Files workspace now provides a WinSCP-style dual-pane view: local drives and folders on the left, and the connected device on the right.
+- Upload and download selected files directly between panes, with existing progress, pause, resume, cancel, retry, staging, and overwrite controls.
+- Create, rename, and delete local or remote entries through native, path-validated operations without launching external WinSCP.
+- Remote browsing uses the authenticated SFTP subsystem; SCP remains available for explicit single-file transfers when selected.
 
 > **v1.0.1 credential repair:** passwords created with v1.0.1 were not persisted and cannot be recovered. After updating, edit each affected credential profile and save its password once.
 
@@ -26,7 +27,8 @@ Built for network engineers, data-center technicians, system administrators, and
 - **SSH authentication** - Supports password, keyboard-interactive, OpenSSH private-key, and SSH-agent authentication through native libssh2 APIs.
 - **SSH host trust** - Requires explicit fingerprint approval for new hosts and blocks changed keys until the saved trust entry is reviewed and removed.
 - **SSH jump hosts** - Route saved SSH sessions through an ordered chain of up to five credential-ready bastions using native libssh2 `direct-tcpip` channels.
-- **Integrated SFTP** - Browse, upload, download, rename, delete, and create directories from a contextual Files panel on an authenticated SSH pane, including ProxyJump routes.
+- **Dual-pane file workspace** - Browse local drives and the connected device side by side, manage entries in either pane, and transfer selected files without an external application.
+- **Integrated SFTP** - Browse, upload, download, rename, delete, and create directories through the authenticated SSH pane, including ProxyJump routes.
 - **SCP compatibility transfers** - Stream single-file uploads and downloads through authenticated SSH and ProxyJump panes when a server does not provide SFTP; SFTP remains the default.
 - **Saved-session SCP** - Start SCP from an SSH session's sidebar context menu or session-list action and choose a saved password credential or enter credentials manually.
 - **Transfer controls** - Stream files with progress, pause, resume, cancel, and retry controls without buffering entire files in memory.
@@ -92,8 +94,10 @@ These workspaces operate on an authenticated SSH connection. Their primary actio
 ### Transfers
 
 1. Open **Transfers** and select **Start transfer**.
-2. In the Files panel, choose **SFTP** for directory browsing and file management, or **SCP** for a single file at an absolute remote path.
-3. Upload or download the file. Use the Transfers workspace to monitor progress, pause, resume, cancel, or retry.
+2. Navigate local drives in the left pane and the connected device in the right pane.
+3. Select a local file to upload or a remote file to download into the current local directory.
+4. Keep **SFTP** selected for remote browsing and file management, or choose **SCP** for a single file at an absolute remote path.
+5. Use the Transfers workspace to monitor progress, pause, resume, cancel, or retry.
 
 ### Tunnels
 
@@ -165,7 +169,7 @@ Diagnostics use backend allowlisted commands; this workspace does not accept arb
 
 ### Windows
 
-Download `SessionDock_1.0.2_x64-setup.exe` from the [v1.0.2 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.0.2) and run it. The NSIS installer will:
+Download `SessionDock_1.1.0_x64-setup.exe` from the [v1.1.0 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.1.0) and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs

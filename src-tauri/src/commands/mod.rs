@@ -5,6 +5,7 @@ pub mod diagnostics;
 pub mod folders;
 pub mod groups;
 pub mod known_hosts;
+pub mod local_files;
 pub mod multi_exec;
 pub mod scp;
 pub mod serial;

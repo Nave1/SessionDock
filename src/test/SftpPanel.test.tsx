@@ -5,12 +5,9 @@ import { useTransferStore } from "../stores/transferStore";
 
 const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
-  open: vi.fn(),
-  save: vi.fn(),
 }));
 
 vi.mock("../api/native", () => ({ nativeInvoke: mocks.invoke }));
-vi.mock("@tauri-apps/plugin-dialog", () => ({ open: mocks.open, save: mocks.save }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
@@ -18,18 +15,18 @@ vi.mock("react-i18next", () => ({
 describe("SftpPanel", () => {
   beforeEach(() => {
     mocks.invoke.mockReset();
-    mocks.open.mockReset();
-    mocks.save.mockReset();
     useTransferStore.setState({ transfers: [] });
   });
 
   it("loads the remote root and opens a directory", async () => {
-    mocks.invoke
-      .mockResolvedValueOnce([
+    mocks.invoke.mockImplementation(async (command: string, args: { path?: string }) => {
+      if (command === "list_local_directory") return { entries: [] };
+      if (command === "list_sftp_directory" && args.path === "/") return [
         { name: "logs", path: "/logs", kind: "directory" },
         { name: "readme.txt", path: "/readme.txt", kind: "file", size: 12 },
-      ])
-      .mockResolvedValueOnce([]);
+      ];
+      return [];
+    });
 
     render(<SftpPanel tabId="pane-1" onClose={vi.fn()} />);
 
@@ -37,7 +34,7 @@ describe("SftpPanel", () => {
     fireEvent.doubleClick(screen.getByText("logs"));
 
     await waitFor(() => {
-      expect(mocks.invoke).toHaveBeenNthCalledWith(2, "list_sftp_directory", {
+      expect(mocks.invoke).toHaveBeenCalledWith("list_sftp_directory", {
         tabId: "pane-1",
         path: "/logs",
       });
@@ -46,7 +43,7 @@ describe("SftpPanel", () => {
   });
 
   it("cancels an active transfer through the scoped command", async () => {
-    mocks.invoke.mockImplementation(async (command: string) => command === "list_sftp_directory" ? [] : undefined);
+    mocks.invoke.mockImplementation(async (command: string) => command === "list_local_directory" ? { entries: [] } : []);
     render(<SftpPanel tabId="pane-7" onClose={vi.fn()} />);
 
     act(() => {
@@ -70,12 +67,20 @@ describe("SftpPanel", () => {
   });
 
   it("uses SCP only after explicit upload confirmation", async () => {
-    mocks.invoke.mockImplementation(async (command: string) => command === "list_sftp_directory" ? [] : "scp-transfer-1");
-    mocks.open.mockResolvedValue("C:\\configs\\switch.cfg");
+    mocks.invoke.mockImplementation(async (command: string) => {
+      if (command === "list_local_directory") return {
+        path: "C:\\configs",
+        parentPath: "C:\\",
+        entries: [{ name: "switch.cfg", path: "C:\\configs\\switch.cfg", kind: "file", size: 128 }],
+      };
+      if (command === "list_sftp_directory") return [];
+      return "scp-transfer-1";
+    });
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<SftpPanel tabId="pane-scp" onClose={vi.fn()} />);
 
     await screen.findByText("sftp.empty");
+    fireEvent.click(screen.getByText("switch.cfg"));
     fireEvent.change(screen.getByLabelText("sftp.transferProtocol"), { target: { value: "scp" } });
     fireEvent.change(screen.getByLabelText("sftp.scpRemoteFile"), { target: { value: "/tmp/switch.cfg" } });
     fireEvent.click(screen.getByLabelText("sftp.upload"));
@@ -90,5 +95,26 @@ describe("SftpPanel", () => {
     });
     expect(confirm).toHaveBeenCalledWith("sftp.confirmScpUpload");
     confirm.mockRestore();
+  });
+
+  it("downloads the selected remote file into the current local directory", async () => {
+    mocks.invoke.mockImplementation(async (command: string) => {
+      if (command === "list_local_directory") return { path: "C:\\downloads", parentPath: "C:\\", entries: [] };
+      if (command === "list_sftp_directory") return [{ name: "backup.cfg", path: "/backup.cfg", kind: "file", size: 64 }];
+      return "download-transfer-1";
+    });
+    render(<SftpPanel tabId="pane-download" onClose={vi.fn()} />);
+
+    fireEvent.click(await screen.findByText("backup.cfg"));
+    fireEvent.click(screen.getByLabelText("sftp.download"));
+
+    await waitFor(() => {
+      expect(mocks.invoke).toHaveBeenCalledWith("start_sftp_download", {
+        tabId: "pane-download",
+        localPath: "C:\\downloads\\backup.cfg",
+        remotePath: "/backup.cfg",
+        overwrite: false,
+      });
+    });
   });
 });

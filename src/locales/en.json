@@ -307,6 +307,11 @@
   },
   "sftp": {
     "files": "Files",
+    "localComputer": "Local computer",
+    "remoteComputer": "Remote device",
+    "localFiles": "Local files",
+    "localPath": "Local path",
+    "thisPc": "This PC",
     "remoteFiles": "Remote files",
     "remotePath": "Remote path",
     "refresh": "Refresh",
@@ -322,6 +327,7 @@
     "size": "Size",
     "modified": "Modified",
     "loading": "Loading remote files...",
+    "loadingLocal": "Loading local files...",
     "empty": "This directory is empty",
     "transfers": "Transfers",
     "pause": "Pause transfer",
@@ -333,7 +339,8 @@
     "scpNotice": "Compatibility mode for servers without SFTP. SCP transfers one file at a time and uploads are not atomic.",
     "confirmScpUpload": "Upload with SCP to {{path}}? SCP cannot check for an existing remote file and a failed transfer may leave a partial file.",
     "confirmOverwrite": "A file already exists at the destination. Replace it?",
-    "confirmDelete": "Delete {{name}}? Directories must be empty."
+    "confirmDelete": "Delete {{name}}? Directories must be empty.",
+    "confirmDeleteLocal": "Delete {{name}} from this computer? Directories must be empty."
   },
   "tunnels": {
     "title": "Tunnels",
