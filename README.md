@@ -6,17 +6,17 @@ A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remo
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.0.2-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## What's new in v1.0.1
+## What's new in v1.0.2
 
-- Edit credential profile usernames and passwords, with explicit password reveal backed by the operating-system vault.
-- Start an SCP connection for any saved SSH session from the sidebar context menu or the session-list action, then choose a saved credential or enter one manually.
-- Repair credential profiles that were previously saved without a vault password and receive a precise error when a selected profile has no secret.
-- Use the current Arista EOS system environment command from Device Info Quick Commands.
-- Apply Settings choices for startup, active-session close confirmation, connection defaults, language, motion, terminal rendering and behavior, and SSH keepalive.
+- Password credential profiles now persist through the native Windows Credential Manager backend and authenticate across application operations.
+- Every password save is read back through a fresh operating-system vault entry before SessionDock accepts the profile.
+- Failed or non-persistent vault writes stop immediately instead of creating credential metadata that cannot authenticate.
+
+> **v1.0.1 credential repair:** passwords created with v1.0.1 were not persisted and cannot be recovered. After updating, edit each affected credential profile and save its password once.
 
 ## Features
 
@@ -165,7 +165,7 @@ Diagnostics use backend allowlisted commands; this workspace does not accept arb
 
 ### Windows
 
-Download `SessionDock_1.0.1_x64-setup.exe` from the [v1.0.1 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.0.1) and run it. The NSIS installer will:
+Download `SessionDock_1.0.2_x64-setup.exe` from the [v1.0.2 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.0.2) and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs
