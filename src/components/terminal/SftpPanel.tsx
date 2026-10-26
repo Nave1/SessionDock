@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   ArrowDownToLine,
@@ -31,6 +31,7 @@ import {
   type SftpEntry,
   type SftpSortKey,
 } from "../../utils/sftp";
+import { hasFileDragType, LOCAL_FILE_DRAG_TYPE, readFileDragPayload, REMOTE_FILE_DRAG_TYPE, setFileDragPayload, type FileDragPayload } from "../../utils/fileDrag";
 import { LocalFileBrowser, type LocalFileSelection } from "./LocalFileBrowser";
 
 interface SftpPanelProps {
@@ -70,6 +71,8 @@ export function SftpPanel({ tabId, onClose, initialTransferProtocol = "sftp" }: 
   const [error, setError] = useState<string>();
   const [editAction, setEditAction] = useState<EditAction>();
   const [localSelection, setLocalSelection] = useState<LocalFileSelection>({});
+  const [remoteDropActive, setRemoteDropActive] = useState(false);
+  const remoteDropDepth = useRef(0);
   const allTransfers = useTransferStore((state) => state.transfers);
   const attachRequest = useTransferStore((state) => state.attachRequest);
   const setTransferStatus = useTransferStore((state) => state.setTransferStatus);
@@ -124,32 +127,44 @@ export function SftpPanel({ tabId, onClose, initialTransferProtocol = "sftp" }: 
     }
   };
 
-  const upload = async () => {
-    const localPath = localSelection.entry?.kind === "file" ? localSelection.entry.path : undefined;
-    if (!localPath) return;
+  const uploadFile = async (localPath: string, remotePath: string) => {
     if (transferProtocol === "scp") {
-      if (!window.confirm(t("sftp.confirmScpUpload", { path: scpRemotePath }))) return;
+      if (!window.confirm(t("sftp.confirmScpUpload", { path: remotePath }))) return;
       await startTransfer({
         command: "start_scp_upload",
-        args: { tabId, localPath, remotePath: scpRemotePath, overwrite: true },
+        args: { tabId, localPath, remotePath, overwrite: true },
       });
       return;
     }
     await startTransfer({
       command: "start_sftp_upload",
-      args: { tabId, localPath, remotePath: joinRemotePath(path, fileName(localPath)), overwrite: false },
+      args: { tabId, localPath, remotePath, overwrite: false },
+    });
+  };
+
+  const upload = async () => {
+    const localPath = localSelection.entry?.kind === "file" ? localSelection.entry.path : undefined;
+    if (!localPath) return;
+    await uploadFile(localPath, transferProtocol === "scp" ? scpRemotePath : joinRemotePath(path, fileName(localPath)));
+  };
+
+  const downloadFile = async (remotePath: string, remoteName: string) => {
+    if (!localSelection.directoryPath) return;
+    const localPath = joinLocalPath(localSelection.directoryPath, remoteName);
+    await startTransfer({
+      command: transferProtocol === "scp" ? "start_scp_download" : "start_sftp_download",
+      args: { tabId, localPath, remotePath, overwrite: false },
     });
   };
 
   const download = async () => {
     const remotePath = transferProtocol === "scp" ? scpRemotePath : selected?.path;
     if (!remotePath || (transferProtocol === "sftp" && (!selected || selected.kind === "directory"))) return;
-    if (!localSelection.directoryPath) return;
-    const localPath = joinLocalPath(localSelection.directoryPath, transferProtocol === "scp" ? fileName(remotePath) : selected!.name);
-    await startTransfer({
-      command: transferProtocol === "scp" ? "start_scp_download" : "start_sftp_download",
-      args: { tabId, localPath, remotePath, overwrite: false },
-    });
+    await downloadFile(remotePath, transferProtocol === "scp" ? fileName(remotePath) : selected!.name);
+  };
+
+  const downloadDroppedFile = (file: FileDragPayload) => {
+    void downloadFile(file.path, file.name);
   };
 
   const submitEdit = async () => {
@@ -213,7 +228,7 @@ export function SftpPanel({ tabId, onClose, initialTransferProtocol = "sftp" }: 
         </div>
       )}
       <div className="flex-1 min-h-0 flex">
-        <LocalFileBrowser onSelectionChange={setLocalSelection} />
+        <LocalFileBrowser onSelectionChange={setLocalSelection} onRemoteFileDrop={downloadDroppedFile} />
         <section className="min-w-0 flex-1 flex flex-col" aria-label={t("sftp.remoteComputer")}>
           <div className="h-8 px-2 flex items-center gap-1 border-b border-dock-border flex-shrink-0">
             <Folder size={13} className="text-dock-accent" />
@@ -239,12 +254,43 @@ export function SftpPanel({ tabId, onClose, initialTransferProtocol = "sftp" }: 
               <IconButton label={t("session.cancel")} onClick={() => setEditAction(undefined)} icon={X} />
             </form>
           )}
-          <div className="flex-1 min-h-0 overflow-auto" role="listbox" aria-label={t("sftp.remoteFiles")}>
+          <div
+            className={`relative flex-1 min-h-0 overflow-auto ${remoteDropActive ? "bg-dock-accent-subtle outline outline-1 -outline-offset-1 outline-dock-accent" : ""}`}
+            role="listbox"
+            aria-label={t("sftp.remoteFiles")}
+            onDragEnter={(event) => {
+              if (!hasFileDragType(event.dataTransfer, LOCAL_FILE_DRAG_TYPE)) return;
+              event.preventDefault();
+              remoteDropDepth.current += 1;
+              setRemoteDropActive(true);
+            }}
+            onDragOver={(event) => {
+              if (!hasFileDragType(event.dataTransfer, LOCAL_FILE_DRAG_TYPE)) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "copy";
+              setRemoteDropActive(true);
+            }}
+            onDragLeave={() => {
+              remoteDropDepth.current = Math.max(0, remoteDropDepth.current - 1);
+              if (remoteDropDepth.current === 0) setRemoteDropActive(false);
+            }}
+            onDrop={(event) => {
+              remoteDropDepth.current = 0;
+              setRemoteDropActive(false);
+              const file = readFileDragPayload(event.dataTransfer, LOCAL_FILE_DRAG_TYPE);
+              if (!file) return;
+              event.preventDefault();
+              void uploadFile(file.path, joinRemotePath(path, file.name));
+            }}
+          >
+            {remoteDropActive && <div className="pointer-events-none sticky top-0 z-10 bg-dock-accent px-2 py-1 text-center text-[10px] font-medium text-white">{t("sftp.dropToUpload")}</div>}
             {loading && <div className="p-4 text-center text-xs text-dock-text-muted">{t("sftp.loading")}</div>}
             {!loading && error && <div className="p-3 text-xs text-red-400 break-words" role="alert">{error}</div>}
             {!loading && !error && sortedEntries.length === 0 && <div className="p-4 text-center text-xs text-dock-text-muted">{t("sftp.empty")}</div>}
             {!loading && !error && sortedEntries.map((entry) => (
-              <button key={entry.path} type="button" role="option" aria-selected={selectedPath === entry.path} onClick={() => setSelectedPath(entry.path)} onDoubleClick={() => entry.kind === "directory" ? void loadDirectory(entry.path) : setSelectedPath(entry.path)} className={`w-full h-8 px-2 grid grid-cols-[18px_minmax(0,1fr)_70px] items-center gap-1 text-start border-b border-dock-border/40 hover:bg-dock-surface-hover focus:outline-none focus:bg-dock-surface-hover ${selectedPath === entry.path ? "bg-dock-surface" : ""}`}>
+              <button key={entry.path} type="button" role="option" aria-selected={selectedPath === entry.path} draggable={entry.kind === "file"} onDragStart={(event) => {
+                if (entry.kind === "file") setFileDragPayload(event.dataTransfer, REMOTE_FILE_DRAG_TYPE, { name: entry.name, path: entry.path });
+              }} onClick={() => setSelectedPath(entry.path)} onDoubleClick={() => entry.kind === "directory" ? void loadDirectory(entry.path) : setSelectedPath(entry.path)} className={`w-full h-8 px-2 grid grid-cols-[18px_minmax(0,1fr)_70px] items-center gap-1 text-start border-b border-dock-border/40 hover:bg-dock-surface-hover focus:outline-none focus:bg-dock-surface-hover ${selectedPath === entry.path ? "bg-dock-surface" : ""}`}>
                 {entry.kind === "directory" ? <Folder size={14} className="text-amber-400" /> : <File size={14} className="text-dock-text-muted" />}
                 <span className="truncate text-[11px] text-dock-text" dir="auto" title={entry.name}>{entry.name}</span>
                 <span className="text-[10px] text-dock-text-muted text-end tabular-nums">{entry.kind === "directory" ? "" : formatTransferSize(entry.size ?? 0)}</span>

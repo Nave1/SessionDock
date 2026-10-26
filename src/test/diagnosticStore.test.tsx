@@ -18,6 +18,7 @@ function EventBridge({ enabled = true }: { enabled?: boolean }) {
 
 describe("diagnostic runtime state", () => {
   beforeEach(() => {
+    localStorage.removeItem("sessiondock-diagnostics");
     useDiagnosticStore.setState({ diagnostics: [] });
     mocks.dispose.mockReset();
     mocks.handler = undefined;
@@ -78,5 +79,57 @@ describe("diagnostic runtime state", () => {
     store.attachDiagnostic("pane-1", { ...event, status: "running", stdout: "", exitCode: undefined });
 
     expect(useDiagnosticStore.getState().diagnostics[0]).toMatchObject({ status: "completed", stdout: "Linux host" });
+  });
+
+  it("persists bounded diagnostic history until finished records are cleared", () => {
+    useDiagnosticStore.getState().upsertDiagnostic("pane-1", {
+      jobId: "job-persisted",
+      providerId: "linux",
+      diagnosticId: "linux-identity",
+      command: "uname -a",
+      status: "completed",
+      stdout: "Linux host",
+      stderr: "",
+      exitCode: 0,
+      truncated: false,
+    });
+
+    const saved = JSON.parse(localStorage.getItem("sessiondock-diagnostics") ?? "null");
+    expect(saved.state.diagnostics).toEqual([
+      expect.objectContaining({ jobId: "job-persisted", status: "completed", stdout: "Linux host" }),
+    ]);
+
+    useDiagnosticStore.getState().clearFinished();
+    const cleared = JSON.parse(localStorage.getItem("sessiondock-diagnostics") ?? "null");
+    expect(cleared.state.diagnostics).toEqual([]);
+  });
+
+  it("sanitizes persisted history and cancels stale running jobs on rehydrate", async () => {
+    localStorage.setItem("sessiondock-diagnostics", JSON.stringify({
+      state: {
+        diagnostics: [
+          {
+            jobId: "job-stale",
+            tabId: "pane-1",
+            providerId: "linux",
+            diagnosticId: "linux-identity",
+            command: "uname -a",
+            status: "running",
+            stdout: "partial output",
+            stderr: "",
+            truncated: false,
+            updatedAt: 10,
+          },
+          { jobId: "malformed", status: "completed" },
+        ],
+      },
+      version: 0,
+    }));
+
+    await useDiagnosticStore.persist.rehydrate();
+
+    expect(useDiagnosticStore.getState().diagnostics).toEqual([
+      expect.objectContaining({ jobId: "job-stale", status: "cancelled", stdout: "partial output" }),
+    ]);
   });
 });

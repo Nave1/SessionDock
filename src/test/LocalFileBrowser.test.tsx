@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalFileBrowser } from "../components/terminal/LocalFileBrowser";
+import { useFileBrowserStore } from "../stores/fileBrowserStore";
 
 const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
 
@@ -12,6 +13,8 @@ vi.mock("react-i18next", () => ({
 describe("LocalFileBrowser", () => {
   beforeEach(() => {
     mocks.invoke.mockReset();
+    localStorage.removeItem("sessiondock-file-browser");
+    useFileBrowserStore.setState({ lastLocalDirectory: undefined });
   });
 
   it("loads drive roots, opens a directory, and reports file selection", async () => {
@@ -64,5 +67,21 @@ describe("LocalFileBrowser", () => {
     await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("delete_local_entry", { path: "C:\\configs\\old.cfg" }));
     expect(confirm).toHaveBeenCalledWith("sftp.confirmDeleteLocal");
     confirm.mockRestore();
+  });
+
+  it("restores the last successfully opened local directory", async () => {
+    mocks.invoke.mockImplementation(async (_command: string, args: { path?: string | null }) => {
+      if (!args.path) return { entries: [{ name: "C:\\", path: "C:\\", kind: "drive" }] };
+      return { path: args.path, parentPath: undefined, entries: [] };
+    });
+    const first = render(<LocalFileBrowser onSelectionChange={vi.fn()} />);
+
+    fireEvent.doubleClick(await screen.findByText("C:\\"));
+    await waitFor(() => expect(useFileBrowserStore.getState().lastLocalDirectory).toBe("C:\\"));
+    first.unmount();
+    mocks.invoke.mockClear();
+
+    render(<LocalFileBrowser onSelectionChange={vi.fn()} />);
+    await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("list_local_directory", { path: "C:\\" }));
   });
 });

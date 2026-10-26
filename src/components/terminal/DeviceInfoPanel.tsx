@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
 import { selectDeviceProvider, type DeviceContext, type ProviderDiagnostic, type QuickCommand } from "../../device/providers";
 import { type DiagnosticRecord, useDiagnosticStore } from "../../stores/diagnosticStore";
+import { DiagnosticRawOutput } from "../diagnostics/DiagnosticRawOutput";
 
 interface DeviceInfoPanelProps {
   tabId: string;
@@ -199,7 +200,7 @@ function DiagnosticResult({ result, cancel }: { result: DiagnosticRecord; cancel
       {result.exitCode !== undefined && <div className="mt-1 text-[9px] text-dock-text-muted">{t("deviceInfo.exitCode")}: {result.exitCode}</div>}
       {result.truncated && <div className="mt-1 text-[9px] text-amber-400">{t("deviceInfo.truncated")}</div>}
       {result.error && <div className="mt-1 text-[9px] text-red-400 break-words">{result.error}</div>}
-      {(result.stdout || result.stderr) && <details open className="mt-2"><summary className="cursor-pointer text-[9px] font-medium text-dock-text-muted">{t("deviceInfo.rawOutput")}</summary>{result.stdout && <pre className="mt-1 max-h-48 overflow-auto p-2 rounded bg-dock-bg text-[10px] leading-4 font-mono text-dock-text whitespace-pre-wrap break-words" dir="ltr">{result.stdout}</pre>}{result.stderr && <pre className="mt-1 max-h-32 overflow-auto p-2 rounded bg-red-500/5 text-[10px] leading-4 font-mono text-red-300 whitespace-pre-wrap break-words" dir="ltr">{result.stderr}</pre>}</details>}
+      {(result.stdout || result.stderr) && <details open className="mt-2"><summary className="cursor-pointer text-[9px] font-medium text-dock-text-muted">{t("deviceInfo.rawOutput")}</summary><DiagnosticRawOutput stdout={result.stdout} stderr={result.stderr} /></details>}
     </article>
   );
 }

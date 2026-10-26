@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronUp, File, Folder, FolderPlus, HardDrive, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
+import { useFileBrowserStore } from "../../stores/fileBrowserStore";
 import { useToastStore } from "../../stores/toastStore";
+import { hasFileDragType, LOCAL_FILE_DRAG_TYPE, readFileDragPayload, REMOTE_FILE_DRAG_TYPE, setFileDragPayload, type FileDragPayload } from "../../utils/fileDrag";
 import { formatTransferSize } from "../../utils/sftp";
 
 export interface LocalEntry {
@@ -26,6 +28,7 @@ export interface LocalFileSelection {
 
 interface LocalFileBrowserProps {
   onSelectionChange: (selection: LocalFileSelection) => void;
+  onRemoteFileDrop?: (file: FileDragPayload) => void;
 }
 
 interface EditAction {
@@ -37,18 +40,22 @@ function validEntryName(name: string): boolean {
   return name.length > 0 && name !== "." && name !== ".." && !name.includes("/") && !name.includes("\\") && !name.includes("\0");
 }
 
-export function LocalFileBrowser({ onSelectionChange }: LocalFileBrowserProps) {
+export function LocalFileBrowser({ onSelectionChange, onRemoteFileDrop }: LocalFileBrowserProps) {
   const { t } = useTranslation();
   const addToast = useToastStore((state) => state.addToast);
+  const setLastLocalDirectory = useFileBrowserStore((state) => state.setLastLocalDirectory);
+  const initialDirectory = useRef(useFileBrowserStore.getState().lastLocalDirectory).current;
+  const dropDepth = useRef(0);
   const [listing, setListing] = useState<LocalDirectoryListing>({ entries: [] });
   const [pathInput, setPathInput] = useState("");
   const [selectedPath, setSelectedPath] = useState<string>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
   const [editAction, setEditAction] = useState<EditAction>();
+  const [dropActive, setDropActive] = useState(false);
   const selected = listing.entries.find((entry) => entry.path === selectedPath);
 
-  const loadDirectory = useCallback(async (path?: string) => {
+  const loadDirectory = useCallback(async (path?: string): Promise<boolean> => {
     setLoading(true);
     setError(undefined);
     try {
@@ -56,17 +63,25 @@ export function LocalFileBrowser({ onSelectionChange }: LocalFileBrowserProps) {
       setListing(result);
       setPathInput(result.path ?? "");
       setSelectedPath(undefined);
+      setLastLocalDirectory(result.path);
       onSelectionChange({ directoryPath: result.path });
+      return true;
     } catch (loadError) {
       setError(String(loadError));
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [onSelectionChange]);
+  }, [onSelectionChange, setLastLocalDirectory]);
 
   useEffect(() => {
-    void loadDirectory();
-  }, [loadDirectory]);
+    void (async () => {
+      if (!await loadDirectory(initialDirectory) && initialDirectory) {
+        setLastLocalDirectory(undefined);
+        await loadDirectory();
+      }
+    })();
+  }, [initialDirectory, loadDirectory, setLastLocalDirectory]);
 
   const selectEntry = (entry: LocalEntry) => {
     setSelectedPath(entry.path);
@@ -122,12 +137,44 @@ export function LocalFileBrowser({ onSelectionChange }: LocalFileBrowserProps) {
           <PaneButton label={t("session.cancel")} onClick={() => setEditAction(undefined)} icon={X} />
         </form>
       )}
-      <div className="flex-1 min-h-0 overflow-auto" role="listbox" aria-label={t("sftp.localFiles")}>
+      <div
+        className={`relative flex-1 min-h-0 overflow-auto ${dropActive ? "bg-dock-accent-subtle outline outline-1 -outline-offset-1 outline-dock-accent" : ""}`}
+        role="listbox"
+        aria-label={t("sftp.localFiles")}
+        onDragEnter={(event) => {
+          if (!listing.path || !onRemoteFileDrop || !hasFileDragType(event.dataTransfer, REMOTE_FILE_DRAG_TYPE)) return;
+          event.preventDefault();
+          dropDepth.current += 1;
+          setDropActive(true);
+        }}
+        onDragOver={(event) => {
+          if (!listing.path || !onRemoteFileDrop || !hasFileDragType(event.dataTransfer, REMOTE_FILE_DRAG_TYPE)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "copy";
+          setDropActive(true);
+        }}
+        onDragLeave={() => {
+          dropDepth.current = Math.max(0, dropDepth.current - 1);
+          if (dropDepth.current === 0) setDropActive(false);
+        }}
+        onDrop={(event) => {
+          dropDepth.current = 0;
+          setDropActive(false);
+          if (!listing.path || !onRemoteFileDrop) return;
+          const file = readFileDragPayload(event.dataTransfer, REMOTE_FILE_DRAG_TYPE);
+          if (!file) return;
+          event.preventDefault();
+          onRemoteFileDrop(file);
+        }}
+      >
+        {dropActive && <div className="pointer-events-none sticky top-0 z-10 bg-dock-accent px-2 py-1 text-center text-[10px] font-medium text-white">{t("sftp.dropToDownload")}</div>}
         {loading && <div className="p-4 text-center text-xs text-dock-text-muted">{t("sftp.loadingLocal")}</div>}
         {!loading && error && <div className="p-3 text-xs text-red-400 break-words" role="alert">{error}</div>}
         {!loading && !error && listing.entries.length === 0 && <div className="p-4 text-center text-xs text-dock-text-muted">{t("sftp.empty")}</div>}
         {!loading && !error && listing.entries.map((entry) => (
-          <button key={entry.path} type="button" role="option" aria-selected={selectedPath === entry.path} onClick={() => selectEntry(entry)} onDoubleClick={() => {
+          <button key={entry.path} type="button" role="option" aria-selected={selectedPath === entry.path} draggable={entry.kind === "file"} onDragStart={(event) => {
+            if (entry.kind === "file") setFileDragPayload(event.dataTransfer, LOCAL_FILE_DRAG_TYPE, { name: entry.name, path: entry.path });
+          }} onClick={() => selectEntry(entry)} onDoubleClick={() => {
             if (entry.kind === "drive" || entry.kind === "directory") void loadDirectory(entry.path);
           }} className={`w-full h-8 px-2 grid grid-cols-[18px_minmax(0,1fr)_62px] items-center gap-1 text-start border-b border-dock-border/40 hover:bg-dock-surface-hover focus:outline-none focus:bg-dock-surface-hover ${selectedPath === entry.path ? "bg-dock-surface" : ""}`}>
             {entry.kind === "drive" ? <HardDrive size={14} className="text-dock-accent" /> : entry.kind === "directory" ? <Folder size={14} className="text-amber-400" /> : <File size={14} className={entry.kind === "symlink" ? "text-dock-warning" : "text-dock-text-muted"} />}

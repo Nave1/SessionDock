@@ -5,6 +5,7 @@ import { nativeInvoke } from "../../api/native";
 import { findConnectedSshPane, listTerminalPaneIds, useAppStore } from "../../stores/appStore";
 import { type DiagnosticRecord, type DiagnosticStatus, useDiagnosticStore } from "../../stores/diagnosticStore";
 import { useToastStore } from "../../stores/toastStore";
+import { DiagnosticRawOutput } from "../diagnostics/DiagnosticRawOutput";
 
 type DiagnosticFilter = "all" | "active" | "completed" | "failed";
 
@@ -162,8 +163,7 @@ export function DiagnosticsView({ onQuickConnect = () => undefined }: { onQuickC
                       {diagnostic.exitCode !== undefined && <div className="mt-1 text-[9px] text-dock-text-muted">{t("deviceInfo.exitCode")}: {diagnostic.exitCode}</div>}
                       {diagnostic.truncated && <div className="mt-1 text-[9px] text-amber-400">{t("deviceInfo.truncated")}</div>}
                       {diagnostic.error && <div className="mt-1 text-[9px] text-red-400 break-words">{diagnostic.error}</div>}
-                      {diagnostic.stdout && <pre className="mt-1 max-h-64 overflow-auto bg-dock-bg p-2 font-mono text-[10px] leading-4 text-dock-text whitespace-pre-wrap break-words" dir="ltr">{diagnostic.stdout}</pre>}
-                      {diagnostic.stderr && <pre className="mt-1 max-h-40 overflow-auto bg-red-500/5 p-2 font-mono text-[10px] leading-4 text-red-300 whitespace-pre-wrap break-words" dir="ltr">{diagnostic.stderr}</pre>}
+                      <DiagnosticRawOutput stdout={diagnostic.stdout} stderr={diagnostic.stderr} />
                     </details>
                   )}
                 </article>

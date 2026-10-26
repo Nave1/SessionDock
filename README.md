@@ -6,16 +6,16 @@ A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remo
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## What's new in v1.1.0
+## What's new in v1.1.1
 
-- The integrated Files workspace now provides a WinSCP-style dual-pane view: local drives and folders on the left, and the connected device on the right.
-- Upload and download selected files directly between panes, with existing progress, pause, resume, cancel, retry, staging, and overwrite controls.
-- Create, rename, and delete local or remote entries through native, path-validated operations without launching external WinSCP.
-- Remote browsing uses the authenticated SFTP subsystem; SCP remains available for explicit single-file transfers when selected.
+- Drag individual files between the local and remote Files panes to upload or download through SFTP or explicitly confirmed SCP.
+- The Files panel restores the last successfully opened local folder while each remote connection still starts at its own root.
+- Diagnostic history survives application restarts until **Clear finished** is used; interrupted checks return as cancelled.
+- Raw diagnostic output can be selected normally or copied with one action.
 
 > **v1.0.1 credential repair:** passwords created with v1.0.1 were not persisted and cannot be recovered. After updating, edit each affected credential profile and save its password once.
 
@@ -27,7 +27,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **SSH authentication** - Supports password, keyboard-interactive, OpenSSH private-key, and SSH-agent authentication through native libssh2 APIs.
 - **SSH host trust** - Requires explicit fingerprint approval for new hosts and blocks changed keys until the saved trust entry is reviewed and removed.
 - **SSH jump hosts** - Route saved SSH sessions through an ordered chain of up to five credential-ready bastions using native libssh2 `direct-tcpip` channels.
-- **Dual-pane file workspace** - Browse local drives and the connected device side by side, manage entries in either pane, and transfer selected files without an external application.
+- **Dual-pane file workspace** - Browse local drives and the connected device side by side, manage entries in either pane, drag individual files between panes, and restore the last local folder without an external application.
 - **Integrated SFTP** - Browse, upload, download, rename, delete, and create directories through the authenticated SSH pane, including ProxyJump routes.
 - **SCP compatibility transfers** - Stream single-file uploads and downloads through authenticated SSH and ProxyJump panes when a server does not provide SFTP; SFTP remains the default.
 - **Saved-session SCP** - Start SCP from an SSH session's sidebar context menu or session-list action and choose a saved password credential or enter credentials manually.
@@ -53,7 +53,7 @@ Built for network engineers, data-center technicians, system administrators, and
 - **Command snippets** - Create, search, edit, favorite, and categorize reusable commands in a pane-side library; insertion shows and copies the exact command into the SSH terminal without pressing Enter.
 - **Device Info and Quick Commands** - Match configured session metadata to conservative Generic SSH, Linux, or Arista EOS providers and expose exact read-only commands for insertion without automatic probing or execution.
 - **Structured device diagnostics** - Run provider-specific allowlisted checks in isolated SSH channels with status, exit code, truncation state, and raw stdout/stderr shown beside the terminal.
-- **Diagnostics workspace** - Open Device Info on a connected SSH pane to select an allowlisted check, then monitor checks across panes, inspect raw output, cancel active work, or rerun finished checks.
+- **Diagnostics workspace** - Monitor allowlisted checks across panes, select or copy raw output, cancel or rerun work, and retain bounded local history until it is explicitly cleared.
 - **MultiExec** - Review one exact command against explicitly selected connected SSH panes, confirm modifying or high-risk batches, and inspect status plus raw output independently for every target.
 - **Semantic output colors** - Optionally highlights IP/CIDR addresses, MAC addresses, interfaces, VLANs, timestamps, status words, and ping results without changing the remote byte stream or overriding native ANSI colors.
 
@@ -95,7 +95,7 @@ These workspaces operate on an authenticated SSH connection. Their primary actio
 
 1. Open **Transfers** and select **Start transfer**.
 2. Navigate local drives in the left pane and the connected device in the right pane.
-3. Select a local file to upload or a remote file to download into the current local directory.
+3. Drag an individual file to the other pane, or select it and use Upload/Download. Transfers target the currently open destination directory.
 4. Keep **SFTP** selected for remote browsing and file management, or choose **SCP** for a single file at an absolute remote path.
 5. Use the Transfers workspace to monitor progress, pause, resume, cancel, or retry.
 
@@ -111,7 +111,7 @@ All tunnel listeners are restricted to `127.0.0.1`.
 
 1. Open **Diagnostics** and select **Run diagnostic**.
 2. Device Info opens on the selected SSH pane. Choose one of the provider's predefined checks.
-3. Review status and bounded raw output in the Diagnostics workspace, where active checks can be cancelled and completed checks can be rerun.
+3. Review, select, or copy bounded raw output in the Diagnostics workspace. History remains local across restarts until **Clear finished** is pressed.
 
 Diagnostics use backend allowlisted commands; this workspace does not accept arbitrary commands.
 
@@ -169,7 +169,7 @@ Diagnostics use backend allowlisted commands; this workspace does not accept arb
 
 ### Windows
 
-Download `SessionDock_1.1.0_x64-setup.exe` from the [v1.1.0 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.1.0) and run it. The NSIS installer will:
+Download `SessionDock_1.1.1_x64-setup.exe` from the [v1.1.1 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.1.1) and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs

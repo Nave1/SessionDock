@@ -340,7 +340,9 @@
     "confirmScpUpload": "Upload with SCP to {{path}}? SCP cannot check for an existing remote file and a failed transfer may leave a partial file.",
     "confirmOverwrite": "A file already exists at the destination. Replace it?",
     "confirmDelete": "Delete {{name}}? Directories must be empty.",
-    "confirmDeleteLocal": "Delete {{name}} from this computer? Directories must be empty."
+    "confirmDeleteLocal": "Delete {{name}} from this computer? Directories must be empty.",
+    "dropToUpload": "Drop to upload",
+    "dropToDownload": "Drop to download"
   },
   "tunnels": {
     "title": "Tunnels",
@@ -448,6 +450,10 @@
     "exitCode": "Exit code",
     "truncated": "Output was truncated at the safety limit",
     "rawOutput": "Raw output",
+    "copy": "Copy",
+    "copyRawOutput": "Copy raw output",
+    "rawOutputCopied": "Raw output copied",
+    "rawOutputCopyFailed": "Could not copy raw output: {{error}}",
     "status": {
       "running": "Running",
       "completed": "Completed",

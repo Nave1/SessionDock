@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-10-26
+
+### Added
+- Drag individual files between the local and remote Files panes to start SFTP or explicitly confirmed SCP transfers through the existing transfer queue
+- Copy diagnostic raw output with a dedicated action while preserving normal mouse and keyboard text selection
+
+### Fixed
+- Restore the last successfully opened local directory when a later SCP or SFTP Files panel opens without persisting the remote directory
+- Persist bounded diagnostic history locally across application restarts until **Clear finished** is used
+- Rehydrate interrupted diagnostic jobs as cancelled instead of displaying stale running state
+
+### Security
+- Validate and bound persisted diagnostic records, local paths, and internal drag payloads before use
+- Keep drag-and-drop transfers behind the existing Rust path validation, overwrite handling, and SCP upload confirmation
+- Compact only the oldest persisted raw output if browser storage reaches its bounded capacity while retaining diagnostic records
+
 ## [1.1.0] - 2026-10-22
 
 ### Added

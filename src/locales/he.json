@@ -340,7 +340,9 @@
     "confirmScpUpload": "להעלות באמצעות SCP אל {{path}}? ‏SCP אינו יכול לבדוק אם קיים קובץ מרוחק, והעברה שנכשלה עלולה להשאיר קובץ חלקי.",
     "confirmOverwrite": "כבר קיים קובץ ביעד. להחליף אותו?",
     "confirmDelete": "למחוק את {{name}}? תיקיות חייבות להיות ריקות.",
-    "confirmDeleteLocal": "למחוק את {{name}} מהמחשב הזה? תיקיות חייבות להיות ריקות."
+    "confirmDeleteLocal": "למחוק את {{name}} מהמחשב הזה? תיקיות חייבות להיות ריקות.",
+    "dropToUpload": "שחרור להעלאה",
+    "dropToDownload": "שחרור להורדה"
   },
   "tunnels": {
     "title": "מנהרות",
@@ -448,6 +450,10 @@
     "exitCode": "קוד יציאה",
     "truncated": "הפלט קוצר בגבול הבטיחות",
     "rawOutput": "פלט גולמי",
+    "copy": "העתקה",
+    "copyRawOutput": "העתקת פלט גולמי",
+    "rawOutputCopied": "הפלט הגולמי הועתק",
+    "rawOutputCopyFailed": "לא ניתן להעתיק את הפלט הגולמי: {{error}}",
     "status": {
       "running": "פועל",
       "completed": "הושלם",

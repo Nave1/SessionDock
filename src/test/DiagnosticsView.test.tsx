@@ -4,10 +4,14 @@ import { DiagnosticsView } from "../components/views/DiagnosticsView";
 import { useAppStore } from "../stores/appStore";
 import { useDiagnosticStore } from "../stores/diagnosticStore";
 
-const mocks = vi.hoisted(() => ({ invoke: vi.fn() }));
+const mocks = vi.hoisted(() => ({ invoke: vi.fn(), writeText: vi.fn() }));
 
 vi.mock("../api/native", () => ({ nativeInvoke: mocks.invoke }));
-vi.mock("zustand/middleware", () => ({ persist: (initializer: unknown) => initializer }));
+vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({ writeText: mocks.writeText }));
+vi.mock("zustand/middleware", () => ({
+  createJSONStorage: () => undefined,
+  persist: (initializer: unknown) => initializer,
+}));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string, values?: { count?: number; defaultValue?: string }) => values?.defaultValue ?? (values?.count !== undefined ? `${key}:${values.count}` : key) }),
 }));
@@ -29,6 +33,7 @@ const completedDiagnostic = {
 describe("DiagnosticsView", () => {
   beforeEach(() => {
     mocks.invoke.mockReset().mockResolvedValue(undefined);
+    mocks.writeText.mockReset().mockResolvedValue(undefined);
     useAppStore.setState({
       currentView: "diagnostics",
       activeTabId: null,
@@ -55,6 +60,16 @@ describe("DiagnosticsView", () => {
 
     expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-1");
+  });
+
+  it("allows selecting and copying raw diagnostic output", async () => {
+    render(<DiagnosticsView />);
+
+    const rawOutput = screen.getByText("Arista vEOS 4.32.0F");
+    expect(rawOutput).toHaveClass("select-text");
+    fireEvent.click(screen.getByRole("button", { name: "deviceInfo.copyRawOutput" }));
+
+    await waitFor(() => expect(mocks.writeText).toHaveBeenCalledWith("Arista vEOS 4.32.0F"));
   });
 
   it("opens Device Info on a connected SSH pane to run diagnostics", () => {
