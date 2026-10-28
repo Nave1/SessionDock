@@ -6,16 +6,14 @@ A modern desktop application for managing SSH, Telnet, Serial, BMC, and VNC remo
 
 Built for network engineers, data-center technicians, system administrators, and IT professionals who manage hundreds or thousands of network devices.
 
-![Version](https://img.shields.io/badge/version-1.1.2-blue)
+![Version](https://img.shields.io/badge/version-1.1.3-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## What's new in v1.1.2
+## What's new in v1.1.3
 
-- Drop files onto a specific local or remote folder to transfer directly into that folder through SFTP or explicitly confirmed SCP.
-- Internal file drops now work when Windows WebView2 withholds custom drag types during drag-over.
-- Favorites, Recent, All Sessions, and folder views remain accessible while terminal sessions stay connected.
-- **Run diagnostic** now asks which connected SSH device to use instead of automatically choosing the active session.
+- SCP and SFTP file drags now use a WebView2-compatible standard drag marker, so files can be dropped into the current local directory or a specific local folder.
+- The actual local or remote path remains inside SessionDock while the harmless standard marker enables Windows to recognize the drag operation.
 
 > **v1.0.1 credential repair:** passwords created with v1.0.1 were not persisted and cannot be recovered. After updating, edit each affected credential profile and save its password once.
 
@@ -170,7 +168,7 @@ Diagnostics use backend allowlisted commands; this workspace does not accept arb
 
 ### Windows
 
-Download `SessionDock_1.1.2_x64-setup.exe` from the [v1.1.2 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.1.2) and run it. The NSIS installer will:
+Download `SessionDock_1.1.3_x64-setup.exe` from the [v1.1.3 GitHub release](https://github.com/Nave1/SessionDock/releases/tag/v1.1.3) and run it. The NSIS installer will:
 - Install to Program Files
 - Create a Start Menu shortcut
 - Support clean uninstall via Add/Remove Programs

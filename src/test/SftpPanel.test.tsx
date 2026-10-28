@@ -240,6 +240,35 @@ describe("SftpPanel", () => {
     }));
   });
 
+  it("downloads when WebView2 withholds the custom payload during drop", async () => {
+    mocks.invoke.mockImplementation(async (command: string) => {
+      if (command === "list_local_directory") return { path: "C:\\downloads", entries: [] };
+      if (command === "list_sftp_directory") return [{ name: "backup.cfg", path: "/backup.cfg", kind: "file", size: 64 }];
+      return "download-transfer-webview";
+    });
+    render(<SftpPanel tabId="pane-webview-download" onClose={vi.fn()} />);
+    const payloads = new Map<string, string>();
+    fireEvent.dragStart((await screen.findByText("backup.cfg")).closest("button")!, {
+      dataTransfer: {
+        effectAllowed: "none",
+        setData: (type: string, value: string) => payloads.set(type, value),
+      },
+    });
+
+    expect(payloads.has("text/plain")).toBe(true);
+    const localPane = screen.getByRole("listbox", { name: "sftp.localFiles" });
+    const dropTransfer = { types: ["text/plain"], dropEffect: "none", getData: () => "" };
+    fireEvent.dragOver(localPane, { dataTransfer: dropTransfer });
+    fireEvent.drop(localPane, { dataTransfer: dropTransfer });
+
+    await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("start_sftp_download", {
+      tabId: "pane-webview-download",
+      localPath: "C:\\downloads\\backup.cfg",
+      remotePath: "/backup.cfg",
+      overwrite: false,
+    }));
+  });
+
   it("requires confirmation before an SCP upload started by dropping a local file", async () => {
     mocks.invoke.mockImplementation(async (command: string) => {
       if (command === "list_local_directory") return {

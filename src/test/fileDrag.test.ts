@@ -34,6 +34,29 @@ describe("file drag payloads", () => {
     expect(hasFileDragType(dataTransfer, LOCAL_FILE_DRAG_TYPE)).toBe(false);
   });
 
+  it("uses a path-free standard format when WebView2 rejects custom drag data", () => {
+    const values = new Map<string, string>();
+    const dataTransfer = {
+      types: ["text/plain"],
+      effectAllowed: "none",
+      setData: (type: string, value: string) => {
+        if (type !== "text/plain") throw new DOMException("Unsupported format");
+        values.set(type, value);
+      },
+      getData: vi.fn().mockReturnValue(""),
+    } as unknown as DataTransfer;
+
+    setFileDragPayload(dataTransfer, REMOTE_FILE_DRAG_TYPE, { name: "backup.cfg", path: "/backup.cfg" });
+
+    expect(values.get("text/plain")).not.toContain("/backup.cfg");
+    expect(hasFileDragType(dataTransfer, REMOTE_FILE_DRAG_TYPE)).toBe(true);
+    expect(readFileDragPayload(dataTransfer, REMOTE_FILE_DRAG_TYPE)).toEqual({
+      name: "backup.cfg",
+      path: "/backup.cfg",
+    });
+    clearFileDragPayload();
+  });
+
   it("rejects malformed and oversized payloads", () => {
     const getData = vi.fn()
       .mockReturnValueOnce("not-json")

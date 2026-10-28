@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-10-28
+
+### Fixed
+- Register a standard drag format so Windows WebView2 accepts remote-to-local and local-to-remote SCP/SFTP file drops
+- Recover the bounded internal file payload when WebView2 withholds the custom drag format at drop time
+
+### Security
+- Keep file paths out of the standard drag data and retain existing backend path validation, overwrite handling, and SCP confirmation
+- Update the Tauri updater stack to remove the vulnerable `zip 4.6.1` extraction dependency reported by RUSTSEC-2026-0367, RUSTSEC-2026-0368, and RUSTSEC-2026-0369
+
 ## [1.1.2] - 2026-10-28
 
 ### Fixed
