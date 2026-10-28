@@ -50,7 +50,7 @@ describe("TransfersView", () => {
     expect(screen.getByText("Core switch")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "transfers.focus" }));
 
-    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "terminal" });
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-1");
   });
 
@@ -59,7 +59,7 @@ describe("TransfersView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "transfers.start" }));
 
-    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "terminal" });
     expect(useAppStore.getState().tabs[0]).toMatchObject({
       activePaneId: "pane-1",
       toolPaneId: "pane-1",

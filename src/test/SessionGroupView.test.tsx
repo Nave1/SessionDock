@@ -87,7 +87,7 @@ describe("SessionGroupView", () => {
 
     expect(useAppStore.getState().tabs).toHaveLength(1);
     expect(useAppStore.getState().tabs[0].sessionId).toBe("session-1");
-    expect(useAppStore.getState().currentView).toBe("recent");
+    expect(useAppStore.getState().currentView).toBe("terminal");
   });
 
   it("saves changed membership", async () => {

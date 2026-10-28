@@ -51,9 +51,7 @@ export function MainContent({ onNewSession, onNewFolder, onQuickConnect, onImpor
     .sort((first, second) => (second.last_connected_at || "").localeCompare(first.last_connected_at || ""));
   const activeTab = tabs.find((t) => t.id === activeTabId);
 
-  // Only show terminal when no specific view is selected (user clicked a tab, not a nav item)
-  const isNavView = currentView === "settings" || currentView === "home" || currentView === "credentials" || currentView === "tags" || currentView === "group" || currentView === "activeConnections" || currentView === "transfers" || currentView === "tunnels" || currentView === "diagnostics";
-  const showTerminal = activeTab && !isNavView;
+  const showTerminal = activeTab && currentView === "terminal";
 
   return (
     <main className="min-w-0 flex-1 flex flex-col overflow-hidden">

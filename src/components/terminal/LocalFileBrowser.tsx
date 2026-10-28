@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import { ChevronUp, File, Folder, FolderPlus, HardDrive, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
 import { useFileBrowserStore } from "../../stores/fileBrowserStore";
 import { useToastStore } from "../../stores/toastStore";
-import { hasFileDragType, LOCAL_FILE_DRAG_TYPE, readFileDragPayload, REMOTE_FILE_DRAG_TYPE, setFileDragPayload, type FileDragPayload } from "../../utils/fileDrag";
+import { clearFileDragPayload, hasFileDragType, LOCAL_FILE_DRAG_TYPE, readFileDragPayload, REMOTE_FILE_DRAG_TYPE, setFileDragPayload, type FileDragPayload } from "../../utils/fileDrag";
 import { formatTransferSize } from "../../utils/sftp";
 
 export interface LocalEntry {
@@ -28,7 +28,7 @@ export interface LocalFileSelection {
 
 interface LocalFileBrowserProps {
   onSelectionChange: (selection: LocalFileSelection) => void;
-  onRemoteFileDrop?: (file: FileDragPayload) => void;
+  onRemoteFileDrop?: (file: FileDragPayload, destinationDirectory: string) => void;
 }
 
 interface EditAction {
@@ -114,6 +114,20 @@ export function LocalFileBrowser({ onSelectionChange, onRemoteFileDrop }: LocalF
     }
   };
 
+  const acceptRemoteFileDrag = (event: DragEvent<HTMLElement>) => {
+    if (!listing.path || !onRemoteFileDrop || !hasFileDragType(event.dataTransfer, REMOTE_FILE_DRAG_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setDropActive(true);
+  };
+
+  const dropRemoteFile = (event: DragEvent<HTMLElement>, destinationDirectory: string) => {
+    event.preventDefault();
+    const file = readFileDragPayload(event.dataTransfer, REMOTE_FILE_DRAG_TYPE);
+    clearFileDragPayload();
+    if (file) onRemoteFileDrop?.(file, destinationDirectory);
+  };
+
   return (
     <section className="min-w-0 flex-1 flex flex-col border-e border-dock-border" aria-label={t("sftp.localComputer")}>
       <div className="h-8 px-2 flex items-center gap-1 border-b border-dock-border flex-shrink-0">
@@ -142,17 +156,11 @@ export function LocalFileBrowser({ onSelectionChange, onRemoteFileDrop }: LocalF
         role="listbox"
         aria-label={t("sftp.localFiles")}
         onDragEnter={(event) => {
-          if (!listing.path || !onRemoteFileDrop || !hasFileDragType(event.dataTransfer, REMOTE_FILE_DRAG_TYPE)) return;
-          event.preventDefault();
+          if (!listing.path || !onRemoteFileDrop) return;
+          acceptRemoteFileDrag(event);
           dropDepth.current += 1;
-          setDropActive(true);
         }}
-        onDragOver={(event) => {
-          if (!listing.path || !onRemoteFileDrop || !hasFileDragType(event.dataTransfer, REMOTE_FILE_DRAG_TYPE)) return;
-          event.preventDefault();
-          event.dataTransfer.dropEffect = "copy";
-          setDropActive(true);
-        }}
+        onDragOver={acceptRemoteFileDrag}
         onDragLeave={() => {
           dropDepth.current = Math.max(0, dropDepth.current - 1);
           if (dropDepth.current === 0) setDropActive(false);
@@ -161,10 +169,7 @@ export function LocalFileBrowser({ onSelectionChange, onRemoteFileDrop }: LocalF
           dropDepth.current = 0;
           setDropActive(false);
           if (!listing.path || !onRemoteFileDrop) return;
-          const file = readFileDragPayload(event.dataTransfer, REMOTE_FILE_DRAG_TYPE);
-          if (!file) return;
-          event.preventDefault();
-          onRemoteFileDrop(file);
+          dropRemoteFile(event, listing.path);
         }}
       >
         {dropActive && <div className="pointer-events-none sticky top-0 z-10 bg-dock-accent px-2 py-1 text-center text-[10px] font-medium text-white">{t("sftp.dropToDownload")}</div>}
@@ -174,6 +179,26 @@ export function LocalFileBrowser({ onSelectionChange, onRemoteFileDrop }: LocalF
         {!loading && !error && listing.entries.map((entry) => (
           <button key={entry.path} type="button" role="option" aria-selected={selectedPath === entry.path} draggable={entry.kind === "file"} onDragStart={(event) => {
             if (entry.kind === "file") setFileDragPayload(event.dataTransfer, LOCAL_FILE_DRAG_TYPE, { name: entry.name, path: entry.path });
+          }} onDragEnd={clearFileDragPayload} onDragEnter={(event) => {
+            if (entry.kind !== "directory") return;
+            event.stopPropagation();
+            acceptRemoteFileDrag(event);
+            dropDepth.current += 1;
+          }} onDragOver={(event) => {
+            if (entry.kind !== "directory") return;
+            event.stopPropagation();
+            acceptRemoteFileDrag(event);
+          }} onDragLeave={(event) => {
+            if (entry.kind !== "directory") return;
+            event.stopPropagation();
+            dropDepth.current = Math.max(0, dropDepth.current - 1);
+            if (dropDepth.current === 0) setDropActive(false);
+          }} onDrop={(event) => {
+            if (entry.kind !== "directory") return;
+            event.stopPropagation();
+            dropDepth.current = 0;
+            setDropActive(false);
+            dropRemoteFile(event, entry.path);
           }} onClick={() => selectEntry(entry)} onDoubleClick={() => {
             if (entry.kind === "drive" || entry.kind === "directory") void loadDirectory(entry.path);
           }} className={`w-full h-8 px-2 grid grid-cols-[18px_minmax(0,1fr)_62px] items-center gap-1 text-start border-b border-dock-border/40 hover:bg-dock-surface-hover focus:outline-none focus:bg-dock-surface-hover ${selectedPath === entry.path ? "bg-dock-surface" : ""}`}>

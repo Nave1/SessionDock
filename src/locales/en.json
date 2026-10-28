@@ -160,7 +160,11 @@
     "actions": "Actions",
     "closedConnection": "Closed connection",
     "focus": "Focus connection",
-    "rerun": "Run again"
+    "rerun": "Run again",
+    "chooseTarget": "Choose a diagnostic target",
+    "chooseTargetHint": "Select the connected SSH device where Device Info should open.",
+    "pane": "Pane {{index}}",
+    "connectAnother": "Connect another device"
   },
   "home": {
     "quickConnect": "Quick Connect",

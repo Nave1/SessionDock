@@ -52,7 +52,7 @@ export function TunnelsView({ onQuickConnect = () => undefined }: { onQuickConne
     if (!owner) return;
     setActiveTab(owner.id);
     setActivePane(owner.id, tunnel.tabId);
-    setCurrentView("recent");
+    setCurrentView("terminal");
   };
 
   const createTunnel = () => {

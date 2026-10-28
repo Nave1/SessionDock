@@ -1,24 +1,49 @@
 import { useDeferredValue, useState } from "react";
-import { CircleStop, ExternalLink, Play, RotateCcw, Search, Stethoscope, Trash2, X } from "lucide-react";
+import { CircleStop, ExternalLink, Play, Plug, RotateCcw, Search, Server, Stethoscope, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { nativeInvoke } from "../../api/native";
-import { findConnectedSshPane, listTerminalPaneIds, useAppStore } from "../../stores/appStore";
+import { listTerminalPaneIds, useAppStore } from "../../stores/appStore";
 import { type DiagnosticRecord, type DiagnosticStatus, useDiagnosticStore } from "../../stores/diagnosticStore";
 import { useToastStore } from "../../stores/toastStore";
 import { DiagnosticRawOutput } from "../diagnostics/DiagnosticRawOutput";
 
 type DiagnosticFilter = "all" | "active" | "completed" | "failed";
 
+interface DiagnosticTarget {
+  tabId: string;
+  paneId: string;
+  sessionName: string;
+  host: string;
+  paneIndex: number;
+  paneCount: number;
+}
+
 export function DiagnosticsView({ onQuickConnect = () => undefined }: { onQuickConnect?: () => void }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<DiagnosticFilter>("all");
+  const [targetChooserOpen, setTargetChooserOpen] = useState(false);
   const deferredQuery = useDeferredValue(query.trim().toLocaleLowerCase());
   const diagnostics = useDiagnosticStore((state) => state.diagnostics);
   const attachDiagnostic = useDiagnosticStore((state) => state.attachDiagnostic);
   const clearFinished = useDiagnosticStore((state) => state.clearFinished);
-  const { tabs, activeTabId, setActiveTab, setActivePane, setCurrentView, requestPaneTool } = useAppStore();
+  const { tabs, setActiveTab, setActivePane, setCurrentView, requestPaneTool } = useAppStore();
   const addToast = useToastStore((state) => state.addToast);
+  const diagnosticTargets = tabs.flatMap<DiagnosticTarget>((tab) => {
+    if (tab.protocol !== "ssh") return [];
+    const paneIds = listTerminalPaneIds(tab.paneLayout ?? { type: "pane", id: tab.id });
+    return paneIds.flatMap((paneId, paneIndex) => {
+      const status = tab.paneStatuses?.[paneId] ?? tab.status;
+      return status === "connected" ? [{
+        tabId: tab.id,
+        paneId,
+        sessionName: tab.sessionName,
+        host: tab.host,
+        paneIndex,
+        paneCount: paneIds.length,
+      }] : [];
+    });
+  });
 
   const ownerFor = (diagnostic: DiagnosticRecord) => tabs.find((tab) =>
     listTerminalPaneIds(tab.paneLayout ?? { type: "pane", id: tab.id }).includes(diagnostic.tabId));
@@ -40,12 +65,16 @@ export function DiagnosticsView({ onQuickConnect = () => undefined }: { onQuickC
     if (!owner) return;
     setActiveTab(owner.id);
     setActivePane(owner.id, diagnostic.tabId);
-    setCurrentView("recent");
+    setCurrentView("terminal");
   };
 
   const runDiagnostic = () => {
-    const target = findConnectedSshPane(tabs, activeTabId);
-    if (!target) return onQuickConnect();
+    if (diagnosticTargets.length === 0) return onQuickConnect();
+    setTargetChooserOpen(true);
+  };
+
+  const selectDiagnosticTarget = (target: DiagnosticTarget) => {
+    setTargetChooserOpen(false);
     requestPaneTool(target.tabId, target.paneId, "device");
   };
 
@@ -172,6 +201,39 @@ export function DiagnosticsView({ onQuickConnect = () => undefined }: { onQuickC
           </div>
         )}
       </div>
+
+      {targetChooserOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setTargetChooserOpen(false)}>
+          <section role="dialog" aria-modal="true" aria-labelledby="diagnostic-target-title" className="w-full max-w-md overflow-hidden rounded border border-dock-border bg-dock-sidebar shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <header className="flex items-start gap-2 border-b border-dock-border px-3 py-2.5">
+              <Server size={15} className="mt-0.5 text-dock-accent" />
+              <div className="min-w-0 flex-1">
+                <h3 id="diagnostic-target-title" className="text-xs font-semibold text-dock-text">{t("diagnosticsWorkspace.chooseTarget")}</h3>
+                <p className="mt-0.5 text-[10px] text-dock-text-muted">{t("diagnosticsWorkspace.chooseTargetHint")}</p>
+              </div>
+              <button type="button" onClick={() => setTargetChooserOpen(false)} className="p-1 text-dock-text-muted hover:text-dock-text" aria-label={t("session.cancel")}><X size={13} /></button>
+            </header>
+            <div className="max-h-72 overflow-auto py-1">
+              {diagnosticTargets.map((target, index) => (
+                <button key={`${target.tabId}:${target.paneId}`} type="button" autoFocus={index === 0} onClick={() => selectDiagnosticTarget(target)} className="flex w-full items-center gap-2 border-b border-dock-border/50 px-3 py-2 text-start hover:bg-dock-surface focus:bg-dock-surface focus:outline-none">
+                  <span className="h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium text-dock-text">{target.sessionName}</span>
+                    <span className="block truncate font-mono text-[10px] text-dock-text-muted" dir="ltr">{target.host}</span>
+                  </span>
+                  {target.paneCount > 1 && <span className="text-[9px] text-dock-text-muted">{t("diagnosticsWorkspace.pane", { index: target.paneIndex + 1 })}</span>}
+                </button>
+              ))}
+            </div>
+            <footer className="border-t border-dock-border p-2">
+              <button type="button" onClick={() => { setTargetChooserOpen(false); onQuickConnect(); }} className="flex h-7 w-full items-center justify-center gap-1.5 rounded border border-dock-border text-[10px] text-dock-text-muted hover:border-dock-accent hover:text-dock-text">
+                <Plug size={11} />
+                <span>{t("diagnosticsWorkspace.connectAnother")}</span>
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

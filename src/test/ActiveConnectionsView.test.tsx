@@ -50,7 +50,7 @@ describe("ActiveConnectionsView", () => {
 
     expect(useAppStore.getState()).toMatchObject({
       activeTabId: "tab-1",
-      currentView: "recent",
+      currentView: "terminal",
     });
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-2");
   });

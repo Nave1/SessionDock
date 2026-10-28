@@ -19,7 +19,7 @@ export function TerminalTabs() {
         return (
           <div
             key={tab.id}
-            onClick={() => { setActiveTab(tab.id); setCurrentView("recent"); }}
+            onClick={() => { setActiveTab(tab.id); setCurrentView("terminal"); }}
             className={`group relative flex items-center gap-2 px-3.5 h-full text-[12px] cursor-pointer select-none border-r border-dock-border ${
               isActive
                 ? "bg-dock-bg text-dock-text"

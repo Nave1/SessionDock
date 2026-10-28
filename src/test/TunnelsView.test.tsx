@@ -50,7 +50,7 @@ describe("TunnelsView", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("list_ssh_tunnels", {});
     fireEvent.click(screen.getByRole("button", { name: "tunnelsWorkspace.focus" }));
 
-    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "terminal" });
     expect(useAppStore.getState().tabs[0].activePaneId).toBe("pane-1");
   });
 
@@ -59,7 +59,7 @@ describe("TunnelsView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "tunnelsWorkspace.start" }));
 
-    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "recent" });
+    expect(useAppStore.getState()).toMatchObject({ activeTabId: "tab-1", currentView: "terminal" });
     expect(useAppStore.getState().tabs[0]).toMatchObject({
       activePaneId: "pane-1",
       toolPaneId: "pane-1",

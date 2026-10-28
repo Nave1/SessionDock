@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BmcSessionConfig, Protocol } from "../types";
 
-export type ViewMode = "home" | "allSessions" | "favorites" | "recent" | "folder" | "group" | "activeConnections" | "transfers" | "tunnels" | "diagnostics" | "settings" | "credentials" | "tags";
+export type ViewMode = "home" | "terminal" | "allSessions" | "favorites" | "recent" | "folder" | "group" | "activeConnections" | "transfers" | "tunnels" | "diagnostics" | "settings" | "credentials" | "tags";
 
 export type ConnectionStatus =
   | "idle"
@@ -166,6 +166,7 @@ export const useAppStore = create<AppState>()(persist((set) => ({
     set((state) => ({
       tabs: [...state.tabs, tab],
       activeTabId: tab.id,
+      currentView: "terminal",
     })),
 
   removeTab: (id) =>
@@ -280,7 +281,7 @@ export const useAppStore = create<AppState>()(persist((set) => ({
   requestPaneTool: (tabId, paneId, panel, transferProtocol) =>
     set((state) => ({
       activeTabId: tabId,
-      currentView: "recent",
+      currentView: "terminal",
       tabs: state.tabs.map((tab) => tab.id === tabId ? {
         ...tab,
         activePaneId: paneId,

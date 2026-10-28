@@ -138,7 +138,7 @@ describe("SftpPanel", () => {
 
     const remotePane = screen.getByRole("listbox", { name: "sftp.remoteFiles" });
     const dropTransfer = {
-      types: ["application/sessiondock-local-file"],
+      types: [],
       dropEffect: "none",
       getData: (type: string) => payloads.get(type) ?? "",
     };
@@ -149,6 +149,33 @@ describe("SftpPanel", () => {
       tabId: "pane-drop-upload",
       localPath: "C:\\configs\\switch.cfg",
       remotePath: "/switch.cfg",
+      overwrite: false,
+    }));
+  });
+
+  it("uploads a local file into the remote folder it is dropped onto", async () => {
+    mocks.invoke.mockImplementation(async (command: string) => {
+      if (command === "list_local_directory") return {
+        path: "C:\\configs",
+        entries: [{ name: "switch.cfg", path: "C:\\configs\\switch.cfg", kind: "file", size: 128 }],
+      };
+      if (command === "list_sftp_directory") return [{ name: "archive", path: "/archive", kind: "directory" }];
+      return "upload-transfer-2";
+    });
+    render(<SftpPanel tabId="pane-folder-upload" onClose={vi.fn()} />);
+    const payloads = new Map<string, string>();
+    fireEvent.dragStart((await screen.findByText("switch.cfg")).closest("button")!, {
+      dataTransfer: { effectAllowed: "none", setData: (type: string, value: string) => payloads.set(type, value) },
+    });
+    const remoteFolder = screen.getByText("archive").closest("button")!;
+    const dropTransfer = { types: [], dropEffect: "none", getData: (type: string) => payloads.get(type) ?? "" };
+    fireEvent.dragOver(remoteFolder, { dataTransfer: dropTransfer });
+    fireEvent.drop(remoteFolder, { dataTransfer: dropTransfer });
+
+    await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("start_sftp_upload", {
+      tabId: "pane-folder-upload",
+      localPath: "C:\\configs\\switch.cfg",
+      remotePath: "/archive/switch.cfg",
       overwrite: false,
     }));
   });
@@ -181,6 +208,33 @@ describe("SftpPanel", () => {
     await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("start_sftp_download", {
       tabId: "pane-drop-download",
       localPath: "C:\\downloads\\backup.cfg",
+      remotePath: "/backup.cfg",
+      overwrite: false,
+    }));
+  });
+
+  it("downloads a remote file into the local folder it is dropped onto", async () => {
+    mocks.invoke.mockImplementation(async (command: string) => {
+      if (command === "list_local_directory") return {
+        path: "C:\\downloads",
+        entries: [{ name: "archive", path: "C:\\downloads\\archive", kind: "directory" }],
+      };
+      if (command === "list_sftp_directory") return [{ name: "backup.cfg", path: "/backup.cfg", kind: "file", size: 64 }];
+      return "download-transfer-2";
+    });
+    render(<SftpPanel tabId="pane-folder-download" onClose={vi.fn()} />);
+    const payloads = new Map<string, string>();
+    fireEvent.dragStart((await screen.findByText("backup.cfg")).closest("button")!, {
+      dataTransfer: { effectAllowed: "none", setData: (type: string, value: string) => payloads.set(type, value) },
+    });
+    const localFolder = screen.getByText("archive").closest("button")!;
+    const dropTransfer = { types: [], dropEffect: "none", getData: (type: string) => payloads.get(type) ?? "" };
+    fireEvent.dragOver(localFolder, { dataTransfer: dropTransfer });
+    fireEvent.drop(localFolder, { dataTransfer: dropTransfer });
+
+    await waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("start_sftp_download", {
+      tabId: "pane-folder-download",
+      localPath: "C:\\downloads\\archive\\backup.cfg",
       remotePath: "/backup.cfg",
       overwrite: false,
     }));

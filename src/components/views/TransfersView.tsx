@@ -58,7 +58,7 @@ export function TransfersView({ onQuickConnect = () => undefined }: { onQuickCon
     if (!owner) return;
     setActiveTab(owner.id);
     setActivePane(owner.id, transfer.tabId);
-    setCurrentView("recent");
+    setCurrentView("terminal");
   };
 
   const startTransfer = () => {

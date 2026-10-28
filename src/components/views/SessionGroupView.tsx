@@ -83,7 +83,7 @@ export function SessionGroupView() {
       pinned: false,
       bmc: session.protocol === "bmc" ? session : undefined,
     });
-    setCurrentView("recent");
+    setCurrentView("terminal");
   };
 
   const connectAll = () => {

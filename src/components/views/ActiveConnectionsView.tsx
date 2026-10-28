@@ -70,7 +70,7 @@ export function ActiveConnectionsView() {
   const focusPane = (row: ConnectionRow) => {
     setActiveTab(row.tab.id);
     setActivePane(row.tab.id, row.paneId);
-    setCurrentView("recent");
+    setCurrentView("terminal");
   };
 
   const closePane = async (row: ConnectionRow) => {

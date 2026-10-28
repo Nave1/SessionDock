@@ -160,7 +160,11 @@
     "actions": "פעולות",
     "closedConnection": "חיבור סגור",
     "focus": "מיקוד בחיבור",
-    "rerun": "הרצה מחדש"
+    "rerun": "הרצה מחדש",
+    "chooseTarget": "בחירת יעד לאבחון",
+    "chooseTargetHint": "בחר את התקן ה-SSH המחובר שבו ייפתח מידע על המכשיר.",
+    "pane": "חלונית {{index}}",
+    "connectAnother": "חיבור להתקן אחר"
   },
   "home": {
     "quickConnect": "חיבור מהיר",
